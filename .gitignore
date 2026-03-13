@@ -36,9 +36,6 @@ set_test_status.py
 compile_test*.js
 test_vue_script.js
 landing_page/node_modules/
-landing_page/dist/
-!landing_page/dist/index.html
-!landing_page/dist/assets/
-# Note: Keep landing_page/dist if you want Railway to serve it without building it every time, 
-# or ignore it and add a build command in railway.json.
-# For now, I'll assume we push the built dist folder for simplicity if it exists.
+# Note: We want to push the built dist folder for Railway to serve it
+# landing_page/dist/ is NO LONGER ignored
+landing_page/node_modules/

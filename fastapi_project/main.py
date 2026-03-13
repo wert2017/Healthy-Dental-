@@ -180,9 +180,14 @@ async def login_for_access_token(
 @app.get("/")
 def root():
     # Serve landing page if built, otherwise redirect to reception
-    landing_index = "../landing_page/dist/index.html"
+    # Use absolute paths relative to this file to be robust
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    landing_index = os.path.join(current_dir, "..", "landing_page", "dist", "index.html")
+    
     if os.path.exists(landing_index):
         return FileResponse(landing_index)
+    
+    print(f"DEBUG: Landing page not found at {landing_index}")
     return RedirectResponse("/recepcion")
 
 # Public Routes (Static)
@@ -375,6 +380,17 @@ class MovimientosLink(BaseView):
 
 # --- APP STARTUP & SEEDING ---
 def seed_data(session: Session):
+    # Seed Sucursales (Clinics) - CRITICAL for first login
+    if not session.exec(select(Sucursal)).first():
+        sucursales = [
+            Sucursal(nombre="Clínica Central", direccion="Av. Principal 123"),
+            Sucursal(nombre="Sucursal Norte", direccion="Calle Norte 456"),
+        ]
+        for s in sucursales:
+            session.add(s)
+        session.commit()
+        print("SEED: Sucursales agregadas.")
+
     # Seed Treatments
     if not session.exec(select(Tratamiento)).first():
         tratamientos = [
