@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica HD - Mantenimiento</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js" crossorigin="anonymous"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+    <div id="app">
+        <!-- Header -->
+        <!-- Header Unificado -->
+        <header class="bg-white shadow-sm border-b border-gray-200 mb-8 sticky top-0 z-30">
+            <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+                <!-- Logo -->
+                <div class="flex-shrink-0 flex items-center gap-4">
+                    <img src="/static/logo.png" alt="Logo Clínica HD" class="h-10 w-auto">
+                    <h1
+                        class="text-2xl font-bold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
+                        Clínica HD
+                    </h1>
+                </div>
+
+                <div class="flex items-center gap-1 overflow-x-auto">
+                    <!-- Recepción -->
+                    <a href="/recepcion"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/recepcion') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Recepción
+                    </a>
+                    <!-- CxC / Abonos -->
+                    <a href="/static/pagos.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/pagos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        CxC / Abonos
+                    </a>
+                    <!-- Gastos -->
+                    <a v-if="role !== 'doctor'" href="/gastos"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/gastos') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Gastos
+                    </a>
+                    <!-- Administración -->
+                    <a v-if="role !== 'doctor'" href="/admin"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Administración
+                    </a>
+                    <!-- Pacientes -->
+                    <a v-if="role !== 'doctor'" href="/admin/paciente/list"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin/paciente/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Pacientes
+                    </a>
+                    <!-- Reportes -->
+                    <a v-if="role !== 'doctor'" href="/static/reportes.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/reportes.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Reportes
+                    </a>
+                    <!-- Historial -->
+                    <a href="/recepcion/historial"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/recepcion/historial') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Historial
+                    </a>
+                    <!-- Inventario -->
+                    <a v-if="role !== 'doctor'" href="/admin/insumo/list"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin/insumo/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Mantenimiento
+                    </a>
+                    <!-- Salir -->
+                    <a href="#" @click.prevent="logout"
+                        class="px-3 py-2 rounded-md text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors ml-2 whitespace-nowrap">
+                        Salir
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-16 text-center animate-fade-in">
+                <div class="inline-flex items-center justify-center w-24 h-24 bg-amber-50 rounded-full mb-8">
+                    <svg class="w-12 h-12 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-4 uppercase tracking-tighter italic">Sección en
+                    Mantenimiento</h2>
+                <p class="text-xl text-gray-500 max-w-lg mx-auto leading-relaxed">
+                    Estamos trabajando intensamente en optimizar el sistema de gestión de insumos para brindarte un
+                    mejor servicio. Por el momento, esta sección no está disponible.
+                </p>
+                <div class="mt-10 flex justify-center gap-4">
+                    <a href="/recepcion"
+                        class="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-600/20">
+                        Volver a Recepción
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref } = Vue
+        createApp({
+            setup() {
+                const token = localStorage.getItem('token')
+                const role = ref(localStorage.getItem('role'))
+                const isActive = (path) => window.location.pathname === path
+                if (!token) window.location.href = '/login'
+                const logout = () => {
+                    localStorage.clear()
+                    window.location.href = '/login'
+                }
+                return { role, isActive, logout }
+            }
+        }).mount('#app')
+    </script>
+</body>
+
+</html>

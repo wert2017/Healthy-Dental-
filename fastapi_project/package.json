@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@vue/compiler-dom": "^3.5.29",
+    "htmlparser2": "^10.1.0"
+  }
+}

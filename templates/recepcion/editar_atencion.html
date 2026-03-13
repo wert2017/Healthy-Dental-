@@ -1,0 +1,368 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Atención - Clínica HD{% endblock %}
+
+{% block content %}
+
+<!-- HEADER PACIENTE -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="flex-row">
+        <div>
+            <h2 style="margin: 0; color: var(--primary-color);">{{ paciente.nombre_mostrar }} [VERSION FINAL]</h2>
+            <p style="color: grey; margin: 5px 0 0 0;">HC: {{ paciente.historia_clinica }} | Atención #{{ atencion.id }}
+            </p>
+        </div>
+        <div>
+            {% if estado_saldo == "deuda" %}
+            <span class="badge deuda" style="font-size: 1.2em;">🔴 Deuda: ${{ saldo_paciente }}</span>
+            {% elif estado_saldo == "abono" %}
+            <span class="badge abono" style="font-size: 1.2em;">🟢 A Favor: ${{ saldo_paciente_abs }}</span>
+            {% else %}
+            <span class="badge ok" style="font-size: 1.2em;">⚪ Al Día</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 1. RESUMEN DE PAGOS Y DOCTOR PRINCIPAL -->
+<div class="card" style="width: 100%; margin-bottom: 20px; overflow-x: auto;">
+    <h3>📊 Resumen de Pagos</h3>
+    <table style="font-size: 0.9em; min-width: 900px; width: 100%;">
+        <thead>
+            <tr>
+                <th style="width: 30px;">#</th>
+                <th>FICHA</th>
+                <th style="min-width: 150px;">NOMBRE APELLIDO</th>
+                <th>DOCTOR PRINCIPAL</th>
+                <th style="color: #6c757d;">COMISIÓN (Tot)</th>
+                <th>VALOR TOTAL</th>
+                <!-- Pagos Breakdown -->
+                <th style="background-color: #d1ecf1;">EFECTIVO</th>
+                <th style="background-color: #d1ecf1;">TRANSF</th>
+                <th style="background-color: #d1ecf1;">TC/TD</th>
+                <th style="background-color: #d1ecf1;">ABONO</th>
+                <th style="color: #dc3545;">CXC</th>
+                <th style="text-align: center;">ESTADO</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="{% if atencion.validado %}table-secondary{% endif %}">
+                <td>01</td>
+                <td>{{ atencion.id }}</td>
+                <td>{{ atencion.paciente.nombre_mostrar }}</td>
+
+                <!-- DOCTOR (Dropdown Global) -->
+                <td>
+                    {% if not atencion.validado %}
+                    <form method="post" id="form-update-doctor" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_doctor_header">
+                        <select name="doctor_id" onchange="document.getElementById('form-update-doctor').submit()"
+                            style="border: 1px solid #ced4da; border-radius: 4px; padding: 2px; width: 100%;">
+                            <option value="">-- Asignar --</option>
+                            {% for d in doctores %}
+                            <option value="{{ d.id }}" {% if atencion.doctor_id==d.id %}selected{% endif %}>
+                                {{ d.apellidos }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                    {% else %}
+                    {{ atencion.doctor.apellidos|default:"--" }}
+                    {% endif %}
+                </td>
+
+                <!-- Comision -->
+                <td style="color: #6c757d;">${{ atencion.total_comision }}</td>
+
+                <!-- Valor Total Atencion -->
+                <td style="font-weight: bold; font-size: 1.1em;">${{ atencion.total_atencion_valor }}</td>
+
+                <!-- Breakdowns (Pagos) -->
+                <td>
+                    <input type="number" step="0.01" value="{{ atencion.monto_efectivo }}" class="editable-input"
+                        onchange="updatePayment({{ atencion.id }}, 'EF', this)" {% if atencion.validado %}disabled{%
+                        endif %}>
+                </td>
+                <td>
+                    <input type="number" step="0.01" value="{{ atencion.monto_transferencia }}" class="editable-input"
+                        onchange="updatePayment({{ atencion.id }}, 'TR', this)" {% if atencion.validado %}disabled{%
+                        endif %}>
+                </td>
+                <td>
+                    <input type="number" step="0.01" value="{{ atencion.monto_tarjeta }}" class="editable-input"
+                        onchange="updatePayment({{ atencion.id }}, 'TC', this)" {% if atencion.validado %}disabled{%
+                        endif %}>
+                </td>
+                <td>
+                    <input type="number" step="0.01" value="{{ atencion.monto_abono }}" class="editable-input"
+                        onchange="updatePayment({{ atencion.id }}, 'AB', this)" {% if atencion.validado %}disabled{%
+                        endif %}>
+                </td>
+
+                <!-- CXC (Saldo) -->
+                <td id="cxc-{{ atencion.id }}" style="color: #dc3545; font-weight: bold;">
+                    {% with saldo=atencion.saldo_cxc %}
+                    {% if saldo > 0 %}${{ saldo }}{% else %}--{% endif %}
+                    {% endwith %}
+                </td>
+
+                <!-- ESTADO -->
+                <td style="text-align: center;">
+                    {% if not atencion.validado %}
+                    <span class="badge" style="background-color: #28a745; cursor: default;">En Proceso</span>
+                    {% else %}
+                    <span class="badge" style="background-color: #007bff; cursor: default;">🔒 Cerrada</span>
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- 2. BARRA DE AGREGAR TRATAMIENTO -->
+{% if not atencion.validado %}
+<div class="card" style="margin-bottom: 20px; background-color: #f8f9fa; border-left: 5px solid #17a2b8;">
+    <h4 style="margin-top: 0; color: #17a2b8;">✚ Agregar Nuevo Tratamiento</h4>
+    <form method="post" id="form-quick-add-treatment" class="flex-row" style="gap: 10px; align-items: center;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_tratamiento">
+
+        <div style="flex-grow: 1;">
+            <select name="tratamiento" required
+                style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                <option value="">-- Seleccionar Tratamiento --</option>
+                {% for t in tratamientos %}
+                <option value="{{ t.id }}">{{ t.nombre }} - ${{ t.precio_base }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+
+    </form>
+</div>
+{% endif %}
+
+<!-- 3. DETALLES DE TRATAMIENTOS (TABLA EDITABLE) -->
+<div class="card" style="width: 100%;">
+    <div class="flex-row">
+        <h5 style="color: #6c757d; margin: 0;">🛠️ Detalle de Tratamientos (Editable)</h5>
+        {% if atencion.validado %}
+        <small style="color: red;">Modo Lectura</small>
+        {% endif %}
+    </div>
+
+    <table style="width: 100%; margin-top: 15px; border-collapse: separate; border-spacing: 0 5px;">
+        <thead>
+            <tr style="background-color: #eee;">
+                <th style="padding: 10px;">Tratamiento</th>
+                <th style="padding: 10px; width: 200px;">Doctor Asignado</th>
+                <th style="padding: 10px; width: 100px;">Comisión %</th>
+                <th style="padding: 10px; width: 80px;">Cant.</th>
+                <th style="padding: 10px; width: 100px;">Precio $</th>
+                <th style="padding: 10px;">Total</th>
+                <th style="padding: 10px; text-align: center;">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for detalle in atencion.detalles.all %}
+            <tr style="background-color: white; border-bottom: 1px solid #ddd;">
+                <!-- TRATAMIENTO (Solo Texto) -->
+                <td style="padding: 10px; font-weight: 500;">
+                    {{ detalle.tratamiento.nombre }}
+                </td>
+
+                <!-- DOCTOR (Editable) -->
+                <td style="padding: 10px;">
+                    <select class="form-control" onchange="updateDetalle({{ detalle.id }}, 'doctor', this.value)" {% if
+                        atencion.validado %}disabled{% endif %}
+                        style="width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="">-- (Principal) --</option>
+                        {% for d in doctores %}
+                        <option value="{{ d.id }}" {% if detalle.doctor_id==d.id %}selected{% endif %}>
+                            {{ d.apellidos }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </td>
+
+                <!-- COMISION (Editable) -->
+                <td style="padding: 10px;">
+                    <div style="display: flex; align-items: center;">
+                        <input type="number" step="0.01" value="{{ detalle.porcentaje_comision }}"
+                            onchange="updateDetalle({{ detalle.id }}, 'comision', this.value)" {% if atencion.validado
+                            %}disabled{% endif %}
+                            style="width: 60px; padding: 5px; text-align: right; border: 1px solid #ccc; border-radius: 4px;">
+                        <span style="margin-left: 5px;">%</span>
+                    </div>
+                </td>
+
+                <!-- CANTIDAD (Editable) -->
+                <td style="padding: 10px;">
+                    <input type="number" step="1" value="{{ detalle.cantidad }}"
+                        onchange="updateDetalle({{ detalle.id }}, 'cantidad', this.value)" {% if atencion.validado
+                        %}disabled{% endif %}
+                        style="width: 60px; padding: 5px; text-align: center; border: 1px solid #ccc; border-radius: 4px;">
+                </td>
+
+                <!-- PRECIO (Editable) -->
+                <td style="padding: 10px;">
+                    <input type="number" step="0.01" value="{{ detalle.precio_base }}"
+                        onchange="updateDetalle({{ detalle.id }}, 'precio', this.value)" {% if atencion.validado
+                        %}disabled{% endif %}
+                        style="width: 80px; padding: 5px; text-align: right; border: 1px solid #ccc; border-radius: 4px; font-weight: bold;">
+                </td>
+
+                <!-- TOTAL (Calculado) -->
+                <td style="padding: 10px; font-weight: bold;" id="detalle-total-{{ detalle.id }}">
+                    ${{ detalle.total_calculado }}
+                </td>
+
+                <!-- ACCION -->
+                <td style="padding: 10px; text-align: center;">
+                    {% if not atencion.validado %}
+                    <form method="post" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_tratamiento">
+                        <input type="hidden" name="detalle_id" value="{{ detalle.id }}">
+                        <button class="btn" onclick="return confirm('¿Eliminar este ítem?')"
+                            style="background-color: #fff; color: #dc3545; border: 1px solid #dc3545; padding: 5px 10px; border-radius: 4px;"
+                            title="Eliminar">
+                            🗑️
+                        </button>
+                    </form>
+                    {% else %}
+                    🔒
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 20px; color: #aaa; font-style: italic;">
+                    No hay tratamientos agregados. Usa la barra celeste de arriba para añadir uno.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        {% if atencion.detalles.exists %}
+        <tfoot>
+            <tr style="background-color: #f8f9fa; font-weight: bold;">
+                <td colspan="5" style="text-align: right; padding: 10px;">TOTAL ATENCIÓN:</td>
+                <td style="padding: 10px; color: var(--primary-color); font-size: 1.1em;" id="footer-total-atencion">
+                    ${{ atencion.total_atencion_valor }}
+                </td>
+                <td></td>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+</div>
+
+
+<script>
+    // Función para actualizar pagos (Existente)
+    function updatePayment(atencionId, tipo, input) {
+        const originalValue = input.defaultValue;
+        const newValue = input.value;
+        input.style.backgroundColor = "#e2e3e5";
+
+        fetch(`/recepcion/update_payment/${atencionId}/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ tipo: tipo, monto: newValue })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    input.style.backgroundColor = "#d4edda";
+                    setTimeout(() => input.style.backgroundColor = "", 1000);
+                    input.defaultValue = newValue;
+                    updateSaldoExposed(atencionId, data);
+                } else {
+                    alert("Error: " + data.error);
+                    input.value = originalValue;
+                    input.style.backgroundColor = "#f8d7da";
+                }
+            });
+    }
+
+    // Nueva Función para actualizar Detalles de Tratamiento
+    function updateDetalle(detalleId, field, value) {
+        // Feedback visual inmediato (opcional)
+        // ...
+
+        fetch(`/recepcion/update_detalle/${detalleId}/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ field: field, value: value })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Actualizar celda de Total Detalle
+                    const totalCell = document.getElementById(`detalle-total-${detalleId}`);
+                    if (totalCell) totalCell.textContent = `$${data.nuevo_total.toFixed(2)}`;
+
+                    // Actualizar Footer Total Atención si existe
+                    const footerTotal = document.getElementById(`footer-total-atencion`);
+                    if (footerTotal) footerTotal.textContent = `$${data.total_atencion.toFixed(2)}`;
+
+                    // Actualizar Saldo Pendiente (CXC) en tabla superior
+                    // Necesitamos el ID de atencion... pero data trae saldo_pendiente
+                    // Asumimos que solo hay una atencion en esta pagina, pero el ID es dinamico.
+                    // Sin embargo, updatePayment usa cxc-{id}. Aqui podriamos recargar o buscar por clase.
+                    // Mejor: iterar cxc elements, o simplemente recargar si es critico. 
+                    // Pero data trae los valores float. 
+
+                    // Hack: Buscar el elemento CXC que empiece con cxc-
+                    const cxcElement = document.querySelector('[id^="cxc-"]');
+                    if (cxcElement) {
+                        if (data.saldo_pendiente > 0) {
+                            cxcElement.textContent = `$${data.saldo_pendiente.toFixed(2)}`;
+                            cxcElement.style.color = '#dc3545';
+                        } else {
+                            cxcElement.textContent = '--';
+                            cxcElement.style.color = '#28a745';
+                        }
+                    }
+
+                    // Opcional: Feedback mas claro de exito
+                } else {
+                    alert("Error al actualizar: " + data.error);
+                }
+            })
+            .catch(err => console.error("Error", err));
+    }
+
+    function updateSaldoExposed(atencionId, data) {
+        const cxcCell = document.getElementById(`cxc-${atencionId}`);
+        if (cxcCell && data.nuevo_saldo !== undefined) {
+            const saldo = parseFloat(data.nuevo_saldo);
+            if (saldo > 0) {
+                cxcCell.textContent = `$${saldo.toFixed(2)}`;
+                cxcCell.style.color = '#dc3545';
+            } else {
+                cxcCell.textContent = '--';
+                cxcCell.style.color = '#28a745';
+            }
+        }
+    }
+</script>
+
+<style>
+    .editable-input {
+        width: 70px;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        text-align: right;
+    }
+
+    input:focus,
+    select:focus {
+        border-color: #17a2b8 !important;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+    }
+</style>
+{% endblock %}

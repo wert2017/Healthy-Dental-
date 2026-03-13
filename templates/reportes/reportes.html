@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Reportes{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h3>📈 Reportes del Día: {{ fecha_hoy }}</h3>
+
+    <div class="flex-row" style="justify-content: flex-start; gap: 40px; margin-top: 20px;">
+
+        <div
+            style="background: #e3f2fd; padding: 20px; border-radius: 8px; text-align: center; border: 1px solid #90caf9;">
+            <p style="margin: 0; font-size: 0.9em; color: var(--primary-color);">Total Atenciones</p>
+            <h2 style="margin: 5px 0 0 0; font-size: 2.5em;">{{ total_atenciones_hoy }}</h2>
+        </div>
+
+        <!-- Placeholder para futuros reportes -->
+        <div
+            style="background: #f1f8e9; padding: 20px; border-radius: 8px; text-align: center; border: 1px solid #c5e1a5;">
+            <p style="margin: 0; font-size: 0.9em; color: #33691e;">Ingresos Hoy</p>
+            <h2 style="margin: 5px 0 0 0; font-size: 2.5em;">--</h2>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

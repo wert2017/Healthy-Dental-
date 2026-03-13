@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Nuevo Paciente - Clínica HD{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto; padding: 15px;">
+    <h2>👤 Registrar Nuevo Paciente</h2>
+    <p style="color: grey; margin-bottom: 20px;">Complete los datos. Al guardar, será redirigido a la recepción para
+        iniciar la atención.</p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            {% for field in form %}
+            <div style="display: flex; flex-direction: column;">
+                <label style="font-weight: bold; margin-bottom: 2px; font-size: 0.85em;">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <small style="color: red; font-size: 0.75em;">{{ field.errors.0 }}</small>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+            <a href="{% url 'recepcion' %}" class="btn" style="background-color: #6c757d;">Cancelar</a>
+            <button type="submit" class="btn" style="background-color: var(--primary-color);">💾 Guardar
+                Paciente</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica HD - Recepción</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+    <!-- DEBUGGING SCRIPT -->
+    <script>
+        window.onerror = function (msg, url, lineNo, columnNo, error) {
+            console.error('Window Error:', msg, url, lineNo, columnNo, error);
+            alert('Error Detallado:\n' + msg + '\nLínea: ' + lineNo + '\nColumna: ' + columnNo + '\nError: ' + (error ? error.message : 'N/A'));
+            return false;
+        };
+    </script>
+
+    <div id="app">
+        <!-- Header Unificado -->
+        <header class="bg-white shadow-sm border-b border-gray-200 mb-8 sticky top-0 z-30">
+            <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+                <!-- Logo -->
+                <div class="flex-shrink-0 flex items-center gap-4">
+                    <img src="/static/logo.png" alt="Logo Clínica HD" class="h-10 w-auto">
+                    <h1
+                        class="text-2xl font-bold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
+                        Clínica HD
+                    </h1>
+                </div>
+
+                <div class="flex items-center gap-1 overflow-x-auto">
+                    <!-- Recepción -->
+                    <a href="/recepcion"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/recepcion') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Recepción
+                    </a>
+                    <!-- CxC / Abonos -->
+                    <a href="/static/pagos.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/pagos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        CxC / Abonos
+                    </a>
+                    <!-- Gastos -->
+                    <a v-if="role !== 'doctor'" href="/gastos"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/gastos') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Gastos
+                    </a>
+                    <!-- Administración -->
+                    <a v-if="role !== 'doctor'" href="/admin"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Administración
+                    </a>
+                    <!-- Pacientes -->
+                    <a v-if="role !== 'doctor'" href="/admin/paciente/list"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin/paciente/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Pacientes
+                    </a>
+                    <!-- Reportes -->
+                    <a v-if="role !== 'doctor'" href="/static/reportes.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/reportes.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Reportes
+                    </a>
+                    <!-- Historial -->
+                    <a href="/recepcion/historial"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/recepcion/historial') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Historial
+                    </a>
+                    <!-- Inventario -->
+                    <a v-if="role !== 'doctor'" href="/admin/insumo/list"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin/insumo/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Mantenimiento
+                    </a>
+                    <!-- Salir -->
+                    <a href="#" @click.prevent="logout"
+                        class="px-3 py-2 rounded-md text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors ml-2 whitespace-nowrap">
+                        Salir
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+            <!-- Search Section -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Buscar Paciente</h2>
+                    <a href="/admin/paciente/create"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-lg shadow-blue-600/20">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
+                            </path>
+                        </svg>
+                        Crear Nuevo Paciente
+                    </a>
+                </div>
+                <div class="relative max-w-2xl">
+                    <input type="text" v-model="searchQuery" @input="debounceSearch" @keydown.enter="searchPacientes"
+                        class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition text-gray-600"
+                        placeholder="Buscar por nombre, cédula o apellido...">
+                    <svg class="w-6 h-6 text-gray-400 absolute left-4 top-3.5" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+
+                <!-- Results -->
+                <div v-if="pacientes.length > 0" class="mt-4 space-y-3">
+                    <div v-for="p in pacientes" :key="p.id"
+                        class="flex justify-between items-center p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition group">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-gray-800 text-lg group-hover:text-blue-700">{{ p.nombres }}
+                                    {{
+                                    p.apellidos }}</span>
+                                <!-- Financial Status Badges -->
+                                <span v-if="p.estado_financiero === 'DEUDA'"
+                                    class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-bold border border-red-200">
+                                    Deuda: -${{ Math.abs(p.balance).toFixed(2) }}
+                                </span>
+                                <span v-else-if="p.estado_financiero === 'FAVOR'"
+                                    class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold border border-blue-200">
+                                    Favor: ${{ p.balance.toFixed(2) }}
+                                </span>
+                                <span v-else
+                                    class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold border border-green-200">
+                                    Al Día
+                                </span>
+                                <!-- NEW: Wallet Balance Badge -->
+                                <span v-if="p.saldo_favor > 0"
+                                    class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-xs font-bold border border-amber-200 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                        </path>
+                                    </svg>
+                                    Abono: ${{ p.saldo_favor.toFixed(2) }}
+                                </span>
+                            </div>
+                            <div class="text-sm text-gray-500">C.I: {{ p.numero_identificacion }} | Historia: {{
+                                p.historia_clinica }}</div>
+                        </div>
+
+                        <div class="flex items-center">
+                            <!-- Helper: Recharge Wallet -->
+                            <button @click="openRecargaModal(p)"
+                                class="mr-2 bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 px-3 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm"
+                                title="Agregar Saldo a Favor">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                                <span class="hidden sm:inline text-sm">Abonar</span>
+                            </button>
+
+                            <button @click="crearAtencion(p)"
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm">
+                                <span>Agregar Tratamiento</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 5l7 7-7 7">
+                                    </path>
+                                </svg>
+                            </button>
+                            <button @click="openTratamientoModal(p)"
+                                class="ml-2 bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-blue-600 px-3 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm"
+                                title="Gestionar Tratamientos">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                                    </path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div v-else-if="searchQuery.length >= 2 && !loading" class="mt-8 text-center py-8">
+                    <p class="text-gray-500 text-lg">No se encontraron pacientes con esa búsqueda.</p>
+                </div>
+                <div v-if="loading" class="mt-8 text-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                </div>
+
+            </div>
+
+
+
+            <!-- WALLET RECHARGE MODAL -->
+            <div v-if="showRecargaModal"
+                class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div
+                    class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden transform transition-all scale-100">
+                    <div class="bg-amber-500 px-6 py-4 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z">
+                                </path>
+                            </svg>
+                            Abono
+                        </h3>
+                        <button @click="closeRecargaModal" class="text-white/80 hover:text-white transition">X</button>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-sm text-gray-500 mb-4">Ingresa el monto a añadir como saldo a favor de
+                            <strong>{{
+                                selectedPaciente?.nombres }}</strong>.
+                        </p>
+
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Monto a Abonar
+                                ($)</label>
+                            <input type="number" step="0.01" v-model.number="montoRecarga"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 text-2xl font-bold text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                                placeholder="0.00" autofocus>
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Método de Pago</label>
+                            <select v-model="metodoPagoRecarga"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:ring-2 focus:ring-amber-500 outline-none bg-white">
+                                <option value="EFECTIVO">💵 Efectivo</option>
+                                <option value="TRANSFERENCIA">🏦 Transferencia</option>
+                                <option value="TARJETA">💳 Tarjeta / Voucher</option>
+                            </select>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button @click="closeRecargaModal"
+                                class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-200 transition">Cancelar</button>
+                            <button @click="procesarRecarga" :disabled="!montoRecarga || montoRecarga <= 0"
+                                class="flex-1 bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition shadow-lg shadow-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Today -->
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">Hoja de Cargo (Hoy)</h3>
+                    <button @click="isReportModalOpen = true"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                            </path>
+                        </svg>
+                        Reporte Diario
+                    </button>
+                </div>
+
+                <div v-if="Object.keys(groupedAtenciones).length === 0"
+                    class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+                    <div class="inline-block p-4 rounded-full bg-blue-50 text-blue-500 mb-4">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                            </path>
+                        </svg>
+                    </div>
+                    <h4 class="text-gray-800 font-medium mb-1">Sin movimientos hoy</h4>
+                    <p class="text-gray-500 text-sm">Las atenciones que registres aparecerán aquí.</p>
+                </div>
+
+                <div v-else class="grid grid-cols-1 gap-6">
+                    <!-- Group by day -->
+                    <div v-for="(items, date) in groupedAtenciones" :key="date"
+                        class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="bg-gray-50 px-6 py-3 border-b border-gray-100 flex justify-between items-center">
+                            <h3 class="font-semibold text-gray-700">{{ date }}</h3>
+                            <span
+                                class="text-xs font-medium bg-white px-2 py-1 rounded text-gray-500 border border-gray-200">{{
+                                items.length }} atenciones</span>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-white text-xs uppercase text-gray-500 border-b border-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 font-semibold">Hora</th>
+                                        <th class="px-6 py-3 font-semibold">Paciente</th>
+                                        <th class="px-6 py-3 font-semibold">Tratamiento</th>
+                                        <th class="px-6 py-3 font-semibold">Doctor</th>
+                                        <th class="px-6 py-3 font-semibold">Comisión</th>
+                                        <th class="px-6 py-3 font-semibold">Formas Pago</th>
+                                        <th class="px-6 py-3 font-semibold">Total</th>
+                                        <th class="px-6 py-3 font-semibold">Pagado</th>
+                                        <th class="px-6 py-3 font-semibold">Estado</th>
+                                        <th class="px-6 py-3 font-semibold text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50">
+                                    <tr v-for="item in items" :key="item.id" class="hover:bg-gray-50/50 transition">
+                                        <td class="px-6 py-4 text-sm text-gray-500 font-mono">{{ item.hora }}</td>
+                                        <td class="px-6 py-4">
+                                            <div class="font-medium text-gray-900">{{ item.paciente.nombres }} {{
+                                                item.paciente.apellidos }}</div>
+                                            <div class="text-xs text-gray-400">{{ item.paciente.historia_clinica }}
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">
+                                            {{ item.resumen_tratamientos || '-' }}
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">
+                                            {{ item.resumen_doctores || '-' }}
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-500">
+                                            {{ item.resumen_comisiones || '-' }}
+                                        </td>
+                                        <td class="px-6 py-4 text-xs text-gray-500">
+                                            <div v-for="(amount, method) in item.pagos" :key="method">
+                                                <span v-if="amount > 0" class="block whitespace-nowrap">
+                                                    <span class="font-semibold">{{ method }}:</span> ${{
+                                                    amount.toFixed(2)
+                                                    }}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 text-sm font-medium text-gray-900">${{ (item.total ||
+                                            0).toFixed(2) }}
+                                        </td>
+                                        <td class="px-6 py-4 text-sm">
+                                            <!-- Financial Status (Replaces Progress Bar) -->
+                                            <div v-if="item.patient_financial_status === 'DEUDA'"
+                                                class="flex items-center gap-2">
+                                                <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                                                <span
+                                                    class="text-red-700 font-bold text-xs bg-red-100 px-2 py-1 rounded-full">
+                                                    Deuda: -${{ Math.abs(item.patient_balance).toFixed(2) }}
+                                                </span>
+                                            </div>
+                                            <div v-else-if="item.patient_financial_status === 'FAVOR'"
+                                                class="flex items-center gap-2">
+                                                <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                                                <span
+                                                    class="text-blue-700 font-bold text-xs bg-blue-100 px-2 py-1 rounded-full">
+                                                    Favor: ${{ item.patient_balance.toFixed(2) }}
+                                                </span>
+                                            </div>
+                                            <div v-else class="flex items-center gap-2">
+                                                <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                                                <span
+                                                    class="text-green-700 font-bold text-xs bg-green-100 px-2 py-1 rounded-full">
+                                                    Al Día
+                                                </span>
+                                            </div>
+
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <span
+                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                                :class="{
+                                                'bg-yellow-100 text-yellow-800': !item.validado && item.estado !== 'POR_REVISAR',
+                                                'bg-green-100 text-green-800': item.validado,
+                                                'bg-orange-500 text-white animate-pulse': item.estado === 'POR_REVISAR'
+                                            }">
+                                                <svg v-if="item.estado === 'POR_REVISAR'" class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                </svg>
+                                                {{ item.estado === 'POR_REVISAR' ? 'Requiere Revisión' : (!item.validado ? 'Pendiente' : 'Conciliado') }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 flex justify-end gap-2">
+                                            <a v-if="!item.validado" :href="'/recepcion/editar/' + item.id"
+                                                class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                                title="Editar">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                                                    </path>
+                                                </svg>
+                                            </a>
+                                            <button v-if="!item.validado" @click="deleteAtencion(item.id)"
+                                                class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                                                title="Eliminar">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                    </path>
+                                                </svg>
+                                            </button>
+                                            <span v-else class="text-gray-300 cursor-not-allowed" title="Bloqueado"><svg
+                                                    class="w-5 h-5" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                                    </path>
+                                                </svg></span>
+
+                                            <!-- Conciliate -->
+                                            <button @click="conciliar(item)"
+                                                :title="item.validado ? 'Conciliado' : 'Conciliar'"
+                                                class="w-6 h-6 border-2 rounded-md flex items-center justify-center transition focus:outline-none"
+                                                :class="item.validado ? 'bg-green-500 border-green-500 text-white' : 'border-indigo-200 hover:border-green-500 hover:text-green-500 text-transparent'">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+
+
+
+            <!-- REPORT MODAL (Relocated) -->
+            <div v-if="isReportModalOpen"
+                class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+                @click.self="isReportModalOpen = false">
+                <div class="bg-white rounded-xl shadow-xl w-full max-w-5xl overflow-hidden transform transition-all">
+                    <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+                        <h3 class="text-white font-bold text-lg">Reporte Diario</h3>
+                        <button @click="isReportModalOpen = false" class="text-indigo-200 hover:text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <!-- Horizontal Layout: Grid for items -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <!-- Efectivo -->
+                            <div
+                                class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                <span class="text-gray-500 font-medium text-sm mb-1">💵 Efectivo</span>
+                                <span class="text-gray-900 font-bold text-xl">${{ dailyReport.efectivo.toFixed(2)
+                                    }}</span>
+                            </div>
+
+                            <!-- Transferencia -->
+                            <div
+                                class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                <span class="text-gray-500 font-medium text-sm mb-1">🏦 Transferencia</span>
+                                <span class="text-gray-900 font-bold text-xl">${{ dailyReport.transferencia.toFixed(2)
+                                    }}</span>
+                            </div>
+
+                            <!-- Tarjeta -->
+                            <div
+                                class="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                <span class="text-gray-500 font-medium text-sm mb-1">💳 Tarjeta</span>
+                                <span class="text-gray-900 font-bold text-xl">${{ dailyReport.tarjeta.toFixed(2)
+                                    }}</span>
+                            </div>
+
+                            <!-- Abonos/Recargas (Billetera) -->
+                            <div
+                                class="flex flex-col items-center justify-center p-4 bg-green-50 rounded-xl border border-green-100 shadow-sm">
+                                <span class="text-green-600 font-bold text-sm mb-1 uppercase tracking-wider">🌟
+                                    Billetera (Abonos)</span>
+                                <span class="text-green-900 font-black text-2xl">${{ dailyReport.extra.toFixed(2)
+                                    }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-6 py-4 text-right">
+                    <button @click="isReportModalOpen = false"
+                        class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium transition">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div> <!-- Closing App -->
+
+    <script>
+        if (typeof Vue === 'undefined') alert('CRITICAL: VueJS not loaded!');
+        if (typeof axios === 'undefined') alert('CRITICAL: Axios not loaded!');
+
+        const { createApp, ref, computed, onMounted } = Vue
+
+        const app = createApp({
+            setup() {
+                const searchQuery = ref('')
+                const pacientes = ref([])
+                const dashboardData = ref([])
+                const groupedAtenciones = ref({})
+                const loading = ref(false)
+                const role = ref(localStorage.getItem('role') || 'doctor')
+                const isActive = (path) => window.location.pathname === path;
+                let timeout = null
+
+                // Tratamiento Modal State
+                const showTratamientoModal = ref(false)
+                const showRecargaModal = ref(false)
+                const selectedPaciente = ref(null)
+                const activeTreatments = ref([])
+                const availableTreatments = ref([])
+                const selectedTratamientoId = ref("")
+                const montoRecarga = ref(0)
+                const metodoPagoRecarga = ref("EFECTIVO")
+                const isReportModalOpen = ref(false)
+                const directRecharges = ref(0)
+
+                // --- AUTH SETUP ---
+                const token = localStorage.getItem('token')
+                if (!token) {
+                    window.location.href = '/login'
+                }
+                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+                axios.interceptors.response.use(
+                    response => response,
+                    error => {
+                        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                            localStorage.removeItem('token')
+                            window.location.href = '/login'
+                        }
+                        return Promise.reject(error)
+                    }
+                )
+
+                const logout = () => {
+                    localStorage.clear()
+                    window.location.href = '/login'
+                }
+                // --- END AUTH ---
+
+                const loadDashboard = async () => {
+                    try {
+                        const res = await axios.get('/api/atenciones/dashboard')
+                        dashboardData.value = res.data
+
+                        // Group by date
+                        const groups = {}
+                        res.data.forEach(item => {
+                            if (!groups[item.fecha_dia]) {
+                                groups[item.fecha_dia] = []
+                            }
+                            groups[item.fecha_dia].push(item)
+                        })
+                        groupedAtenciones.value = groups
+
+                        // Fetch Daily Summary (Recharges)
+                        const summaryRes = await axios.get('/api/reportes/diario-sumario')
+                        directRecharges.value = summaryRes.data.recargas_directas
+                    } catch (error) {
+                        console.error(error)
+                    }
+                }
+
+                const conciliar = async (item) => {
+                    if (item.validado) return
+
+                    const result = await Swal.fire({
+                        title: `¿Conciliar atención de ${item.paciente.nombres}?`,
+                        text: "Una vez validado no se podrá editar.",
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3b82f6',
+                        cancelButtonColor: '#ef4444',
+                        confirmButtonText: 'Sí, conciliar',
+                        cancelButtonText: 'Cancelar'
+                    })
+
+                    if (!result.isConfirmed) return
+
+                    try {
+                        await axios.post(`/api/atenciones/${item.id}/validar`)
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Conciliado',
+                            showConfirmButton: false,
+                            timer: 1500
+                        })
+                        loadDashboard()
+                    } catch (error) {
+                        console.error('Error al validar:', error);
+                        const msg = error.response?.data?.detail || error.message;
+                        Swal.fire('Error', 'Error al validar: ' + msg, 'error')
+                    }
+                }
+
+                onMounted(() => {
+                    loadDashboard()
+                })
+
+                const searchPacientes = async () => {
+                    if (searchQuery.value.length < 2) {
+                        pacientes.value = []
+                        return
+                    }
+                    loading.value = true
+                    try {
+                        const res = await axios.get(`/api/pacientes?q=${searchQuery.value}`)
+                        pacientes.value = res.data
+                    } catch (error) {
+                        console.error(error)
+                    } finally {
+                        loading.value = false
+                    }
+                }
+
+                const debounceSearch = () => {
+                    clearTimeout(timeout)
+                    timeout = setTimeout(searchPacientes, 300)
+                }
+
+                const crearAtencion = async (paciente) => {
+                    console.log('Iniciando crearAtencion...');
+                    console.log('Paciente Object:', paciente);
+
+                    if (!paciente || !paciente.id) {
+                        alert('Error CRÍTICO: Objeto paciente inválido o sin ID: ' + JSON.stringify(paciente));
+                        return;
+                    }
+
+                    const pacienteId = paciente.id;
+
+                    try {
+                        console.log(`Enviando POST a /api/atenciones?paciente_id=${pacienteId}`);
+                        const res = await axios.post(`/api/atenciones?paciente_id=${pacienteId}`)
+                        console.log('Respuesta del servidor:', res);
+
+                        if (res && res.data && res.data.id) {
+                            console.log('Redirigiendo a:', `/recepcion/editar/${res.data.id}`);
+                            window.location.href = `/recepcion/editar/${res.data.id}`
+                        } else {
+                            console.error('Respuesta inválida:', res);
+                            throw new Error('La respuesta del servidor no contiene un ID de atención válido. Data: ' + JSON.stringify(res?.data));
+                        }
+                    } catch (error) {
+                        console.error('Error capturado en crearAtencion:', error);
+                        Swal.fire('Error', 'Error al crear atención: ' + (error.response?.data?.detail || error.message), 'error');
+                    }
+                }
+
+                // --- TRATAMIENTO MODAL LOGIC ---
+                const openTratamientoModal = async (paciente) => {
+                    selectedPaciente.value = paciente
+                    showTratamientoModal.value = true
+                    selectedTratamientoId.value = ""
+
+                    try {
+                        const [activeRes, allRes] = await Promise.all([
+                            axios.get(`/api/pacientes/${paciente.id}/tratamientos-activos`),
+                            axios.get('/api/tratamientos')
+                        ])
+                        activeTreatments.value = activeRes.data
+                        availableTreatments.value = allRes.data
+                    } catch (error) {
+                        console.error(error)
+                        Swal.fire('Error', 'Error cargando tratamientos', 'error')
+                    }
+                }
+
+                const closeTratamientoModal = () => {
+                    showTratamientoModal.value = false
+                    selectedPaciente.value = null
+                }
+
+                const iniciarTratamiento = async () => {
+                    if (!selectedTratamientoId.value) return
+                    try {
+                        await axios.post(`/api/pacientes/${selectedPaciente.value.id}/tratamientos?tratamiento_id=${selectedTratamientoId.value}`)
+                        const res = await axios.get(`/api/pacientes/${selectedPaciente.value.id}/tratamientos-activos`)
+                        activeTreatments.value = res.data
+                        selectedTratamientoId.value = ""
+                    } catch (error) {
+                        Swal.fire('Error', error.response?.data?.detail || 'Error iniciando tratamiento', 'error')
+                    }
+                }
+
+                const finishTreatment = async (t) => {
+                    const result = await Swal.fire({
+                        title: `¿Finalizar tratamiento "${t.nombre}"?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3b82f6',
+                        cancelButtonColor: '#ef4444',
+                        confirmButtonText: 'Sí, finalizar',
+                        cancelButtonText: 'Cancelar'
+                    })
+
+                    if (!result.isConfirmed) return
+
+                    try {
+                        await axios.put(`/api/pacientes/${selectedPaciente.value.id}/tratamientos/${t.tratamiento_id}/finalizar`)
+                        // Refresh
+                        await openTratamientoModal(selectedPaciente.value)
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Finalizado',
+                            showConfirmButton: false,
+                            timer: 1000
+                        })
+                    } catch (error) {
+                        Swal.fire('Error', error.response?.data?.detail || "Error", 'error')
+                    }
+                }
+
+                // --- WALLET LOGIC ---
+                const openRecargaModal = (p) => {
+                    selectedPaciente.value = p
+                    montoRecarga.value = ""
+                    showRecargaModal.value = true
+                }
+
+                const closeRecargaModal = () => {
+                    showRecargaModal.value = false
+                    selectedPaciente.value = null
+                    montoRecarga.value = 0
+                    metodoPagoRecarga.value = "EFECTIVO"
+                }
+
+                const procesarRecarga = async () => {
+                    if (!montoRecarga.value || montoRecarga.value <= 0) return
+                    try {
+                        const res = await axios.post(`/api/pacientes/${selectedPaciente.value.id}/recargar`, {
+                            monto: montoRecarga.value,
+                            metodo_pago: metodoPagoRecarga.value
+                        })
+                        Swal.fire('Recarga Exitosa', `Se han recargado: $${montoRecarga.value}`, 'success')
+                        closeRecargaModal()
+                        searchPacientes() // Refresh table to show new balance
+                    } catch (error) {
+                        console.error('Error en recarga:', error);
+                        let msg = "Error desconocido.";
+                        if (error.response) {
+                            // Server responded with a status code out of 2xx range
+                            const status = error.response.status;
+                            const data = error.response.data;
+                            msg = `Error Server (${status}): `;
+                            if (data && data.detail) {
+                                msg += typeof data.detail === 'object' ? JSON.stringify(data.detail) : data.detail;
+                            } else {
+                                msg += JSON.stringify(data);
+                            }
+                        } else if (error.request) {
+                            // Request was made but no response received
+                            msg = "No se recibió respuesta del servidor.";
+                        } else {
+                            // Something happened in setting up the request
+                            msg = error.message;
+                        }
+                        Swal.fire('Error', "Error en recarga: " + msg, 'error');
+                    }
+                }
+
+                const deleteAtencion = async (id) => {
+                    const result = await Swal.fire({
+                        title: '¿Estás seguro?',
+                        text: "No podrás revertir esto.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#ef4444',
+                        cancelButtonColor: '#3b82f6',
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    })
+
+                    if (!result.isConfirmed) return
+
+                    try {
+                        await axios.delete(`/api/atenciones/${id}`)
+                        Swal.fire('Eliminado', 'La atención ha sido eliminada.', 'success')
+                        await loadDashboard()
+                    } catch (error) {
+                        Swal.fire('Error', 'Error eliminando atención: ' + (error.response?.data?.detail || error.message), 'error')
+                    }
+                }
+
+                const dailyReport = computed(() => {
+                    let ef = 0, tr = 0, tc = 0, extra = 0
+
+                    if (dashboardData.value) {
+                        dashboardData.value.forEach(item => {
+                            // Sum payments (pagos is a Dict: { "EF": 100, "TR": 0 ... })
+                            if (item.pagos) {
+                                // Iterate over entries [method, amount]
+                                Object.entries(item.pagos).forEach(([method, amount]) => {
+                                    const val = parseFloat(amount || 0)
+                                    if (method === 'EF') ef += val
+                                    if (method === 'TR') tr += val
+                                    if (method === 'TC') tc += val
+                                })
+                            }
+
+                            // Calculate Extra (Paid > Cost)
+                            const totalPaid = item.pagos ? Object.values(item.pagos).reduce((sum, val) => sum + parseFloat(val || 0), 0) : 0
+                            const cost = parseFloat(item.total || 0)
+
+                            if (totalPaid > cost) {
+                                extra += (totalPaid - cost)
+                            }
+                        })
+                    }
+
+                    return {
+                        efectivo: ef,
+                        transferencia: tr,
+                        tarjeta: tc,
+                        extra: extra + (directRecharges.value || 0)
+                    }
+                })
+
+                return {
+                    role, token, logout, isActive,
+                    groupedAtenciones,
+                    searchQuery, pacientes, searchPacientes, debounceSearch, loading,
+                    crearAtencion,
+                    showTratamientoModal, selectedPaciente, activeTreatments, availableTreatments, selectedTratamientoId,
+                    openTratamientoModal,
+                    closeTratamientoModal,
+                    iniciarTratamiento,
+                    finishTreatment,
+                    // Wallet
+                    showRecargaModal,
+                    montoRecarga,
+                    metodoPagoRecarga,
+                    openRecargaModal,
+                    closeRecargaModal,
+                    procesarRecarga,
+                    deleteAtencion, conciliar,
+                    // Renamed Modal State
+                    isReportModalOpen,
+                    dailyReport
+                }
+            }
+        }).mount('#app')
+    </script>
+
+</html>

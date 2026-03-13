@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica HD - Historial Global</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js" crossorigin="anonymous"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+    <div id="app">
+        <!-- Header -->
+        <!-- Header Unificado -->
+        <header class="bg-white shadow-sm border-b border-gray-200 mb-8 sticky top-0 z-30">
+            <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+                <!-- Logo -->
+                <div class="flex-shrink-0 flex items-center gap-4">
+                    <img src="/static/logo.png" alt="Logo Clínica HD" class="h-10 w-auto">
+                    <h1
+                        class="text-2xl font-bold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
+                        Clínica HD
+                    </h1>
+                </div>
+
+                <div class="flex items-center gap-1 overflow-x-auto">
+                    <!-- Recepción -->
+                    <a href="/recepcion"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/recepcion') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Recepción
+                    </a>
+                    <!-- CxC / Abonos -->
+                    <a href="/static/pagos.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/pagos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        CxC / Abonos
+                    </a>
+                    <!-- Gastos -->
+                    <a v-if="role !== 'doctor'" href="/gastos"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/gastos') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Gastos
+                    </a>
+                    <!-- Administración -->
+                    <a v-if="role !== 'doctor'" href="/admin"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Administración
+                    </a>
+                    <!-- Pacientes -->
+                    <a v-if="role !== 'doctor'" href="/admin/paciente/list"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin/paciente/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Pacientes
+                    </a>
+                    <!-- Reportes -->
+                    <a v-if="role !== 'doctor'" href="/static/reportes.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/reportes.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Reportes
+                    </a>
+                    <!-- Historial -->
+                    <a href="/recepcion/historial"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/recepcion/historial') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Historial
+                    </a>
+                    <!-- Inventario -->
+                    <a v-if="role !== 'doctor'" href="/admin/insumo/list"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin/insumo/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Mantenimiento
+                    </a>
+                    <!-- Salir -->
+                    <a href="#" @click.prevent="logout"
+                        class="px-3 py-2 rounded-md text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors ml-2 whitespace-nowrap">
+                        Salir
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="mb-8 flex justify-between items-end">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-900">Historial de Actividad</h2>
+                    <p class="text-gray-500 mt-1">Auditoría global de cambios en tratamientos y pagos.</p>
+                </div>
+                <div class="flex gap-3">
+                    <button @click="loadHistorial"
+                        class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Refrescar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+                <div class="flex gap-4">
+                    <div class="flex-grow relative">
+                        <input type="text" v-model="filterQuery"
+                            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-50 focus:outline-none transition text-sm"
+                            placeholder="Buscar por paciente, acción o descripción...">
+                        <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="bg-slate-50/50 border-b border-gray-100">
+                                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    Fecha / Hora</th>
+                                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    Paciente</th>
+                                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    Acción</th>
+                                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    Descripción</th>
+                                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    Usuario</th>
+                                <th class="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    Atención</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            <tr v-if="filteredHistorial.length === 0" class="hover:bg-slate-50/50 transition-colors">
+                                <td colspan="6" class="px-6 py-12 text-center text-gray-400 italic">No se encontraron
+                                    registros de actividad.</td>
+                            </tr>
+                            <tr v-for="log in filteredHistorial" :key="log.id"
+                                class="hover:bg-slate-50/50 transition-colors group">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-xs font-semibold text-gray-700">{{ formatDate(log.fecha) }}</div>
+                                    <div class="text-[10px] text-gray-400 font-mono">{{ formatTime(log.fecha) }}</div>
+                                </td>
+                                <td class="px-6 py-4 font-semibold text-gray-800 text-sm">
+                                    {{ log.paciente_nombre }}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                                        :class="{
+                                            'bg-emerald-100 text-emerald-700': log.accion.includes('Añadido'),
+                                            'bg-rose-100 text-rose-700': log.accion.includes('Eliminado'),
+                                            'bg-amber-100 text-amber-700': log.accion.includes('Ajustada') || log.accion.includes('Sincronizados') || log.accion.includes('Editados'),
+                                            'bg-indigo-100 text-indigo-700': log.accion.includes('Notas'),
+                                            'bg-slate-100 text-slate-700': !log.accion.includes('Añadido') && !log.accion.includes('Eliminado') && !log.accion.includes('Ajustada') && !log.accion.includes('Notas')
+                                        }">
+                                        {{ log.accion }}
+                                    </span>
+                                </td>
+                                <td
+                                    class="px-6 py-4 text-xs text-gray-600 max-w-sm truncate group-hover:whitespace-normal group-hover:overflow-visible">
+                                    {{ log.descripcion }}
+                                </td>
+                                <td class="px-6 py-4 font-medium text-gray-700 text-sm italic">
+                                    @{{ log.usuario }}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <a :href="'/recepcion/editar/' + log.atencion_id"
+                                        class="text-blue-600 hover:text-blue-800 text-xs font-bold underline decoration-blue-200 underline-offset-4">
+                                        Ver Atn #{{ log.atencion_id }}
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination for Global History -->
+                <div class="px-6 py-4 bg-slate-50 border-t border-gray-100 flex items-center justify-between">
+                    <p class="text-xs text-gray-500 font-medium">Página {{ currentPage }}</p>
+                    <div class="flex gap-2">
+                        <button @click="changePage(-1)" :disabled="currentPage === 1"
+                            class="px-3 py-1 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                            Anterior
+                        </button>
+                        <button @click="changePage(1)" :disabled="historial.length < 50"
+                            class="px-3 py-1 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                            Siguiente
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const historial = ref([]);
+                const filterQuery = ref('');
+                const currentPage = ref(1);
+                const role = ref(localStorage.getItem('role'));
+                const isActive = (path) => window.location.pathname === path;
+
+                const loadHistorial = async () => {
+                    const token = localStorage.getItem('token');
+                    if (!token) {
+                        window.location.href = '/login';
+                        return;
+                    }
+                    try {
+                        const res = await axios.get('/api/atenciones/historial/global', {
+                            headers: { 'Authorization': `Bearer ${token}` },
+                            params: {
+                                page: currentPage.value,
+                                size: 50
+                            }
+                        });
+                        historial.value = res.data;
+                    } catch (err) {
+                        console.error("Error loading global history", err);
+                    }
+                };
+
+                const changePage = (delta) => {
+                    currentPage.value += delta;
+                    loadHistorial();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
+
+                const filteredHistorial = computed(() => {
+                    if (!filterQuery.value) return historial.value;
+                    const q = filterQuery.value.toLowerCase();
+                    return historial.value.filter(h =>
+                        h.paciente_nombre.toLowerCase().includes(q) ||
+                        h.accion.toLowerCase().includes(q) ||
+                        h.descripcion.toLowerCase().includes(q) ||
+                        h.usuario.toLowerCase().includes(q)
+                    );
+                });
+
+                const formatDate = (dateStr) => {
+                    const d = new Date(dateStr);
+                    return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                };
+
+                const formatTime = (dateStr) => {
+                    const d = new Date(dateStr);
+                    return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                };
+
+                const logout = () => {
+                    localStorage.clear();
+                    window.location.href = '/login';
+                };
+
+                onMounted(loadHistorial);
+
+                return {
+                    historial,
+                    filterQuery,
+                    role,
+                    filteredHistorial,
+                    currentPage,
+                    changePage,
+                    loadHistorial,
+                    formatDate,
+                    formatTime,
+                    logout,
+                    isActive
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>

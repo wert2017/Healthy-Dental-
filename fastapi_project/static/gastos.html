@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica HD - Gestión de Gastos</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+    <!-- DEBUGGING SCRIPT -->
+    <script>
+        window.onerror = function (msg, url, lineNo, columnNo, error) {
+            console.error('Window Error:', msg, url, lineNo, columnNo, error);
+            alert('Error Detallado en Gastos:\n' + msg + '\nLínea: ' + lineNo);
+            return false;
+        };
+    </script>
+
+    <div id="app">
+        <!-- Header Unificado -->
+        <header class="bg-white shadow-sm border-b border-gray-200 mb-8 sticky top-0 z-30">
+            <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+                <!-- Logo -->
+                <div class="flex-shrink-0 flex items-center gap-4">
+                    <img src="/static/logo.png" alt="Logo Clínica HD" class="h-10 w-auto">
+                    <h1
+                        class="text-2xl font-bold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
+                        Clínica HD
+                    </h1>
+                </div>
+
+                <div class="flex items-center gap-1 overflow-x-auto">
+                    <!-- Recepción -->
+                    <a href="/recepcion"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/recepcion') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Recepción
+                    </a>
+                    <!-- CxC / Abonos -->
+                    <a href="/static/pagos.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/pagos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        CxC / Abonos
+                    </a>
+                    <!-- Gastos -->
+                    <a v-if="role !== 'doctor'" href="/gastos"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/gastos') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Gastos
+                    </a>
+                    <!-- Administración -->
+                    <a v-if="role !== 'doctor'" href="/admin"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Administración
+                    </a>
+                    <!-- Pacientes -->
+                    <a v-if="role !== 'doctor'" href="/admin/paciente/list"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin/paciente/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Pacientes
+                    </a>
+                    <!-- Reportes -->
+                    <a v-if="role !== 'doctor'" href="/static/reportes.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/reportes.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Reportes
+                    </a>
+                    <!-- Historial -->
+                    <a href="/recepcion/historial"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/recepcion/historial') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Historial
+                    </a>
+                    <!-- Inventario -->
+                    <a v-if="role !== 'doctor'" href="/admin/insumo/list"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin/insumo/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Mantenimiento
+                    </a>
+                    <!-- Salir -->
+                    <a href="#" @click.prevent="logout"
+                        class="px-3 py-2 rounded-md text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors ml-2 whitespace-nowrap">
+                        Salir
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Balances -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+                <!-- Caja Efectivo -->
+                <div class="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-emerald-500 relative overflow-hidden">
+                    <p class="text-xs font-semibold text-emerald-600 mb-1 uppercase tracking-wider">💵 Caja Física</p>
+                    <h3 class="text-3xl font-black text-slate-800">${{ Number(balances.efectivo || 0).toFixed(2) }}</h3>
+                    <p class="text-[10px] text-slate-400 mt-1 leading-tight">Pagos EFI + Recargas EFI - Gastos EFI</p>
+                </div>
+
+                <!-- Cuenta Transferencias -->
+                <div class="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-blue-500 relative overflow-hidden">
+                    <p class="text-xs font-semibold text-blue-600 mb-1 uppercase tracking-wider">🏦 Banco</p>
+                    <h3 class="text-3xl font-black text-slate-800">${{ Number(balances.transferencia || 0).toFixed(2) }}
+                    </h3>
+                    <p class="text-[10px] text-slate-400 mt-1 leading-tight">Pagos TR + Recargas TR - Gastos TR</p>
+                </div>
+
+                <!-- Tarjeta -->
+                <div class="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-indigo-500 relative overflow-hidden">
+                    <p class="text-xs font-semibold text-indigo-600 mb-1 uppercase tracking-wider">💳 Tarjeta / Datafaz
+                    </p>
+                    <h3 class="text-3xl font-black text-slate-800">${{ Number(balances.tarjeta || 0).toFixed(2) }}</h3>
+                    <p class="text-[10px] text-slate-400 mt-1 leading-tight">Pendiente depositado por operadora</p>
+                </div>
+
+                <!-- Total Global -->
+                <div
+                    class="bg-slate-800 rounded-2xl p-5 shadow-sm border-l-4 border-purple-500 relative overflow-hidden">
+                    <p class="text-xs font-semibold text-purple-400 mb-1 uppercase tracking-wider">💎 Total Global</p>
+                    <h3 class="text-3xl font-black text-white">${{ (Number(balances.efectivo || 0) +
+                        Number(balances.transferencia || 0) + Number(balances.tarjeta || 0)).toFixed(2) }}</h3>
+                    <p class="text-[10px] text-slate-400 mt-1 leading-tight">Suma de Efectivo, Banco y Tarjeta</p>
+                </div>
+
+                <!-- Quick Action -->
+                <div class="bg-slate-800 rounded-2xl p-4 shadow-lg flex flex-col justify-center">
+                    <button @click="showModal = true"
+                        class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl hover:bg-emerald-400 transition transform active:scale-95 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
+                            </path>
+                        </svg>
+                        Registrar Gasto
+                    </button>
+                    <!-- Small indicator for internal credit used -->
+                    <div v-if="balances.abono_aplicado > 0"
+                        class="mt-2 text-center bg-amber-50 rounded p-1 border border-amber-100">
+                        <span class="text-[10px] text-amber-700 font-medium">🌟 Dinero Abonado:</span>
+                        <span class="text-[10px] font-bold text-amber-600 ml-1">${{ Number(balances.abono_aplicado ||
+                            0).toFixed(2) }}</span>
+                    </div>
+
+                    <button @click="openNominaModal" v-if="role === 'admin'"
+                        class="w-full mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-2 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm shadow-md">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                            </path>
+                        </svg>
+                        Nómina y Socios
+                    </button>
+
+                    <!-- NUEVO: Botón de Transferencia Interna -->
+                    <button @click="showTransferModal = true" v-if="role === 'admin'"
+                        class="w-full mt-2 bg-white text-slate-700 border border-slate-200 font-bold py-2 rounded-xl hover:bg-slate-50 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm shadow-sm">
+                        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        Transferencia Interna
+                    </button>
+                </div>
+            </div>
+
+            <!-- Expenses List -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h2 class="text-lg font-bold text-slate-800">Historial de Gastos</h2>
+                    <div class="flex gap-4 items-center">
+                        <div class="relative">
+                            <span
+                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </span>
+                            <input type="text" v-model="searchQuery" @input="debounceFetch"
+                                placeholder="Buscar por descripción..."
+                                class="pl-10 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none w-64 transition-all">
+                        </div>
+                        <input type="date" v-model="startDate" @change="fetchGastos"
+                            class="px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                        <input type="date" v-model="endDate" @change="fetchGastos"
+                            class="px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-slate-400 text-xs uppercase tracking-widest bg-slate-50">
+                                <th class="px-6 py-4 font-semibold">Fecha</th>
+                                <th class="px-6 py-4 font-semibold">Descripción</th>
+                                <th class="px-6 py-4 font-semibold">Categoría</th>
+                                <th class="px-6 py-4 font-semibold">Método</th>
+                                <th class="px-6 py-4 font-semibold text-right">Monto</th>
+                                <th class="px-6 py-4 font-semibold">Responsable</th>
+                                <th class="px-6 py-4 font-semibold">Registrado por</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-sm">
+                            <tr v-for="g in gastos" :key="g.id" class="hover:bg-slate-50/50 transition">
+                                <td class="px-6 py-4 text-slate-500 whitespace-nowrap">{{ formatDate(g.fecha) }}</td>
+                                <td class="px-6 py-4 font-medium text-slate-700">{{ g.descripcion || '-' }}</td>
+                                <td class="px-6 py-4 text-xs font-bold text-slate-500">{{ g.categoria || 'GENERAL' }}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span v-if="g.metodo_pago === 'EFECTIVO'" class="text-emerald-600 font-medium">💵
+                                        Efectivo</span>
+                                    <span v-else class="text-blue-600 font-medium">🏦 Transf.</span>
+                                </td>
+                                <td class="px-6 py-4 text-right font-black text-rose-600">
+                                    -${{ Number(g.monto || 0).toFixed(2) }}
+                                </td>
+                                <td class="px-6 py-4 text-slate-700">{{ g.responsable || '-' }}</td>
+                                <td class="px-6 py-4 text-slate-500 italic">{{ g.usuario?.username || 'Sistema' }}</td>
+                            </tr>
+                            <tr v-if="gastos.length === 0">
+                                <td colspan="7" class="px-6 py-12 text-center text-slate-400 italic">No se encontraron
+                                    gastos en este periodo</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination for Gastos -->
+                <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                    <p class="text-xs text-gray-500 font-medium">Página {{ currentPage }}</p>
+                    <div class="flex gap-2">
+                        <button @click="changePage(-1)" :disabled="currentPage === 1"
+                            class="px-3 py-1 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                            Anterior
+                        </button>
+                        <button @click="changePage(1)" :disabled="gastos.length < 50"
+                            class="px-3 py-1 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                            Siguiente
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Gasto -->
+        <div v-if="showModal"
+            class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div
+                class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+                <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+                    <h3 class="text-white font-bold text-lg">Nuevo Gasto</h3>
+                    <button @click="showModal = false"
+                        class="bg-indigo-500/50 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm transition font-bold shadow-sm">
+                        CERRAR VENTANA (X)
+                    </button>
+                </div>
+                <form @submit.prevent="saveGasto" class="p-6 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="col-span-2">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Descripción / Motivo</label>
+                            <input type="text" v-model="form.descripcion" required
+                                class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="Papelería, Alquiler, etc.">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Responsable del Gasto</label>
+                            <select v-model="form.responsable" required
+                                class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                                <option value="" disabled>Seleccione un responsable...</option>
+                                <option v-for="u in usuarios" :key="u.id" :value="u.username">
+                                    {{ u.username }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Monto ($)</label>
+                            <input type="number" step="0.01" v-model="form.monto" required
+                                class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
+                            <select v-model="form.categoria"
+                                class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                                <option value="GENERAL">General</option>
+                                <option value="MATERIALES">Materiales</option>
+                                <option value="SERVICIOS">Servicios</option>
+                                <option value="PERSONAL">Personal</option>
+                                <option value="OTROS">Otros</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2 text-center">Forma de Pago</label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button type="button" @click="form.metodo_pago = 'EFECTIVO'"
+                                :class="form.metodo_pago === 'EFECTIVO' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100' : 'bg-white border-slate-200 text-slate-500'"
+                                class="p-4 rounded-2xl border-2 font-bold transition flex flex-col items-center gap-1">
+                                <span class="text-2xl">💵</span>
+                                <span class="text-xs uppercase">Efectivo</span>
+                            </button>
+                            <button type="button" @click="form.metodo_pago = 'TRANSFERENCIA'"
+                                :class="form.metodo_pago === 'TRANSFERENCIA' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100' : 'bg-white border-slate-200 text-slate-500'"
+                                class="p-4 rounded-2xl border-2 font-bold transition flex flex-col items-center gap-1">
+                                <span class="text-2xl">🏦</span>
+                                <span class="text-xs uppercase">Transf./Banco</span>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 mt-4">
+                        Guardar Registro
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Nómina -->
+        <div v-if="showNominaModal"
+            class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div
+                class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
+                <div
+                    class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
+                    <h3 class="text-white font-bold text-lg flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
+                            </path>
+                        </svg>
+                        Nómina y Socios
+                    </h3>
+                    <button @click="showNominaModal = false"
+                        class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm transition font-bold shadow-sm">
+                        CERRAR
+                    </button>
+                </div>
+
+                <div class="flex border-b border-slate-200 bg-slate-50 shrink-0">
+                    <button @click="nominaTab = 'doctores'"
+                        :class="nominaTab === 'doctores' ? 'border-b-2 border-indigo-600 text-indigo-700 font-bold bg-white' : 'text-slate-500 hover:text-slate-700'"
+                        class="px-6 py-3 text-sm transition-colors">Doctores</button>
+                    <button @click="nominaTab = 'secretarias'"
+                        :class="nominaTab === 'secretarias' ? 'border-b-2 border-indigo-600 text-indigo-700 font-bold bg-white' : 'text-slate-500 hover:text-slate-700'"
+                        class="px-6 py-3 text-sm transition-colors">Recepción & Ventas</button>
+                    <button @click="nominaTab = 'admin'"
+                        :class="nominaTab === 'admin' ? 'border-b-2 border-indigo-600 text-indigo-700 font-bold bg-white' : 'text-slate-500 hover:text-slate-700'"
+                        class="px-6 py-3 text-sm transition-colors">Retiro Socios</button>
+                </div>
+
+                <div class="p-6 overflow-y-auto bg-slate-50 flex-1 space-y-6">
+
+                    <!-- Control Bar (Fechas) -->
+                    <div v-if="nominaTab !== 'admin'"
+                        class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-end">
+                        <div class="flex-1 filter-group">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Rango de Fechas
+                                (Opcional)</label>
+                            <div class="flex gap-2 items-center">
+                                <input type="date" v-model="filterNominaStartDate"
+                                    class="w-full text-sm border-slate-200 rounded-lg px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <span class="text-slate-400 text-sm">a</span>
+                                <input type="date" v-model="filterNominaEndDate"
+                                    class="w-full text-sm border-slate-200 rounded-lg px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                        </div>
+                        <button @click="fetchNominaPendientes"
+                            class="px-6 py-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg font-medium text-sm transition h-[38px]">
+                            Aplicar Fechas
+                        </button>
+                    </div>
+
+                    <!-- TAB DOCTORES -->
+                    <div v-show="nominaTab === 'doctores'" class="space-y-4">
+                        <!-- Select Doctor -->
+                        <div v-if="pendientesNomina.doctores.length > 0" class="mb-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Filtrar Doctor
+                                Específico</label>
+                            <select v-model="selectedNominaDoctorId"
+                                class="w-full md:w-1/2 text-sm border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="all">Ver Todos los Doctores</option>
+                                <option v-for="d in pendientesNomina.doctores" :value="d.id" :key="d.id">Dr. {{ d.nombre
+                                    }}</option>
+                            </select>
+                        </div>
+
+                        <div v-if="pendientesNomina.doctores.filter(d => selectedNominaDoctorId === 'all' || selectedNominaDoctorId == d.id).length === 0"
+                            class="text-center py-8 text-slate-500 bg-white rounded-xl border border-slate-200 border-dashed">
+                            No hay comisiones de doctores pendientes por pagar bajo estos filtros.
+                        </div>
+                        <div v-for="doc in pendientesNomina.doctores" :key="doc.id"
+                            v-show="selectedNominaDoctorId === 'all' || selectedNominaDoctorId == doc.id"
+                            class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 class="text-lg font-bold text-slate-800">Dr(a). {{ doc.nombre }}</h4>
+                                    <p class="text-sm text-slate-500 font-medium mt-1">Acumulado en Comisiones: <span
+                                            class="text-emerald-600 font-bold">${{ doc.comisiones_acumuladas.toFixed(2)
+                                            }}</span></p>
+                                </div>
+                                <button @click="procesarNomina(doc, 'Doctor')"
+                                    class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-xl shadow-md transition transform active:scale-95 text-sm">
+                                    Liquidar y Pagar 💸
+                                </button>
+                            </div>
+                            <div class="mt-3 bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                <h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detalle de
+                                    atenciones pendientes:</h5>
+                                <div class="max-h-32 overflow-y-auto space-y-2">
+                                    <div v-for="(det, i) in doc.detalles" :key="i"
+                                        class="text-sm flex justify-between bg-white px-3 py-2 rounded shadow-sm border border-slate-100">
+                                        <div class="truncate mr-4 flex-1">
+                                            <span class="font-medium text-slate-700">{{ det.tratamiento }}</span>
+                                            <span class="text-xs text-slate-400 ml-2">{{ formatDate(det.fecha) }}</span>
+                                        </div>
+                                        <div class="text-right whitespace-nowrap">
+                                            <span class="text-slate-500 text-xs">Total: ${{
+                                                det.valor_tratamiento.toFixed(2) }} | {{ det.porcentaje }}% -></span>
+                                            <span class="font-bold text-emerald-600 ml-2">+${{ det.comision.toFixed(2)
+                                                }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB SECRETARIAS -->
+                    <div v-show="nominaTab === 'secretarias'" class="space-y-4">
+                        <!-- Select Secretaria -->
+                        <div v-if="pendientesNomina.vendedores.length > 0" class="mb-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Filtrar Personal
+                                Específico</label>
+                            <select v-model="selectedNominaSecretariaId"
+                                class="w-full md:w-1/2 text-sm border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="all">Ver Todo el Personal de Recepción/Ventas</option>
+                                <option v-for="v in pendientesNomina.vendedores" :value="v.id" :key="v.id">{{ v.nombre
+                                    }}</option>
+                            </select>
+                        </div>
+
+                        <div v-if="pendientesNomina.vendedores.filter(v => selectedNominaSecretariaId === 'all' || selectedNominaSecretariaId == v.id).length === 0"
+                            class="text-center py-8 text-slate-500 bg-white rounded-xl border border-slate-200 border-dashed">
+                            No hay comisiones de ventas pendientes por pagar bajo estos filtros.
+                        </div>
+                        <div v-for="vend in pendientesNomina.vendedores" :key="vend.id"
+                            v-show="selectedNominaSecretariaId === 'all' || selectedNominaSecretariaId == vend.id"
+                            class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 class="text-lg font-bold text-slate-800">{{ vend.nombre }} <span
+                                            class="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-1 rounded ml-2">Recepción</span>
+                                    </h4>
+                                    <p class="text-sm text-slate-500 font-medium mt-1">Comisiones por Ventas (Kits):
+                                        <span class="text-emerald-600 font-bold">${{
+                                            vend.comisiones_acumuladas.toFixed(2) }}</span>
+                                    </p>
+                                </div>
+                                <button @click="procesarNomina(vend, 'Secretaria')"
+                                    class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-xl shadow-md transition transform active:scale-95 text-sm">
+                                    Liquidar y Pagar 💸
+                                </button>
+                            </div>
+                            <div class="mt-3 bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                <h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detalle de
+                                    ventas pendientes:</h5>
+                                <div class="max-h-32 overflow-y-auto space-y-2">
+                                    <div v-for="(det, i) in vend.detalles" :key="i"
+                                        class="text-sm flex justify-between bg-white px-3 py-2 rounded shadow-sm border border-slate-100">
+                                        <div class="truncate mr-4 flex-1">
+                                            <span class="font-medium text-slate-700">{{ det.tratamiento }}</span>
+                                            <span class="text-xs text-slate-400 ml-2">{{ formatDate(det.fecha) }}</span>
+                                        </div>
+                                        <div class="text-right whitespace-nowrap">
+                                            <span class="text-slate-500 text-xs">Total Vendido: ${{
+                                                det.valor_tratamiento.toFixed(2) }} | {{ det.porcentaje }}% -></span>
+                                            <span class="font-bold text-emerald-600 ml-2">+${{ det.comision.toFixed(2)
+                                                }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB ADMIN SOCIOS -->
+                    <div v-show="nominaTab === 'admin'" class="max-w-xl mx-auto">
+                        <div
+                            class="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl p-6 shadow-sm mb-6 text-center">
+                            <h4 class="text-sm font-bold text-indigo-400 uppercase tracking-wider mb-1">Caja Libre
+                                Disponible</h4>
+                            <p class="text-3xl font-black text-indigo-700">${{ (balances.efectivo +
+                                balances.transferencia).toFixed(2) }}</p>
+                            <p class="text-xs text-indigo-500 mt-2">Este valor representa el total en efectivo y bancos
+                                descontando todos los gastos registrados.</p>
+                        </div>
+
+                        <div
+                            class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col items-center placeholder-slate-400 text-slate-800">
+                            <h4 class="text-lg font-bold text-slate-800 w-full mb-4 border-b pb-2 text-left">Registrar
+                                Retiro de Utilidad</h4>
+                            <form @submit.prevent="procesarRetiro" class="space-y-4 w-full text-left">
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-1">Motivo /
+                                        Descripción</label>
+                                    <input type="text" v-model="retiroForm.descripcion" required
+                                        class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-1">Responsable del
+                                        Retiro</label>
+                                    <select v-model="retiroForm.responsable" required
+                                        class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                                        <option value="" disabled>Seleccione un responsable...</option>
+                                        <option v-for="u in usuarios" :key="u.id" :value="u.username">{{ u.username }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <button type="button" @click="retiroForm.metodo_pago = 'EFECTIVO'"
+                                        :class="retiroForm.metodo_pago === 'EFECTIVO' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-2' : 'bg-white border-slate-200 text-slate-500'"
+                                        class="p-4 rounded-xl border flex justify-center items-center gap-2 font-bold transition">
+                                        <span>💵 Efectivo</span>
+                                    </button>
+                                    <button type="button" @click="retiroForm.metodo_pago = 'TRANSFERENCIA'"
+                                        :class="retiroForm.metodo_pago === 'TRANSFERENCIA' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-2' : 'bg-white border-slate-200 text-slate-500'"
+                                        class="p-4 rounded-xl border flex justify-center items-center gap-2 font-bold transition">
+                                        <span>🏦 Banco</span>
+                                    </button>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-1">Monto a Retirar
+                                        ($)</label>
+                                    <input type="number" step="0.01" max="999999" v-model="retiroForm.monto" required
+                                        class="w-full text-center text-xl font-bold px-4 py-3 rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-indigo-700 bg-indigo-50">
+                                </div>
+                                <button type="submit"
+                                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition transform active:scale-95 mt-2">
+                                    Extraer Fondos de la Clínica
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- NUEVO: Modal Transferencia Interna -->
+        <div v-if="showTransferModal"
+            class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div
+                class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+                <div class="bg-emerald-600 px-6 py-4 flex justify-between items-center">
+                    <h3 class="text-white font-bold text-lg">Transferencia Interna</h3>
+                    <button @click="showTransferModal = false"
+                        class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm transition font-bold shadow-sm">
+                        CERRAR
+                    </button>
+                </div>
+                <form @submit.prevent="procesarTransferencia" class="p-6 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Desde (Origen)</label>
+                            <select v-model="transferForm.desde" required
+                                class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                                <option value="EFECTIVO">💵 Efectivo</option>
+                                <option value="TRANSFERENCIA">🏦 Banco</option>
+                                <option value="TARJETA">💳 Tarjeta / Datafaz</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Hacia (Destino)</label>
+                            <select v-model="transferForm.hacia" required
+                                class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                                <option value="EFECTIVO">💵 Efectivo</option>
+                                <option value="TRANSFERENCIA">🏦 Banco</option>
+                                <option value="TARJETA">💳 Tarjeta / Datafaz</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Monto a Transferir ($)</label>
+                        <input type="number" step="0.01" v-model="transferForm.monto" required
+                            class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none text-center text-lg font-bold text-emerald-700 bg-emerald-50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Responsable</label>
+                        <select v-model="transferForm.responsable" required
+                            class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                            <option value="" disabled>Seleccione un responsable...</option>
+                            <option v-for="u in usuarios" :key="u.id" :value="u.username">
+                                {{ u.username }}
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Descripción / Motivo</label>
+                        <input type="text" v-model="transferForm.descripcion" required
+                            class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+                            placeholder="Ej: Depósito de caja a banco">
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition shadow-lg shadow-emerald-100 mt-4">
+                        Confirmar Transferencia
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue
+
+        createApp({
+            setup() {
+                const role = ref(localStorage.getItem('role'))
+                const sucursalId = ref(localStorage.getItem('sucursal_id'))
+                const token = localStorage.getItem('token')
+
+                const showModal = ref(false)
+                const gastos = ref([])
+                const usuarios = ref([])
+                const balances = ref({
+                    efectivo: 0,
+                    transferencia: 0,
+                    tarjeta: 0,
+                    abono_aplicado: 0
+                })
+                const startDate = ref('')
+                const endDate = ref('')
+                const currentPage = ref(1)
+
+                const form = ref({
+                    descripcion: '',
+                    responsable: '',
+                    monto: 0,
+                    metodo_pago: 'EFECTIVO',
+                    categoria: 'GENERAL'
+                })
+
+                // Nomina State
+                const showNominaModal = ref(false)
+                const nominaTab = ref('doctores') // 'doctores', 'secretarias', 'admin'
+                const pendientesNomina = ref({ doctores: [], vendedores: [] })
+                const filterNominaStartDate = ref('')
+                const filterNominaEndDate = ref('')
+                const selectedNominaDoctorId = ref('all')
+                const selectedNominaSecretariaId = ref('all')
+
+                const showTransferModal = ref(false)
+                const searchQuery = ref('')
+                const transferForm = ref({
+                    desde: 'EFECTIVO',
+                    hacia: 'TRANSFERENCIA',
+                    monto: 0,
+                    responsable: '',
+                    descripcion: 'Transferencia de fondos interna'
+                })
+
+                const nominaForm = ref({
+                    empleado_id: null,
+                    tipo_empleado: '',
+                    sueldo_base: 0,
+                    comisiones: 0,
+                    metodo_pago: 'EFECTIVO'
+                })
+
+                const retiroForm = ref({
+                    monto: 0,
+                    descripcion: 'Retiro de Socios / Utilidad del Mes',
+                    metodo_pago: 'EFECTIVO',
+                    responsable: ''
+                })
+
+                if (!token) window.location.href = '/login'
+                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+                const fetchGastos = async () => {
+                    try {
+                        const res = await axios.get('/api/gastos', {
+                            params: {
+                                start_date: startDate.value,
+                                end_date: endDate.value,
+                                search: searchQuery.value,
+                                page: currentPage.value,
+                                size: 50
+                            }
+                        })
+                        gastos.value = res.data
+                    } catch (e) {
+                        console.error("Error fetching gastos:", e)
+                    }
+                }
+
+                let timeout = null
+                const debounceFetch = () => {
+                    clearTimeout(timeout)
+                    timeout = setTimeout(() => {
+                        currentPage.value = 1
+                        fetchGastos()
+                    }, 500)
+                }
+
+                const changePage = (delta) => {
+                    currentPage.value += delta
+                    fetchGastos()
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                }
+
+                const fetchBalances = async () => {
+                    try {
+                        const res = await axios.get('/api/gastos/balances')
+                        balances.value = res.data
+                    } catch (e) { console.error(e) }
+                }
+
+                const fetchUsuarios = async () => {
+                    console.log("Gastos: Fetching users...");
+                    try {
+                        const res = await axios.get('/api/usuarios')
+                        console.log("Gastos: Users received:", res.data);
+                        usuarios.value = Array.isArray(res.data) ? res.data : []
+                    } catch (e) {
+                        console.error("Gastos: Error fetching users:", e);
+                        Swal.fire('Error', 'No se pudieron cargar los usuarios: ' + (e.response?.data?.detail || e.message), 'warning');
+                    }
+                }
+
+                // Nomina Functions
+                const fetchNominaPendientes = async () => {
+                    try {
+                        const res = await axios.get('/api/nomina/pendientes', {
+                            params: {
+                                start_date: filterNominaStartDate.value,
+                                end_date: filterNominaEndDate.value
+                            }
+                        })
+                        pendientesNomina.value = res.data
+                    } catch (e) {
+                        console.error("Error fetching nomina", e)
+                    }
+                }
+
+                const openNominaModal = () => {
+                    showNominaModal.value = true
+                    fetchNominaPendientes()
+                }
+
+                const procesarNomina = async (empleado, tipo) => {
+                    const currentUser = localStorage.getItem('username') || 'Usuario actual';
+
+                    const htmlContent = `
+                        <div class="text-left space-y-4 text-sm">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block font-medium text-gray-700">Responsable</label>
+                                    <select id="swal-responsable" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                                        <option value="">Seleccione un responsable...</option>
+                                        ${usuarios.value.map(u => `<option value="${u.username}" ${u.username === currentUser ? 'selected' : ''}>${u.username}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block font-medium text-gray-700">Resp. Transacción</label>
+                                    <input type="text" readonly value="${currentUser}" class="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm font-bold text-gray-600">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block font-medium text-gray-700">Comisiones ($)</label>
+                                    <input type="number" readonly value="${empleado.comisiones_acumuladas.toFixed(2)}" class="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm font-bold text-gray-600">
+                                </div>
+                                <div>
+                                    <label class="block font-medium text-gray-700">Sueldo Fijo ($)</label>
+                                    <input id="swal-sueldo-base" type="number" step="0.01" value="0.00" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-bold text-indigo-700">
+                                </div>
+                            </div>
+                            <hr class="my-4 border-gray-200">
+                            <h4 class="font-bold text-gray-700 mb-2 uppercase tracking-wide text-xs">Abonar Vía:</h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                                    <label class="block font-bold text-emerald-700 mb-1">Efectivo ($)</label>
+                                    <input id="swal-efectivo" type="number" step="0.01" value="${empleado.comisiones_acumuladas.toFixed(2)}" class="block w-full px-3 py-2 border border-emerald-300 rounded-md shadow-sm font-bold text-emerald-800 focus:ring-emerald-500 focus:border-emerald-500">
+                                </div>
+                                <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <label class="block font-bold text-blue-700 mb-1">Transfer.', TC ($)</label>
+                                    <input id="swal-transferencia" type="number" step="0.01" value="0.00" class="block w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm font-bold text-blue-800 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2 text-center">La suma de Efectivo y Transferencia debe igualar el Total a Pagar.</p>
+                        </div>
+                    `;
+
+                    const { value: formValues } = await Swal.fire({
+                        title: `Liquidar a ${empleado.nombre}`,
+                        html: htmlContent,
+                        focusConfirm: false,
+                        showCancelButton: true,
+                        confirmButtonColor: '#10b981',
+                        confirmButtonText: '💸 Confirmar Pago',
+                        cancelButtonText: 'Cancelar',
+                        width: '32em',
+                        didOpen: () => {
+                            // Link fields to keep total balanced if possible
+                            const sueldoBaseInput = document.getElementById('swal-sueldo-base');
+                            const efectivoInput = document.getElementById('swal-efectivo');
+                            const transInput = document.getElementById('swal-transferencia');
+
+                            const updateTotals = () => {
+                                const base = parseFloat(sueldoBaseInput.value) || 0;
+                                const com = parseFloat(empleado.comisiones_acumuladas) || 0;
+                                const total = base + com;
+                                // Simple auto-adjust to cash if they change base salary
+                                efectivoInput.value = total.toFixed(2);
+                                transInput.value = "0.00";
+                            };
+                            sueldoBaseInput.addEventListener('change', updateTotals);
+                        },
+                        preConfirm: () => {
+                            const responsable = document.getElementById('swal-responsable').value;
+                            const sueldoBase = parseFloat(document.getElementById('swal-sueldo-base').value) || 0;
+                            const efectivo = parseFloat(document.getElementById('swal-efectivo').value) || 0;
+                            const transferencia = parseFloat(document.getElementById('swal-transferencia').value) || 0;
+                            const comisiones = parseFloat(empleado.comisiones_acumuladas) || 0;
+
+                            const totalAPagar = sueldoBase + comisiones;
+                            const totalEntregado = efectivo + transferencia;
+
+                            if (Math.abs(totalAPagar - totalEntregado) > 0.02) {
+                                Swal.showValidationMessage(`El total ingresado ($${totalEntregado.toFixed(2)}) no coincide con el Total a Pagar ($${totalAPagar.toFixed(2)})`);
+                            }
+                            return { responsable, sueldoBase, efectivo, transferencia, comisiones };
+                        }
+                    });
+
+                    if (!formValues) return;
+
+                    try {
+                        const { sueldoBase, efectivo, transferencia, comisiones } = formValues;
+                        await axios.post('/api/nomina/pagar', {
+                            empleado_id: empleado.id,
+                            tipo_empleado: tipo,
+                            sueldo_base: sueldoBase,
+                            comisiones: comisiones,
+                            efectivo: efectivo,
+                            transferencia: transferencia,
+                            responsable: formValues.responsable,
+                            start_date: filterNominaStartDate.value || null,
+                            end_date: filterNominaEndDate.value || null
+                        })
+
+                        Swal.fire('Pagado', 'La nómina ha sido liquidada exitosamente.', 'success')
+                        fetchNominaPendientes() // Refresh modal data                     fetchGastos()
+                        fetchBalances()
+                    } catch (e) {
+                        Swal.fire('Error', e.response?.data?.detail || e.message, 'error')
+                    }
+                }
+
+                const procesarRetiro = async () => {
+                    if (retiroForm.value.monto <= 0) {
+                        return Swal.fire('Atención', 'El monto a retirar debe ser mayor a 0', 'warning')
+                    }
+
+                    try {
+                        await axios.post('/api/nomina/retiro-socios', {
+                            monto: retiroForm.value.monto,
+                            metodo_pago: retiroForm.value.metodo_pago,
+                            descripcion: retiroForm.value.descripcion,
+                            responsable: retiroForm.value.responsable
+                        })
+
+                        Swal.fire('¡Retiro Registrado!', `Utilidad retirada exitosamente.`, 'success')
+                        retiroForm.value.monto = 0
+                        fetchGastos()
+                        fetchBalances()
+                        showNominaModal.value = false
+                    } catch (e) {
+                        Swal.fire('Error', e.response?.data?.detail || e.message, 'error')
+                    }
+                }
+
+                const saveGasto = async () => {
+                    try {
+                        const formData = new FormData()
+                        formData.append('descripcion', form.value.descripcion)
+                        formData.append('monto', form.value.monto)
+                        formData.append('metodo_pago', form.value.metodo_pago)
+                        formData.append('categoria', form.value.categoria)
+                        formData.append('responsable', form.value.responsable)
+
+                        await axios.post('/api/gastos', formData)
+                        showModal.value = false
+                        fetchGastos()
+                        fetchBalances()
+                        form.value = { descripcion: '', responsable: '', monto: 0, metodo_pago: 'EFECTIVO', categoria: 'GENERAL' }
+                        Swal.fire('¡Éxito!', 'Gasto registrado correctamente', 'success')
+                    } catch (e) {
+                        Swal.fire('Error', e.response?.data?.detail || e.message, 'error')
+                    }
+                }
+
+                const procesarTransferencia = async () => {
+                    if (transferForm.value.desde === transferForm.value.hacia) {
+                        return Swal.fire('Error', 'El origen y el destino no pueden ser iguales', 'error')
+                    }
+                    if (transferForm.value.monto <= 0) {
+                        return Swal.fire('Error', 'El monto debe ser mayor a 0', 'error')
+                    }
+
+                    try {
+                        await axios.post('/api/gastos/transferencia', transferForm.value)
+                        Swal.fire('¡Éxito!', 'Transferencia realizada correctamente', 'success')
+                        showTransferModal.value = false
+                        fetchGastos()
+                        fetchBalances()
+                        transferForm.value = {
+                            desde: 'EFECTIVO',
+                            hacia: 'TRANSFERENCIA',
+                            monto: 0,
+                            responsable: '',
+                            descripcion: 'Transferencia de fondos interna'
+                        }
+                    } catch (e) {
+                        Swal.fire('Error', e.response?.data?.detail || e.message, 'error')
+                    }
+                }
+
+                const formatDate = (iso) => {
+                    if (!iso) return '-';
+                    const d = new Date(iso)
+                    return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                }
+
+                const logout = () => {
+                    localStorage.clear()
+                    window.location.href = '/login'
+                }
+
+                const isActive = (path) => window.location.pathname === path
+
+                onMounted(() => {
+                    fetchGastos()
+                    fetchBalances()
+                    fetchUsuarios()
+                })
+
+                return {
+                    role, sucursalId, showModal, gastos, balances, startDate, endDate, form, usuarios,
+                    showNominaModal, nominaTab, pendientesNomina, retiroForm,
+                    filterNominaStartDate, filterNominaEndDate, selectedNominaDoctorId, selectedNominaSecretariaId,
+                    fetchGastos, saveGasto, logout, formatDate, isActive, fetchNominaPendientes,
+                    currentPage, changePage,
+                    openNominaModal, procesarNomina, procesarRetiro,
+                    showTransferModal, transferForm, procesarTransferencia,
+                    searchQuery, debounceFetch
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+
+</html>

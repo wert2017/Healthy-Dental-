@@ -1,0 +1,331 @@
+{% extends 'base.html' %}
+
+{% block title %}Recepción - Clínica HD{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h3>🔍 Buscar Paciente</h3>
+    <form method="get" class="flex-row">
+        <div style="position: relative; flex-grow: 1; margin-right: 10px;">
+            <input type="text" name="q" id="search-input" placeholder="Buscar por nombre, cédula o historia clínica..."
+                style="margin-bottom:0; width: 100%;" autocomplete="off">
+            <div id="search-results"
+                style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; z-index: 1000; display: none; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            </div>
+        </div>
+        <button type="submit">Buscar</button>
+    </form>
+    <div style="margin-top: 10px; text-align: right;">
+        <a href="{% url 'crear_paciente' %}"
+            style="color: var(--primary-color); font-weight: bold; text-decoration: none;">➕ Registrar Nuevo
+            Paciente</a>
+    </div>
+</div>
+
+<div class="flex-row" style="align-items: flex-start; gap: 20px; flex-direction: column;">
+
+    <!-- RESULTADO PACIENTE (Full Width) -->
+    {% if paciente_seleccionado %}
+    <div class="card" style="width: 100%;">
+        <h3>👤 Paciente Seleccionado</h3>
+
+        <div class="flex-row">
+            <div>
+                <h2 style="margin: 0;">{{ paciente_seleccionado.nombre_mostrar }}</h2>
+                <p style="color: grey;">HC: {{ paciente_seleccionado.historia_clinica }} | ID: {{
+                    paciente_seleccionado.numero_identificacion }}</p>
+            </div>
+
+            <!-- Estado de Cuenta -->
+            <div style="min-width: 250px;">
+                {% if estado_saldo == "deuda" %}
+                <div
+                    style="background: #fff3cd; color: #856404; padding: 10px; border-left: 5px solid #dc3545; border-radius: 4px;">
+                    <h4 style="margin:0; color: #dc3545;">⚠️ Deuda Pendiente</h4>
+                    <p style="font-size: 1.2em; margin: 2px 0; font-weight: bold;">${{ saldo_paciente }}</p>
+                    <small>Por cobrar en atenciones pasadas</small>
+                </div>
+                {% elif estado_saldo == "abono" %}
+                <div
+                    style="background: #d4edda; color: #155724; padding: 10px; border-left: 5px solid #28a745; border-radius: 4px;">
+                    <h4 style="margin:0; color: #28a745;">💰 Saldo a Favor</h4>
+                    <p style="font-size: 1.2em; margin: 2px 0; font-weight: bold;">${{ saldo_paciente_abs }}</p>
+                </div>
+                {% else %}
+                <div
+                    style="background: #e2e3e5; color: #383d41; padding: 10px; border-left: 5px solid #6c757d; border-radius: 4px;">
+                    <h4 style="margin:0; color: #6c757d;">✅ Al Día</h4>
+                    <p style="margin: 2px 0;">Sin deudas pendientes.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" style="width: 100%; padding: 15px; font-size: 1.1em;">➕ Iniciar Nueva
+                    Atención</button>
+            </form>
+        </div>
+    </div>
+    {% elif request.GET.q %}
+    <div class="card" style="width: 100%; text-align: center; color: grey; padding: 20px;">
+        <p>🚫 No se encontró el paciente "{{ request.GET.q }}". Intenta registrarlo.</p>
+    </div>
+    {% endif %}
+
+    <!-- ATENCIONES DE HOY (Full Width Table) -->
+    <div class="card" style="width: 100%; overflow-x: auto;">
+        <h3>📅 Hoja de Cargo : {% now "l, j \d\e F \d\e Y" %}</h3>
+        {% if atenciones_hoy %}
+        <table style="font-size: 0.75rem; width: 100%;">
+            <thead>
+                <tr>
+                    <th style="width: 25px; padding: 2px;">#</th>
+                    <th style="padding: 2px; width: 40px;">FICHA</th>
+                    <th style="min-width: 80px; padding: 2px;">PACIENTE</th>
+                    <th style="padding: 2px; width: 50px;">DOCTOR</th>
+                    <th style="color: #6c757d; padding: 2px; min-width: 70px;">COMISION</th>
+                    <th style="min-width: 100px; padding: 2px;">TRATAMIENTO</th>
+                    <th style="padding: 2px;">VALOR</th>
+                    <!-- Pagos Breakdown -->
+                    <th style="background-color: #d1ecf1; padding: 2px;">EFEC</th>
+                    <th style="background-color: #d1ecf1; padding: 2px;">TRANS</th>
+                    <th style="background-color: #d1ecf1; padding: 2px;">TC/TD</th>
+                    <th style="background-color: #d1ecf1; padding: 2px;">ABONO</th>
+                    <th style="color: #dc3545; padding: 2px;">CXC</th>
+                    <th style="text-align: center; padding: 2px;">ACT</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for atencion in atenciones_hoy %}
+                <tr style="{% if atencion.validado %}background-color: #f8f9fa;{% endif %} font-size: 0.75rem;">
+                    <td style="padding: 2px;">{{ forloop.counter }}</td>
+                    <td style="padding: 2px;">{{ atencion.id }}</td>
+                    <td style="padding: 2px;">{{ atencion.paciente.nombre_mostrar|truncatechars:20 }}</td>
+                    <td style="padding: 2px;">{{ atencion.doctor.apellidos|default:"--"|truncatechars:10 }}</td>
+                    <!-- Comision -->
+                    <td style="color: #6c757d; padding: 2px;">${{ atencion.total_comision }}</td>
+                    <td style="padding: 2px;">
+                        <span title="{{ atencion.tratamientos_str }}">{{ atencion.tratamientos_str|default:"--"|truncatechars:25 }}</span>
+                    </td>
+
+                    <!-- Valor Total Atencion -->
+                    <td style="font-weight: bold; padding: 2px;">${{ atencion.total_atencion_valor }}</td>
+
+                    <!-- Breakdowns (READ ONLY) -->
+                    <td style="padding: 2px; text-align: center;">
+                        <span style="color: grey;">{{ atencion.monto_efectivo|default:"0.00" }}</span>
+                    </td>
+                    <td style="padding: 2px; text-align: center;">
+                        <span style="color: grey;">{{ atencion.monto_transferencia|default:"0.00" }}</span>
+                    </td>
+                    <td style="padding: 2px; text-align: center;">
+                        <span style="color: grey;">{{ atencion.monto_tarjeta|default:"0.00" }}</span>
+                    </td>
+                    <td style="padding: 2px; text-align: center;">
+                        <span style="color: grey;">{{ atencion.monto_abono|default:"0.00" }}</span>
+                    </td>
+
+                    <!-- CXC (Saldo) -->
+                    <td id="cxc-{{ atencion.id }}" style="color: #dc3545; font-weight: bold;">
+                        {% with saldo=atencion.saldo_cxc %}
+                        {% if saldo > 0 %}${{ saldo }}{% else %}--{% endif %}
+                        {% endwith %}
+                    </td>
+
+                    <!-- ACCIONES -->
+                    <td style="display: flex; gap: 5px; justify-content: center;">
+                        <!-- EDITAR -->
+                        <a href="{% url 'editar_atencion' atencion.id %}" class="btn"
+                            style="padding: 5px 10px; background-color: #ffc107; color: black;" title="Editar">
+                            ✏️
+                        </a>
+
+                        <!-- VALIDAR -->
+                        {% if atencion.validado %}
+                        <button class="btn" style="padding: 5px 10px; background-color: #28a745; cursor: default;"
+                            title="Validado" disabled>
+                            🔒
+                        </button>
+                        {% else %}
+                        <button onclick="validarAtencion({{ atencion.id }})" class="btn"
+                            style="padding: 5px 10px; background-color: #17a2b8;" title="Validar Atención">
+                            🛡️
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="font-weight: bold; background-color: #e9ecef; font-size: 0.75rem;">
+                    <td colspan="6" style="text-align: right; padding: 5px;">TOTALES:</td>
+                    <!-- VALOR -->
+                    <td style="padding: 2px;">${{ total_valor }}</td>
+                    <!-- EFEC -->
+                    <td style="padding: 2px; text-align: center;">{{ total_efectivo }}</td>
+                    <!-- TRANS -->
+                    <td style="padding: 2px; text-align: center;">{{ total_transferencia }}</td>
+                    <!-- TC/TD -->
+                    <td style="padding: 2px; text-align: center;">{{ total_tarjeta }}</td>
+                    <!-- ABONO -->
+                    <td style="padding: 2px; text-align: center;">{{ total_abono }}</td>
+                    <!-- CXC -->
+                    <td style="color: #dc3545; padding: 2px;">${{ total_cxc }}</td>
+                    <!-- ACT -->
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+        {% else %}
+        <div style="padding: 20px; text-align: center; color: #666;">
+            <p>No hay atenciones registradas hoy.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+    function updatePayment(atencionId, tipo, input) {
+        const originalValue = input.defaultValue;
+        const newValue = input.value;
+
+        // Feedback visual
+        input.style.backgroundColor = "#e2e3e5";
+
+        fetch(`/recepcion/update_payment/${atencionId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                tipo: tipo,
+                monto: newValue
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    input.style.backgroundColor = "#d4edda";
+                    setTimeout(() => input.style.backgroundColor = "", 1000);
+                    input.defaultValue = newValue;
+
+                    // Actualizar Saldo Pendiente visualmente
+                    const cxcCell = document.getElementById(`cxc-${atencionId}`);
+                    if (cxcCell && data.nuevo_saldo !== undefined) {
+                        const saldo = parseFloat(data.nuevo_saldo);
+                        if (saldo > 0) {
+                            cxcCell.textContent = `$${saldo.toFixed(2)}`;
+                            cxcCell.style.color = '#dc3545';
+                        } else {
+                            cxcCell.textContent = '--';
+                            cxcCell.style.color = '#28a745';
+                        }
+                    }
+                } else {
+                    alert("Error: " + data.error);
+                    input.value = originalValue;
+                    input.style.backgroundColor = "#f8d7da";
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Error de conexión");
+                input.value = originalValue;
+                input.style.backgroundColor = "#f8d7da";
+            });
+    }
+
+    function validarAtencion(atencionId) {
+        if (!confirm("¿Seguro que desea conciliar y cerrar esta atención? No se podrán hacer más cambios.")) {
+            return;
+        }
+
+        fetch(`/recepcion/validar_atencion_rapida/${atencionId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Error de conexión");
+            });
+    }
+
+    // --- LIVE SEARCH LOGIC ---
+    const searchInput = document.getElementById('search-input');
+    const resultsDiv = document.getElementById('search-results');
+    let searchTimeout;
+
+    searchInput.addEventListener('input', function () {
+        const query = this.value.trim();
+        clearTimeout(searchTimeout);
+
+        if (query.length < 2) {
+            resultsDiv.style.display = 'none';
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            fetch(`{% url 'buscar_pacientes_ajax' %}?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    resultsDiv.innerHTML = '';
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(paciente => {
+                            const div = document.createElement('div');
+                            div.style.padding = '8px';
+                            div.style.cursor = 'pointer';
+                            div.style.borderBottom = '1px solid #eee';
+                            div.onmouseover = () => div.style.backgroundColor = '#f8f9fa';
+                            div.onmouseout = () => div.style.backgroundColor = 'white';
+                            div.innerHTML = `<strong>${paciente.nombre_mostrar}</strong><br><small style="color:grey;">HC: ${paciente.historia_clinica}</small>`;
+
+                            div.onclick = () => {
+                                // Redireccionar directamente usando el ID único
+                                window.location.href = `{% url 'recepcion' %}?paciente_id=${paciente.id}`;
+                            };
+                            resultsDiv.appendChild(div);
+                        });
+                        resultsDiv.style.display = 'block';
+                    } else {
+                        resultsDiv.style.display = 'none';
+                    }
+                })
+                .catch(err => console.error('Error searching:', err));
+        }, 300); // 300ms debounce
+    });
+
+    // Cerrar resultados si clic fuera
+    document.addEventListener('click', function (e) {
+        if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+            resultsDiv.style.display = 'none';
+        }
+    });
+
+</script>
+
+<style>
+    .editable-input {
+        width: 55px;
+        padding: 2px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        text-align: right;
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Lista de Pacientes{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3>👥 Pacientes</h3>
+        <a href="{% url 'crear_paciente' %}" class="btn">➕ Nuevo Paciente</a>
+    </div>
+
+    <form method="get" style="margin-top: 20px;">
+        <div class="flex-row" style="gap: 10px;">
+            <input type="text" name="q" value="{{ q }}" placeholder="Buscar por nombre, CI, o historia clínica...">
+            <button type="submit">Buscar</button>
+        </div>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>HC</th>
+                <th>Nombre Completo</th>
+                <th>Identificación</th>
+                <th>Teléfono</th>
+                <th>Email</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for paciente in pacientes %}
+            <tr>
+                <td><strong>{{ paciente.historia_clinica }}</strong></td>
+                <td>{{ paciente.nombre_mostrar }}</td>
+                <td>{{ paciente.numero_identificacion }}</td>
+                <td>{{ paciente.telefono|default:"-" }}</td>
+                <td>{{ paciente.email|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 20px; color: grey;">
+                    No se encontraron pacientes.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

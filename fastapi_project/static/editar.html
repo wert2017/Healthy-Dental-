@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Atención - Clínica HD</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body {
+            background-color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .input-clean {
+            border: 1px solid #e5e7eb;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .input-clean:focus {
+            border-color: #3b82f6;
+            outline: none;
+            box-shadow: 0 0 0 2px #93c5fd;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="min-h-screen bg-gray-50">
+
+        <!-- Header Unificado -->
+        <header class="bg-white shadow-sm border-b border-gray-200 mb-8 sticky top-0 z-30">
+            <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+                <!-- Logo -->
+                <div class="flex-shrink-0 flex items-center gap-4">
+                    <img src="/static/logo.png" alt="Logo Clínica HD" class="h-10 w-auto">
+                    <h1
+                        class="text-2xl font-bold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
+                        Clínica HD
+                    </h1>
+                </div>
+
+                <div class="flex items-center gap-1 overflow-x-auto">
+                    <!-- Recepción -->
+                    <a href="/recepcion"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/recepcion') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Recepción
+                    </a>
+                    <!-- CxC / Abonos -->
+                    <a href="/static/pagos.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/pagos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        CxC / Abonos
+                    </a>
+                    <!-- Gastos -->
+                    <a v-if="!isDoctor" href="/gastos"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/gastos') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Gastos
+                    </a>
+                    <!-- Administración -->
+                    <a v-if="!isDoctor" href="/admin"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Administración
+                    </a>
+                    <!-- Pacientes -->
+                    <a v-if="!isDoctor" href="/admin/paciente/list"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin/paciente/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Pacientes
+                    </a>
+                    <!-- Reportes -->
+                    <a v-if="!isDoctor" href="/static/reportes.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/reportes.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Reportes
+                    </a>
+                    <!-- Historial -->
+                    <a href="/recepcion/historial"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/recepcion/historial') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Historial
+                    </a>
+                    <!-- Inventario -->
+                    <a v-if="!isDoctor" href="/admin/insumo/list"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/admin/insumo/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Mantenimiento
+                    </a>
+                    <!-- Salir -->
+                    <a href="/" @click.prevent="logout"
+                        class="px-3 py-2 rounded-md text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors ml-2 whitespace-nowrap">
+                        Salir
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <div class="p-8 pt-0"> <!-- Content Wrapper -->
+
+            <!-- Sub-Header / Actions -->
+            <div class="max-w-6xl mx-auto mb-6 flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <a :href="isDoctor ? '/doctor/dashboard' : '/recepcion'"
+                        class="text-gray-500 hover:text-gray-800 flex items-center gap-2 font-medium">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        Volver
+                    </a>
+                    <div class="h-4 w-px bg-gray-300"></div>
+                    <a href="/recepcion/historial"
+                        class="text-gray-500 hover:text-indigo-600 flex items-center gap-2 font-medium">
+                        Historial Global
+                    </a>
+                </div>
+                <div class="flex gap-2">
+                    <button v-if="atencion && atencion.validado" disabled
+                        class="bg-gray-400 text-white px-6 py-2 rounded-lg cursor-not-allowed">Atención
+                        Cerrada</button>
+                </div>
+            </div>
+
+            <div v-if="loading" class="text-center py-20">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                <p class="mt-4 text-gray-500">Cargando atención...</p>
+            </div>
+
+            <div v-else-if="!atencion" class="max-w-xl mx-auto text-center py-20">
+                <div class="bg-red-50 text-red-600 p-6 rounded-xl">
+                    <h2 class="text-xl font-bold mb-2">Atención No Encontrada</h2>
+                    <p class="mb-4">Es posible que esta atención haya sido eliminada o que el ID sea incorrecto.</p>
+                    <div class="mt-8 flex justify-end gap-4">
+                        <button @click="guardarYSalir"
+                            class="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow font-bold hover:bg-indigo-700 transition flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                            </svg>
+                            Volver a Recepción
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- LEFT COLUMN: Patient Info -->
+                <div
+                    class="lg:col-span-3 bg-white rounded-xl shadow-sm p-6 flex flex-col md:flex-row justify-between items-center border-l-4 border-indigo-500">
+                    <div>
+                        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">PACIENTE</div>
+                        <div class="text-2xl font-bold text-gray-800">{{ atencion.paciente.nombres }} {{
+                            atencion.paciente.apellidos }}</div>
+                        <div class="text-sm text-gray-500 flex gap-4 mt-1">
+                            <span><span class="font-semibold">ID:</span> {{ atencion.paciente.numero_identificacion
+                                }}</span>
+                            <span><span class="font-semibold">HC:</span> {{ atencion.paciente.historia_clinica
+                                }}</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- SINGLE WIDE COLUMN LAYOUT -->
+                <div class="lg:col-span-3 space-y-6">
+
+                    <!-- AGENDAMIENTO & PAGOS & LISTA -->
+                    <div class="bg-white rounded-xl shadow-sm p-6">
+
+                        <!-- MAIN FLEX LIST -->
+                        <div class="flex flex-col gap-8">
+
+                            <!-- TOP SECTION: HEADER + TABLE -->
+                            <div class="w-full space-y-6">
+                                <div class="flex justify-between items-center">
+                                    <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                                            </path>
+                                        </svg>
+                                        Tratamientos y Pago
+                                    </h2>
+                                    <!-- TOTALS MINI HEADER -->
+                                    <div class="hidden md:grid grid-cols-5 gap-4">
+
+                                        <!-- 1. Saldo Favor (Card) - HIDDEN FOR DOCTOR -->
+                                        <div v-if="!isDoctor"
+                                            class="bg-amber-50 rounded-xl border border-amber-100 p-3 flex flex-col items-center justify-center shadow-sm">
+                                            <span
+                                                class="text-[10px] text-amber-500 font-bold uppercase tracking-widest mb-1">Saldo
+                                                Disponible</span>
+                                            <span class="text-xl font-bold"
+                                                :class="remainingWalletBalance < 0 ? 'text-red-600' : 'text-amber-600'">
+                                                ${{ (remainingWalletBalance || 0).toFixed(2) }}
+                                            </span>
+                                        </div>
+
+                                        <!-- 2. Total (Card) - VISIBLE -->
+                                        <div
+                                            class="bg-white rounded-xl border border-gray-100 p-3 flex flex-col items-center justify-center shadow-sm">
+                                            <span
+                                                class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Total</span>
+                                            <span class="text-xl font-bold text-gray-800" v-if="atencion?.totales">${{
+                                                (atencion.totales.total_atencion || 0).toFixed(2) }}</span>
+                                        </div>
+
+                                        <!-- 3. Pagado (Card) - VISIBLE -->
+                                        <div
+                                            class="bg-emerald-50 rounded-xl border border-emerald-100 p-3 flex flex-col items-center justify-center shadow-sm">
+                                            <span
+                                                class="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mb-1">Pagado</span>
+                                            <span class="text-xl font-bold text-emerald-600" v-if="atencion">${{
+                                                (totalPagado || 0).toFixed(2) }}</span>
+                                        </div>
+
+                                        <!-- 4. Por Pagar (Card) - HIDDEN FOR DOCTOR -->
+                                        <div v-if="!isDoctor"
+                                            class="bg-white rounded-xl border border-gray-100 p-3 flex flex-col items-center justify-center shadow-sm">
+                                            <span
+                                                class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Por
+                                                Pagar</span>
+                                            <span class="text-xl font-bold"
+                                                :class="porPagar > 0.01 ? 'text-red-500' : 'text-gray-800'"
+                                                v-if="atencion">
+                                                ${{ (porPagar || 0).toFixed(2) }}
+                                            </span>
+                                        </div>
+
+                                        <!-- 5. Estado (Card) - HIDDEN FOR DOCTOR -->
+                                        <div v-if="!isDoctor"
+                                            class="bg-gray-50 rounded-xl border border-gray-100 p-3 flex flex-col items-center justify-center shadow-sm">
+                                            <span
+                                                class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Estado
+                                                Global</span>
+
+                                            <span v-if="currentPatientBalance < -0.01"
+                                                class="text-red-600 font-bold text-sm">
+                                                Deuda: -${{ (Math.abs(currentPatientBalance) || 0).toFixed(2) }}
+                                            </span>
+                                            <span v-else-if="currentPatientBalance > 0.01"
+                                                class="text-blue-600 font-bold text-sm">
+                                                Favor: ${{ (currentPatientBalance || 0).toFixed(2) }}
+                                            </span>
+                                            <span v-else class="text-green-600 font-bold text-sm">
+                                                Al Día
+                                            </span>
+                                        </div>
+
+                                    </div>
+                                </div>
+                                <div v-if="!atencion.validado && !isDoctor"
+                                    class="bg-blue-50/30 p-4 rounded-xl border border-blue-100 mb-6">
+                                    <h3 class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-3">
+                                        Agregar
+                                        Nuevo Tratamiento</h3>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                                        <!-- Tratamiento -->
+                                        <div class="md:col-span-6">
+                                            <label
+                                                class="block text-xs font-bold text-gray-400 mb-1 uppercase">Tratamiento</label>
+                                            <select v-model="newDetail.tratamiento_id" @change="updatePrice"
+                                                class="input-clean bg-white h-10 border-gray-200 w-full text-sm rounded-lg focus:ring-2 focus:ring-blue-100">
+                                                <option value="" disabled selected>Seleccionar...</option>
+                                                <option v-for="t in tratamientos" :key="t.id" :value="t.id">{{
+                                                    t.nombre }}</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Doctor -->
+                                        <div class="md:col-span-6">
+                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Doctor /
+                                                Vendedor</label>
+                                            <select v-model="newDetail.doctor_id" :disabled="isDoctor"
+                                                class="input-clean bg-white h-10 border-gray-200 w-full text-sm rounded-lg disabled:bg-gray-100 disabled:text-gray-500">
+                                                <option value="" v-if="!isDoctor">-- Venta de Recepción --</option>
+                                                <option v-for="d in doctores" :key="d.id" :value="d.id">👨‍⚕️ {{
+                                                    d.nombres }} {{ d.apellidos }}</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Precio -->
+                                        <div class="md:col-span-3">
+                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Precio
+                                                ($)</label>
+                                            <input type="number" v-model="newDetail.precio" step="0.01"
+                                                class="input-clean bg-white h-10 border-gray-200 w-full text-sm rounded-lg text-center font-bold text-gray-700">
+                                        </div>
+
+                                        <!-- Comision -->
+                                        <div class="md:col-span-3">
+                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Comis
+                                                %</label>
+                                            <input type="number" v-model="newDetail.comision" step="1" min="0" max="100"
+                                                class="input-clean bg-white h-10 border-gray-200 w-full text-sm rounded-lg text-center font-medium text-gray-600"
+                                                placeholder="0%">
+                                        </div>
+
+                                        <!-- Botones -->
+                                        <div class="md:col-span-6 flex gap-2">
+                                            <button @click="addDetail"
+                                                :class="editingDetailId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'"
+                                                class="flex-1 h-10 text-white font-bold rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2 text-sm">
+                                                <span v-if="editingDetailId" class="flex items-center gap-1">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                    Guardar Cambios
+                                                </span>
+                                                <span v-else>+ Agregar Tratamiento</span>
+                                            </button>
+                                            <button v-if="editingDetailId" @click="cancelEditing"
+                                                class="w-10 h-10 bg-gray-200 text-gray-600 hover:bg-gray-300 rounded-lg flex items-center justify-center transition"
+                                                title="Cancelar Edición">
+                                                ✕
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 1. TABLE OF TREATMENTS -->
+                                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 mt-2">
+                                    Tratamientos Aplicados</h3>
+                                <div v-if="atencion.detalles.length > 0"
+                                    class="overflow-hidden border border-gray-200 rounded-lg">
+                                    <table class="w-full">
+                                        <thead class="bg-gray-50">
+                                            <tr
+                                                class="text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                                <th class="px-6 py-3">Tratamiento</th>
+                                                <th class="px-6 py-3 text-right">Comisión</th>
+                                                <th class="px-6 py-3 text-right">Precio</th>
+                                                <th class="px-6 py-3 text-right"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-100 bg-white">
+                                            <tr v-for="d in atencion.detalles" :key="d.id"
+                                                class="group hover:bg-gray-50 transition">
+                                                <td class="px-6 py-3 text-sm font-medium text-gray-900">
+                                                    <div>{{ d.nombre_tratamiento }}</div>
+                                                    <div class="text-xs text-gray-500 max-w-[150px] truncate">{{
+                                                        d.get_doctor }}</div>
+                                                </td>
+                                                <td class="px-6 py-3 text-sm text-right text-gray-500">
+                                                    {{ d.porcentaje_comision }}%
+                                                </td>
+                                                <td class="px-6 py-3 text-sm text-right font-bold text-gray-800">${{
+                                                    (parseFloat(d.total) || 0).toFixed(2) }}</td>
+                                                <td class="px-6 py-3 text-right">
+                                                    <button v-if="!atencion.validado && !isDoctor"
+                                                        @click="startEditing(d)"
+                                                        class="text-blue-500 hover:text-blue-700 transition mr-2"
+                                                        title="Editar">
+                                                        ✎
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div v-else
+                                    class="text-center py-10 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
+                                    <p class="text-gray-400 font-medium">No hay tratamientos agregados aún.</p>
+                                    <p class="text-xs text-gray-400 mt-1">Utiliza el formulario superior para agregar
+                                        uno &uarr;</p>
+                                </div>
+                            </div>
+
+
+                            <!-- BOTTOM SECTION: INPUTS WRAPPER -->
+                            <div class="w-full border-t border-gray-100 pt-8 mt-2">
+                                <div class="flex flex-col gap-6 w-full">
+
+                                    <h3 v-if="!isDoctor"
+                                        class="text-xs font-bold text-gray-400 uppercase tracking-wider">Agendar /
+                                        Pagar
+                                    </h3>
+
+
+
+                                    <!-- 3. PAYMENTS INPUTS (HIDDEN FOR DOCTOR) -->
+                                    <div v-if="!isDoctor"
+                                        class="w-full bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                        <div
+                                            class="text-xs font-bold text-gray-400 uppercase mb-3 flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                                                </path>
+                                            </svg>
+                                            Pagos (Auto-Guardado)
+                                        </div>
+                                        <div>
+                                            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                                <div>
+                                                    <label
+                                                        class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Efectivo</label>
+                                                    <div class="relative">
+                                                        <span
+                                                            class="absolute left-2 top-2 text-gray-400 text-sm">$</span>
+                                                        <input v-model.number="payments.efectivo"
+                                                            :disabled="atencion.validado" @input="debouncedSync"
+                                                            type="number" step="0.01"
+                                                            class="input-clean pl-6 h-10 text-base font-bold text-gray-700 w-full bg-white">
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label
+                                                        class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Transferencia</label>
+                                                    <div class="relative">
+                                                        <span
+                                                            class="absolute left-2 top-2 text-gray-400 text-sm">$</span>
+                                                        <input v-model.number="payments.transferencia"
+                                                            :disabled="atencion.validado" @input="debouncedSync"
+                                                            type="number" step="0.01"
+                                                            class="input-clean pl-6 h-10 text-base font-bold text-gray-700 w-full bg-white">
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label
+                                                        class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Tarjeta</label>
+                                                    <div class="relative">
+                                                        <span
+                                                            class="absolute left-2 top-2 text-gray-400 text-sm">$</span>
+                                                        <input v-model.number="payments.tarjeta"
+                                                            :disabled="atencion.validado" @input="debouncedSync"
+                                                            type="number" step="0.01"
+                                                            class="input-clean pl-6 h-10 text-base font-bold text-gray-700 w-full bg-white">
+                                                    </div>
+                                                </div>
+
+                                                <!-- Abono -->
+                                                <div>
+                                                    <label
+                                                        class="block text-[10px] font-bold text-amber-600 uppercase mb-1 flex justify-between">
+                                                        <span>Dinero Abonado</span>
+                                                    </label>
+                                                    <div class="relative">
+                                                        <span
+                                                            class="absolute left-2 top-2 text-amber-400 text-sm">$</span>
+                                                        <input v-model.number="payments.abono"
+                                                            :disabled="atencion.validado" @input="debouncedSync"
+                                                            type="number" step="0.01"
+                                                            :max="atencion?.paciente?.saldo_favor"
+                                                            class="input-clean pl-6 h-10 text-base font-bold text-amber-700 border-amber-200 w-full bg-white focus:ring-amber-500">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- CLINICAL NOTES FOR DOCTOR -->
+                                    <div v-else
+                                        class="w-full bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex flex-col h-full">
+                                        <div
+                                            class="text-xs font-bold text-blue-500 uppercase mb-3 flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                                                </path>
+                                            </svg>
+                                            Notas Clínicas / Evolución
+                                        </div>
+                                        <textarea v-model="atencion.observaciones" @input="debouncedNoteSave"
+                                            :disabled="atencion.validado"
+                                            class="flex-1 w-full bg-white border border-blue-200 rounded-lg p-3 text-sm text-gray-700 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none min-h-[200px]"
+                                            placeholder="Escriba aquí la evolución del paciente..."></textarea>
+                                        <div class="mt-2 text-[10px] text-blue-400 text-right">
+                                            {{ savingNotes ? 'Guardando...' : 'Se guarda automáticamente' }}
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones de Acción Finales -->
+                    <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end gap-4 items-center"
+                        v-if="atencion && !atencion.validado">
+                        <button v-if="!isDoctor" @click="eliminarAtencion"
+                            class="bg-white border border-red-200 text-red-600 px-6 py-3 rounded-xl hover:bg-red-50 hover:border-red-300 font-bold transition shadow-sm">
+                            Eliminar Atención
+                        </button>
+
+                        <button v-if="isDoctor" @click="terminarConsulta"
+                            class="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg shadow-green-600/20 flex items-center gap-2 text-lg">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7">
+                                </path>
+                            </svg>
+                            Terminar Consulta
+                        </button>
+
+                        <button v-else @click="guardarYSalir"
+                            class="bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg shadow-indigo-600/20 flex items-center gap-2 text-lg">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7">
+                                </path>
+                            </svg>
+                            Guardar y Salir
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+        </div> <!-- Closing Content Wrapper -->
+    </div> <!-- Closing App -->
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        const app = createApp({
+            setup() {
+                const atencion = ref(null);
+                const tratamientos = ref([]);
+                const doctores = ref([]);
+                const loading = ref(true);
+                const newDetail = ref({
+                    tratamiento_id: '',
+                    doctor_id: '',
+                    precio: 0,
+                    comision: 0
+                });
+
+                const parts = window.location.pathname.split('/');
+                const atencionId = parts[parts.length - 1];
+                const payments = ref({
+                    efectivo: 0,
+                    transferencia: 0,
+                    tarjeta: 0,
+                    abono: 0
+                });
+
+                const role = localStorage.getItem('role') || 'admin';
+                const isDoctor = computed(() => role === 'doctor');
+                const loggedInDoctorId = ref(localStorage.getItem('user_id'));
+                const savingNotes = ref(false);
+
+                let syncTimeout = null;
+
+                const debouncedSync = () => {
+                    if (syncTimeout) clearTimeout(syncTimeout);
+                    syncTimeout = setTimeout(async () => {
+                        await syncPayments();
+                    }, 1000);
+                };
+
+                const syncPayments = async () => {
+                    if (atencion.value?.validado) return;
+
+                    try {
+                        const payload = {
+                            efectivo: Number(payments.value.efectivo) || 0,
+                            transferencia: Number(payments.value.transferencia) || 0,
+                            tarjeta: Number(payments.value.tarjeta) || 0,
+                            abono: Number(payments.value.abono) || 0
+                        };
+
+                        const totalPaid = payload.efectivo + payload.transferencia + payload.tarjeta + payload.abono;
+                        const totalDue = atencion.value?.totales?.total_atencion || 0;
+
+                        if (totalPaid > totalDue + 0.01 && totalDue > 0) {
+                            const surplus = totalPaid - totalDue;
+                            const res = await Swal.fire({
+                                title: 'Confirmar Sobrepago',
+                                html: `<p class="mb-4">El pago excede el total por <strong>$${surplus.toFixed(2)}</strong>.</p>
+                                    <div class="text-left w-full max-w-sm mx-auto p-4 bg-slate-50 rounded-lg border border-gray-200">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">¿Con qué método ingresa este sobrante (Abono)?</label>
+                                        <select id="swal-metodo" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm py-2 px-3 bg-white border">
+                                            <option value="Efectivo">Efectivo</option>
+                                            <option value="Transferencia">Transferencia</option>
+                                            <option value="Tarjeta">Tarjeta</option>
+                                        </select>
+                                    </div>`,
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonText: 'Guardar Pago y Abono a Billetera',
+                                cancelButtonText: 'No Generar Sobrante',
+                                preConfirm: () => document.getElementById('swal-metodo').value
+                            });
+
+                            if (res.isConfirmed) {
+                                // This matches the Pydantic schema param `PaymentSync.metodo_excedente`
+                                payload.metodo_excedente = res.value;
+                            } else {
+                                // If they cancel the prompt, do not sync yet
+                                Swal.fire('Cancelado', 'Ajusta los montos para evitar el sobrepago.', 'info');
+                                await loadData(); // Reload to reset inputs to last saved state
+                                return;
+                            }
+                        }
+
+                        await axios.post(`/api/atenciones/${atencionId}/pagos/sync`, payload);
+
+                        Swal.fire({
+                            title: 'Pagos Auto-Guardados',
+                            icon: 'success',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 2000
+                        });
+
+                        await loadData();
+                    } catch (error) {
+                        console.error('Error auto-guardando pagos', error);
+                        Swal.fire({
+                            title: 'Error de Pago',
+                            text: 'El monto excede el saldo o hay un error de conexión.',
+                            icon: 'error',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    }
+                };
+
+                const debouncedNoteSave = () => {
+                    savingNotes.value = true;
+                    if (syncTimeout) clearTimeout(syncTimeout);
+                    syncTimeout = setTimeout(async () => {
+                        try {
+                            await axios.put(`/api/atenciones/${atencionId}/observaciones`, { observaciones: atencion.value.observaciones || '' });
+                        } catch (e) {
+                            console.error('Error guardando notas', e);
+                        } finally {
+                            savingNotes.value = false;
+                        }
+                    }, 800);
+                };
+
+                const loadData = async () => {
+                    const token = localStorage.getItem('token');
+                    if (!token) window.location.href = '/login';
+                    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+                    try {
+                        const [resAtencion, resTratamientos, resDoctores] = await Promise.all([
+                            axios.get(`/api/atenciones/${atencionId}`),
+                            axios.get('/api/tratamientos'),
+                            axios.get('/api/doctores')
+                        ]);
+
+                        atencion.value = resAtencion.data;
+                        tratamientos.value = resTratamientos.data;
+                        doctores.value = resDoctores.data;
+
+                        if (atencion.value.pagos) {
+                            payments.value.efectivo = atencion.value.pagos.find(p => p.forma_pago === 'EF')?.monto || 0;
+                            payments.value.transferencia = atencion.value.pagos.find(p => p.forma_pago === 'TR')?.monto || 0;
+                            payments.value.tarjeta = atencion.value.pagos.find(p => p.forma_pago === 'TC')?.monto || 0;
+                            payments.value.abono = atencion.value.pagos.find(p => p.forma_pago === 'AB')?.monto || 0;
+                        }
+
+                    } catch (error) {
+                        console.error('Error loading data:', error);
+                        Swal.fire('Error', 'No se pudo cargar la atención. Verifique si el ID existe.', 'error');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const editingDetailId = ref(null);
+
+                const startEditing = (detail) => {
+                    editingDetailId.value = detail.id;
+                    const t = tratamientos.value.find(x => x.nombre_tratamiento === detail.nombre_tratamiento || x.id === detail.tratamiento_id);
+                    newDetail.value = {
+                        tratamiento_id: t ? t.id : detail.tratamiento_id,
+                        doctor_id: detail.doctor_id || '',
+                        precio: parseFloat(detail.total || detail.precio_final || detail.precio_base || 0),
+                        comision: detail.porcentaje_comision || 0
+                    };
+                };
+
+                const cancelEditing = () => {
+                    editingDetailId.value = null;
+                    newDetail.value = { tratamiento_id: '', doctor_id: '', precio: 0, comision: 0 };
+                };
+
+                const updatePrice = () => {
+                    const t = tratamientos.value.find(x => x.id === newDetail.value.tratamiento_id);
+                    if (t) {
+                        newDetail.value.precio = parseFloat(t.precio_base || 0);
+                        newDetail.value.comision = 0;
+                    }
+                };
+
+                const addDetail = async () => {
+                    const t = tratamientos.value.find(x => x.id == newDetail.value.tratamiento_id);
+                    if (!t) {
+                        Swal.fire('Atención', 'Seleccione un tratamiento válido', 'warning');
+                        return;
+                    }
+
+                    const docId = newDetail.value.doctor_id || null;
+                    const precio = parseFloat(newDetail.value.precio) || 0;
+                    const comision = parseFloat(newDetail.value.comision) || 0;
+
+                    try {
+                        if (editingDetailId.value) {
+                            await axios.put(`/api/atenciones/${atencionId}/detalles/${editingDetailId.value}?tratamiento_id=${newDetail.value.tratamiento_id}&doctor_id=${docId || ''}&precio=${precio}&comision=${comision}`);
+                            Swal.fire('Éxito', 'Detalle editado correctamente', 'success');
+                        } else {
+                            await axios.post(`/api/atenciones/${atencionId}/detalles?tratamiento_id=${newDetail.value.tratamiento_id}&doctor_id=${docId || ''}&precio=${precio}&comision=${comision}`);
+                        }
+                        await loadData();
+                        cancelEditing();
+                    } catch (error) {
+                        Swal.fire('Error', 'Error al guardar el tratamiento', 'error');
+                    }
+                };
+
+                const eliminarAtencion = async () => {
+                    const result = await Swal.fire({
+                        title: '¿Eliminar atención?',
+                        text: 'Esta acción no se puede deshacer',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    });
+                    if (result.isConfirmed) {
+                        try {
+                            await axios.delete(`/api/atenciones/${atencionId}`);
+                            window.location.href = '/recepcion';
+                        } catch (error) {
+                            Swal.fire('Error', 'Error al eliminar', 'error');
+                        }
+                    }
+                };
+
+                const terminarConsulta = async () => {
+                    try {
+                        await axios.post(`/api/atenciones/${atencionId}/validar`);
+                        Swal.fire('Completado', 'Consulta finalizada con éxito', 'success').then(() => {
+                            window.location.href = '/recepcion';
+                        });
+                    } catch (error) {
+                        Swal.fire('Error', 'No se pudo terminar la consulta', 'error');
+                    }
+                };
+
+                const guardarYSalir = () => window.location.href = '/recepcion';
+
+                const totalPagado = computed(() => {
+                    if (!atencion.value || !atencion.value.pagos) return 0;
+                    return atencion.value.pagos.reduce((sum, p) => sum + p.monto, 0);
+                });
+
+                const porPagar = computed(() => {
+                    if (!atencion.value || !atencion.value.totales) return 0;
+                    return Math.max(0, atencion.value.totales.total_atencion - totalPagado.value);
+                });
+
+                const remainingWalletBalance = computed(() => {
+                    if (!atencion.value || !atencion.value.paciente) return 0;
+                    return atencion.value.paciente.saldo_favor;
+                });
+
+                const currentPatientBalance = computed(() => {
+                    if (!atencion.value || !atencion.value.paciente) return 0;
+                    return remainingWalletBalance.value - porPagar.value;
+                });
+
+                const logout = () => {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('role');
+                    localStorage.removeItem('user_id');
+                    window.location.href = '/login';
+                };
+
+                const isActive = (path) => {
+                    return window.location.pathname === path;
+                };
+
+                onMounted(() => {
+                    loadData();
+                });
+
+                return {
+                    atencion, tratamientos, doctores, loading,
+                    newDetail, payments, role, isDoctor,
+                    savingNotes, editingDetailId,
+                    startEditing, cancelEditing, updatePrice, addDetail,
+                    eliminarAtencion, debouncedSync, debouncedNoteSave,
+                    terminarConsulta, guardarYSalir,
+                    totalPagado, porPagar, remainingWalletBalance, currentPatientBalance,
+                    logout, isActive
+                };
+            }
+        });
+        app.mount('#app');
+    </script>
+</body>
+
+</html>

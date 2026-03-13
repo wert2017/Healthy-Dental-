@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+sqlmodel
+sqladmin
+python-multipart
+jinja2
+itsdangerous
+passlib[recommended]
+python-jose[cryptography]
+psycopg2-binary
+wtforms
+markupsafe
+gunicorn

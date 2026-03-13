@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hoja de Cargo - Clínica HD</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.5.0/axios.min.js"></script>
+    <style>
+        @media print {
+            .no-print {
+                display: none;
+            }
+
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f3f4f6;
+        }
+
+        .sheet {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            padding: 20mm;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        @media print {
+            body {
+                background: white;
+                margin: 0;
+            }
+
+            .sheet {
+                width: auto;
+                margin: 0;
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="no-print fixed top-4 right-4 flex gap-2">
+            <button @click="print"
+                class="bg-blue-600 text-white px-6 py-2 rounded shadow font-bold hover:bg-blue-700">🖨️
+                Imprimir</button>
+            <button @click="close"
+                class="bg-gray-500 text-white px-6 py-2 rounded shadow font-bold hover:bg-gray-600">Cerrar</button>
+        </div>
+
+        <div v-if="loading" class="text-center mt-20">Cargando datos...</div>
+
+        <div v-else class="sheet bg-white text-gray-800">
+            <!-- HEADER -->
+            <div class="flex justify-between items-start border-b-2 border-gray-800 pb-6 mb-8">
+                <div>
+                    <div class="flex items-center gap-4">
+                        <img src="/static/logo.png" alt="Logo Clínica HD" class="h-12 w-auto">
+                        <h1 class="text-3xl font-black uppercase tracking-wider text-gray-900">Clínica HD</h1>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">Especialistas en Salud Dental</p>
+                    <div class="mt-4 text-xs text-gray-600 space-y-0.5">
+                        <p><strong>Dirección:</strong> Av. Principal 123 y Calle Secundaria</p>
+                        <p><strong>Teléfono:</strong> (04) 2555-555</p>
+                        <p><strong>Email:</strong> contacto@clinicahd.com</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="bg-gray-100 p-4 rounded-lg">
+                        <h2 class="text-xl font-bold text-gray-700">HOJA DE CARGO</h2>
+                        <p class="text-sm text-gray-500 mt-1">N° de Atención: #{{ atencion.id }}</p>
+                        <p class="text-sm text-gray-500">Fecha: {{ formatDate(atencion.fecha) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATIENT INFO -->
+            <div class="mb-8 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="block text-xs font-bold text-gray-400 uppercase">Paciente</span>
+                        <span class="block text-lg font-bold text-gray-900">{{ atencion.paciente.nombres }} {{
+                            atencion.paciente.apellidos }}</span>
+                    </div>
+                    <div>
+                        <span class="block text-xs font-bold text-gray-400 uppercase">Identificación</span>
+                        <span class="text-gray-900">{{ atencion.paciente.numero_identificacion }}</span>
+                        <span class="ml-4 text-gray-500">HC: {{ atencion.paciente.historia_clinica }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DETAILS TABLE -->
+            <table class="w-full mb-8">
+                <thead>
+                    <tr class="border-b-2 border-gray-800 text-xs font-bold text-gray-700 uppercase">
+                        <th class="py-2 text-left">Cant.</th>
+                        <th class="py-2 text-left">Descripción / Tratamiento</th>
+                        <th class="py-2 text-left">Doctor</th>
+                        <th class="py-2 text-right">Precio Unit.</th>
+                        <th class="py-2 text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm text-gray-700 divide-y divide-gray-200">
+                    <tr v-for="d in atencion.detalles" :key="d.id">
+                        <td class="py-3">{{ d.cantidad }}</td>
+                        <td class="py-3 font-medium">{{ d.nombre_tratamiento }}</td>
+                        <td class="py-3 text-gray-500 text-xs">{{ d.get_doctor }}</td>
+                        <td class="py-3 text-right">${{ d.precio_unitario.toFixed(2) }}</td>
+                        <td class="py-3 text-right font-bold">${{ d.total }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- TOTALS -->
+            <div class="flex justify-end mb-12">
+                <div class="w-1/3 space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="font-bold text-gray-600">Subtotal:</span>
+                        <span>${{ atencion.totales?.total_atencion.toFixed(2) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="font-bold text-gray-600">Descuento:</span>
+                        <span>$0.00</span>
+                    </div>
+                    <div class="flex justify-between text-xl font-bold border-t border-gray-800 pt-2 mt-2">
+                        <span>TOTAL:</span>
+                        <span>${{ atencion.totales?.total_atencion.toFixed(2) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm text-green-700 font-bold pt-2">
+                        <span>Abonado / Pagado:</span>
+                        <span>${{ atencion.totales?.total_pagado.toFixed(2) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm text-red-700 font-bold">
+                        <span>Saldo Pendiente:</span>
+                        <span>${{ atencion.totales?.saldo_pendiente.toFixed(2) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SIGNATURES -->
+            <div class="grid grid-cols-2 gap-20 mt-20 pt-10">
+                <div class="text-center">
+                    <div class="border-t border-gray-400 w-3/4 mx-auto mb-2"></div>
+                    <p class="text-xs font-bold text-gray-500 uppercase">Firma del Doctor / Clínica</p>
+                </div>
+                <div class="text-center">
+                    <div class="border-t border-gray-400 w-3/4 mx-auto mb-2"></div>
+                    <p class="text-xs font-bold text-gray-500 uppercase">Firma del Paciente</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Acepto los procedimientos y valores detallados.</p>
+                </div>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="text-center text-[10px] text-gray-400 mt-20 border-t border-gray-100 pt-4">
+                Generado el {{ new Date().toLocaleString() }} por el Sistema Clínica HD
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue
+
+        createApp({
+            setup() {
+                const atencion = ref(null)
+                const loading = ref(true)
+
+                // Get ID from URL /recepcion/imprimir_cargo/{id}
+                const parts = window.location.pathname.split('/')
+                const atencionId = parts[parts.length - 1]
+
+                const formatDate = (dateString) => {
+                    const date = new Date(dateString)
+                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }
+
+                const print = () => window.print()
+                const close = () => window.close()
+
+                onMounted(async () => {
+                    try {
+                        const res = await axios.get(`/api/atenciones/${atencionId}`)
+                        atencion.value = res.data
+                    } catch (e) {
+                        alert('Error al cargar datos')
+                        console.error(e)
+                    } finally {
+                        loading.value = false
+                        // Optional: Auto-print
+                        // setTimeout(() => window.print(), 1000)
+                    }
+                })
+
+                return { atencion, loading, formatDate, print, close }
+            }
+        }).mount('#app')
+    </script>
+</body>
+
+</html>

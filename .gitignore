@@ -1,0 +1,44 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+venv/
+ENV/
+*.db
+*.sqlite3
+fastapi_project/database.db
+fastapi_project/fastapi_project.db
+node_modules/
+dist/
+.vscode/
+*.log
+api_result.txt
+check_user.txt
+db_result.txt
+filter_result.txt
+search_res.txt
+vscode_history.txt
+debug_*.py
+reproduce_issue.py
+test_*.py
+add_kit_limpieza.py
+create_doctor_user.py
+create_test_secretaria.py
+fix_*.py
+inspect_schema.py
+link_admin_sucursal.py
+list_doctor_users.py
+migrate_*.py
+refactor_*.py
+reset_admin.py
+set_test_status.py
+compile_test*.js
+test_vue_script.js
+landing_page/node_modules/
+landing_page/dist/
+!landing_page/dist/index.html
+!landing_page/dist/assets/
+# Note: Keep landing_page/dist if you want Railway to serve it without building it every time, 
+# or ignore it and add a build command in railway.json.
+# For now, I'll assume we push the built dist folder for simplicity if it exists.
