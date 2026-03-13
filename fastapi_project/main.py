@@ -8,7 +8,6 @@ from fastapi.staticfiles import StaticFiles
 from sqladmin import Admin, ModelView, BaseView, expose
 from sqladmin.authentication import AuthenticationBackend
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.responses import RedirectResponse
@@ -40,7 +39,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+# Fix for HTTPS behind proxy (Railway)
+@app.middleware("http")
+async def fix_proxy_headers(request: Request, call_next):
+    # If the request comes through a proxy with HTTPS, force the scheme to https
+    # This ensures url_for and other helpers generate https links, fixing CSS/JS issues
+    if request.headers.get("x-forwarded-proto") == "https":
+        request.scope["scheme"] = "https"
+    response = await call_next(request)
+    return response
 
 # --- ROUTERS ---
 from inventario_router import router as inventario_router
