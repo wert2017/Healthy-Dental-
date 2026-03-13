@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from sqladmin import Admin, ModelView, BaseView, expose
 from sqladmin.authentication import AuthenticationBackend
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.responses import RedirectResponse
@@ -39,6 +40,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # --- ROUTERS ---
 from inventario_router import router as inventario_router
@@ -190,11 +192,9 @@ def root():
     print(f"DEBUG: Landing page not found at {landing_index}")
     return RedirectResponse("/recepcion")
 
-# Public Routes (Static)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Mount React Landing Page (Single Tunnel Support)
-LANDING_DIR = "../landing_page/dist"
+# Mount React Landing Page (Assets)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+LANDING_DIR = os.path.join(current_dir, "..", "landing_page", "dist")
 if os.path.exists(LANDING_DIR):
     app.mount("/assets", StaticFiles(directory=os.path.join(LANDING_DIR, "assets")), name="assets")
 
@@ -438,7 +438,10 @@ def on_startup():
         seed_data(session)
 
 # --- ADMIN SETUP ---
-admin = Admin(app, engine, title="Admin - Clínica HD", templates_dir="templates")
+current_dir = os.path.dirname(os.path.abspath(__file__))
+templates_path = os.path.join(current_dir, "templates")
+
+admin = Admin(app, engine, title="Admin - Clínica HD", templates_dir=templates_path)
 # admin.add_view(BackToReception) # Custom view removed in favor of template override
 admin.add_view(PacienteAdmin)
 admin.add_view(DoctorAdmin)
