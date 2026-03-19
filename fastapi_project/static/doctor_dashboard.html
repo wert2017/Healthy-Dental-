@@ -33,9 +33,12 @@
                                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                         </div>
-                        <h1 class="text-xl font-bold text-gray-800">
-                            Mis Citas de Hoy
-                        </h1>
+                        <div>
+                            <h1 class="text-xl font-bold text-gray-800">
+                                Bienvenido, Dr(a). {{ doctorName }}
+                            </h1>
+                            <p class="text-sm text-gray-500">Mis Citas de Hoy</p>
+                        </div>
                     </div>
                     <div class="flex items-center gap-4">
                         <button @click="logout"
@@ -360,6 +363,7 @@
                 // Auth Check
                 const token = localStorage.getItem('token')
                 const sucursalId = localStorage.getItem('sucursal_id')
+                const doctorName = ref(localStorage.getItem('username') || 'Usuario')
 
                 if (!token) window.location.href = '/login'
 
@@ -549,6 +553,7 @@
                 })
 
                 return {
+                    doctorName,
                     activeTab,
                     atenciones,
                     historialAtenciones,

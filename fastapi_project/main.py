@@ -669,6 +669,34 @@ def validar_atencion(atencion_id: int, session: Session = Depends(get_session), 
         session.commit()
     return {"message": "Validado con éxito"}
 
+@app.post("/api/atenciones/{atencion_id}/solicitar-revision")
+def solicitar_revision_atencion(atencion_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    """
+    Doctor marks attention as needing review from receptionist.
+    Status -> POR_REVISAR.
+    """
+    atencion = session.get(Atencion, atencion_id)
+    if not atencion:
+        raise HTTPException(status_code=404, detail="Atención no encontrada")
+    
+    if atencion.validado:
+        raise HTTPException(status_code=400, detail="Atención ya validada")
+
+    atencion.estado = "POR_REVISAR"
+    
+    # Audit trail
+    log = AuditoriaAtencion(
+        atencion_id=atencion.id,
+        usuario_id=user.id,
+        accion="SOLICITAR_REVISION",
+        detalles="El doctor solicitó revisión a recepción"
+    )
+    session.add(log)
+    
+    session.add(atencion)
+    session.commit()
+    return {"status": "ok", "estado": "POR_REVISAR"}
+
 @app.post("/api/atenciones/{atencion_id}/terminar")
 def terminar_atencion_clinica(atencion_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     """
@@ -1681,6 +1709,44 @@ def reporte_ingresos_mensuales(start_date: str = None, end_date: str = None, ses
         "produccion_doctores": doctores_list
     }
 
+@app.get("/api/reportes/flujo-caja-global")
+def reporte_flujo_caja_global(start_date: str = None, end_date: str = None, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    """
+    Returns total income (excluding 'AB' payments) and total expenses.
+    """
+    if user.role == "doctor":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    # 1. Ingresos: Pagos (forma_pago != 'AB')
+    query_pagos = select(Pago).where(Pago.sucursal_id == user.sucursal_id).where(Pago.forma_pago != 'AB')
+    if start_date:
+        query_pagos = query_pagos.where(Pago.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
+    if end_date:
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        query_pagos = query_pagos.where(Pago.fecha < end_dt)
+        
+    pagos = session.exec(query_pagos).all()
+    total_ingresos = sum(float(p.monto) for p in pagos)
+    
+    # 2. Egresos: Gastos
+    query_gastos = select(Gasto).where(Gasto.sucursal_id == user.sucursal_id)
+    if start_date:
+        query_gastos = query_gastos.where(Gasto.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
+    if end_date:
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        query_gastos = query_gastos.where(Gasto.fecha < end_dt)
+        
+    gastos = session.exec(query_gastos).all()
+    total_egresos = sum(float(g.monto) for g in gastos)
+    
+    saldo_neto = total_ingresos - total_egresos
+    
+    return {
+        "ingresos": total_ingresos,
+        "egresos": total_egresos,
+        "saldo_neto": saldo_neto
+    }
+
 @app.get("/api/reportes/financiero-completo")
 def reporte_financiero_completo(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     """
@@ -1935,6 +2001,9 @@ def list_gastos(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     search: Optional[str] = None,
+    categoria: Optional[str] = None,
+    metodo_pago: Optional[str] = None,
+    usuario_id: Optional[int] = None,
     page: int = 1,
     size: int = 50,
     session: Session = Depends(get_session),
@@ -1960,6 +2029,15 @@ def list_gastos(
     
     if search:
         query = query.where(Gasto.descripcion.ilike(f"%{search}%"))
+        
+    if categoria:
+        query = query.where(Gasto.categoria == categoria)
+        
+    if metodo_pago:
+        query = query.where(Gasto.metodo_pago == metodo_pago)
+        
+    if usuario_id:
+        query = query.where(Gasto.usuario_id == usuario_id)
         
     return session.exec(query.offset(skip).limit(size)).all()
 
@@ -2065,7 +2143,11 @@ def get_nomina_pendientes(start_date: str = None, end_date: str = None, session:
         .where(Atencion.validado == True)
         .where(AtencionDetalle.comision_pagada == False)
         .where(AtencionDetalle.doctor_id != None)
-        .options(selectinload(AtencionDetalle.doctor), selectinload(AtencionDetalle.tratamiento))
+        .options(
+            selectinload(AtencionDetalle.doctor), 
+            selectinload(AtencionDetalle.tratamiento),
+            selectinload(AtencionDetalle.atencion).selectinload(Atencion.pagos)
+        )
     )
     if start_date:
         query_docs = query_docs.where(Atencion.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
@@ -2078,15 +2160,25 @@ def get_nomina_pendientes(start_date: str = None, end_date: str = None, session:
     for d in detalles_docs:
         doc_id = d.doctor_id
         if doc_id in doctores_pendientes:
-            comision = float(d.comision_valor)
-            doctores_pendientes[doc_id]["comisiones_acumuladas"] += comision
-            doctores_pendientes[doc_id]["detalles"].append({
-                "tratamiento": d.tratamiento.nombre if d.tratamiento else "Desconocido",
-                "valor_tratamiento": float(d.total_calculado),
-                "porcentaje": float(d.porcentaje_comision),
-                "comision": comision,
-                "fecha": d.atencion.fecha.isoformat()
-            })
+            atencion = d.atencion
+            total_atn = float(atencion.total_atencion) if getattr(atencion, 'total_atencion', 0) else 0.0
+            pagado = sum(float(p.monto) for p in atencion.pagos) if getattr(atencion, 'pagos', []) else 0.0
+            porcentaje_pagado = min(pagado / total_atn, 1.0) if total_atn > 0 else 1.0
+            
+            comision_teorica = float(d.comision_valor)
+            comision_real_total = comision_teorica * porcentaje_pagado
+            comision_ya_pagada = float(d.comision_pagada_monto) if getattr(d, 'comision_pagada_monto', 0.0) else 0.0
+            comision_pendiente = comision_real_total - comision_ya_pagada
+            
+            if comision_pendiente > 0.01:
+                doctores_pendientes[doc_id]["comisiones_acumuladas"] += comision_pendiente
+                doctores_pendientes[doc_id]["detalles"].append({
+                    "tratamiento": d.tratamiento.nombre if d.tratamiento else "Desconocido",
+                    "valor_tratamiento": float(d.total_calculado),
+                    "porcentaje": float(d.porcentaje_comision),
+                    "comision": round(comision_pendiente, 2),
+                    "fecha": d.atencion.fecha.isoformat()
+                })
         
     # 2. SECRETARIES / USERS pending commissions (Kit Sales)
     vendedores_pendientes = {}
@@ -2100,7 +2192,11 @@ def get_nomina_pendientes(start_date: str = None, end_date: str = None, session:
         .where(Atencion.validado == True)
         .where(AtencionDetalle.comision_pagada == False)
         .where(AtencionDetalle.vendedor_id != None)
-        .options(selectinload(AtencionDetalle.vendedor), selectinload(AtencionDetalle.tratamiento))
+        .options(
+            selectinload(AtencionDetalle.vendedor), 
+            selectinload(AtencionDetalle.tratamiento),
+            selectinload(AtencionDetalle.atencion).selectinload(Atencion.pagos)
+        )
     )
     if start_date:
         query_ventas = query_ventas.where(Atencion.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
@@ -2121,16 +2217,25 @@ def get_nomina_pendientes(start_date: str = None, end_date: str = None, session:
                 "detalles": []
             }
             
-        comision = float(d.comision_valor)
-        vendedores_pendientes[vend_id]["comisiones_acumuladas"] += comision
-        vendedores_pendientes[vend_id]["detalles"].append({
-            "tratamiento": d.tratamiento.nombre if d.tratamiento else "Venta",
-            "valor_tratamiento": float(d.total_calculado),
-            "porcentaje": float(d.porcentaje_comision),
-            "comision": comision,
-            "fecha": d.atencion.fecha.isoformat()
-        })
+        atencion = d.atencion
+        total_atn = float(atencion.total_atencion) if getattr(atencion, 'total_atencion', 0) else 0.0
+        pagado = sum(float(p.monto) for p in atencion.pagos) if getattr(atencion, 'pagos', []) else 0.0
+        porcentaje_pagado = min(pagado / total_atn, 1.0) if total_atn > 0 else 1.0
         
+        comision_teorica = float(d.comision_valor)
+        comision_real_total = comision_teorica * porcentaje_pagado
+        comision_ya_pagada = float(d.comision_pagada_monto) if getattr(d, 'comision_pagada_monto', 0.0) else 0.0
+        comision_pendiente = comision_real_total - comision_ya_pagada
+        
+        if comision_pendiente > 0.01:
+            vendedores_pendientes[vend_id]["comisiones_acumuladas"] += comision_pendiente
+            vendedores_pendientes[vend_id]["detalles"].append({
+                "tratamiento": d.tratamiento.nombre if d.tratamiento else "Venta",
+                "valor_tratamiento": float(d.total_calculado),
+                "porcentaje": float(d.porcentaje_comision),
+                "comision": round(comision_pendiente, 2),
+                "fecha": d.atencion.fecha.isoformat()
+            })
     return {
         "doctores": list(doctores_pendientes.values()),
         "vendedores": list(vendedores_pendientes.values())
@@ -2143,6 +2248,7 @@ class PagoNominaSchema(BaseModel):
     comisiones: float = 0.0
     efectivo: float = 0.0
     transferencia: float = 0.0
+    tarjeta: float = 0.0
     responsable: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
@@ -2152,16 +2258,32 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
     if not user.sucursal_id:
         raise HTTPException(status_code=400, detail="El usuario no tiene una sucursal asignada")
         
-    efectivo_val = Decimal(data.efectivo)
-    transferencia_val = Decimal(data.transferencia)
-    total_entregado = efectivo_val + transferencia_val
-    total_a_pagar = Decimal(data.sueldo_base) + Decimal(data.comisiones)
+    efectivo_val = Decimal(str(data.efectivo))
+    transferencia_val = Decimal(str(data.transferencia))
+    tarjeta_val = Decimal(str(data.tarjeta))
+    total_entregado = efectivo_val + transferencia_val + tarjeta_val
+    total_a_pagar = Decimal(str(data.sueldo_base)) + Decimal(str(data.comisiones))
     
     if total_a_pagar <= 0:
         raise HTTPException(status_code=400, detail="El total a pagar debe ser mayor a 0")
         
     if abs(total_entregado - total_a_pagar) > Decimal("0.02"):
-        raise HTTPException(status_code=400, detail=f"La suma de Efectivo y Transferencia debe ser igual al Total a Pagar (${total_a_pagar})")
+        raise HTTPException(status_code=400, detail=f"La suma de métodos de pago debe ser igual al Total a Pagar (${total_a_pagar})")
+        
+    sucursal = session.get(Sucursal, user.sucursal_id)
+    if not sucursal:
+        raise HTTPException(status_code=400, detail="Sucursal no encontrada")
+        
+    balances = get_gastos_balances(session=session, user=user)
+        
+    if Decimal(str(balances["efectivo"])) < efectivo_val:
+        raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Efectivo. Disponible: ${balances['efectivo']}")
+        
+    if Decimal(str(balances["transferencia"])) < transferencia_val:
+        raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Bancos. Disponible: ${balances['transferencia']}")
+        
+    if Decimal(str(balances["tarjeta"])) < tarjeta_val:
+        raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Tarjeta. Disponible: ${balances['tarjeta']}")
         
     now = datetime.now()
     empleado_nombre = "Empleado"
@@ -2178,6 +2300,7 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
             .where(Atencion.validado == True)
             .where(AtencionDetalle.comision_pagada == False)
             .where(AtencionDetalle.doctor_id == data.empleado_id)
+            .options(selectinload(AtencionDetalle.atencion).selectinload(Atencion.pagos))
         )
         if data.start_date:
             query_pendientes = query_pendientes.where(Atencion.fecha >= datetime.strptime(data.start_date, "%Y-%m-%d"))
@@ -2188,8 +2311,23 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
         detalles_pendientes = session.exec(query_pendientes).all()
         
         for d in detalles_pendientes:
-            d.comision_pagada = True
-            d.fecha_pago_comision = now
+            atencion = d.atencion
+            total_atn = float(atencion.total_atencion) if getattr(atencion, 'total_atencion', 0) else 0.0
+            pagado = sum(float(p.monto) for p in atencion.pagos) if getattr(atencion, 'pagos', []) else 0.0
+            porcentaje_pagado = min(pagado / total_atn, 1.0) if total_atn > 0 else 1.0
+            
+            comision_teorica = float(d.comision_valor)
+            comision_real_total = comision_teorica * porcentaje_pagado
+            comision_ya_pagada = float(d.comision_pagada_monto) if getattr(d, 'comision_pagada_monto', 0.0) else 0.0
+            comision_pendiente = comision_real_total - comision_ya_pagada
+            
+            if comision_pendiente > 0.01:
+                d.comision_pagada_monto = comision_ya_pagada + comision_pendiente
+                d.fecha_pago_comision = now
+                
+                if porcentaje_pagado >= 0.99 and abs(float(d.comision_pagada_monto) - comision_teorica) < 0.02:
+                    d.comision_pagada = True
+                    
             session.add(d)
             
     elif data.tipo_empleado == 'Secretaria':
@@ -2203,6 +2341,7 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
             .where(Atencion.validado == True)
             .where(AtencionDetalle.comision_pagada == False)
             .where(AtencionDetalle.vendedor_id == data.empleado_id)
+            .options(selectinload(AtencionDetalle.atencion).selectinload(Atencion.pagos))
         )
         if data.start_date:
             query_pendientes = query_pendientes.where(Atencion.fecha >= datetime.strptime(data.start_date, "%Y-%m-%d"))
@@ -2213,8 +2352,23 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
         detalles_pendientes = session.exec(query_pendientes).all()
         
         for d in detalles_pendientes:
-            d.comision_pagada = True
-            d.fecha_pago_comision = now
+            atencion = d.atencion
+            total_atn = float(atencion.total_atencion) if getattr(atencion, 'total_atencion', 0) else 0.0
+            pagado = sum(float(p.monto) for p in atencion.pagos) if getattr(atencion, 'pagos', []) else 0.0
+            porcentaje_pagado = min(pagado / total_atn, 1.0) if total_atn > 0 else 1.0
+            
+            comision_teorica = float(d.comision_valor)
+            comision_real_total = comision_teorica * porcentaje_pagado
+            comision_ya_pagada = float(d.comision_pagada_monto) if getattr(d, 'comision_pagada_monto', 0.0) else 0.0
+            comision_pendiente = comision_real_total - comision_ya_pagada
+            
+            if comision_pendiente > 0.01:
+                d.comision_pagada_monto = comision_ya_pagada + comision_pendiente
+                d.fecha_pago_comision = now
+                
+                if porcentaje_pagado >= 0.99 and abs(float(d.comision_pagada_monto) - comision_teorica) < 0.02:
+                    d.comision_pagada = True
+                    
             session.add(d)
     
     # Create Gasto dynamically based on amounts
@@ -2246,6 +2400,19 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
         )
         session.add(gasto_transf)
         
+    if tarjeta_val > 0:
+        gasto_tarjeta = Gasto(
+            fecha=now,
+            descripcion=desc_base,
+            monto=tarjeta_val,
+            metodo_pago="TARJETA",
+            categoria="NÓMINA",
+            responsable=data.responsable or user.username,
+            sucursal_id=user.sucursal_id,
+            usuario_id=user.id
+        )
+        session.add(gasto_tarjeta)
+        
     session.commit()
     
     return {"message": f"Nómina pagada exitosamente a {empleado_nombre}", "total_pagado": float(total_entregado)}
@@ -2267,6 +2434,22 @@ def retiro_socios(data: RetiroSociosSchema, session: Session = Depends(get_sessi
          
     if data.monto <= 0:
          raise HTTPException(status_code=400, detail="El monto debe ser positivo")
+         
+    sucursal = session.get(Sucursal, user.sucursal_id)
+    if not sucursal:
+        raise HTTPException(status_code=400, detail="Sucursal no encontrada")
+        
+    balances = get_gastos_balances(session=session, user=user)
+    monto_dec = Decimal(str(data.monto))
+    
+    if data.metodo_pago == "EFECTIVO" and Decimal(str(balances["efectivo"])) < monto_dec:
+        raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Efectivo. Disponible: ${balances['efectivo']}")
+        
+    if data.metodo_pago == "TRANSFERENCIA" and Decimal(str(balances["transferencia"])) < monto_dec:
+        raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Bancos. Disponible: ${balances['transferencia']}")
+        
+    if data.metodo_pago == "TARJETA" and Decimal(str(balances["tarjeta"])) < monto_dec:
+        raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Tarjeta. Disponible: ${balances['tarjeta']}")
          
     gasto = Gasto(
         fecha=datetime.now(),

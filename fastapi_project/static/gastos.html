@@ -178,25 +178,41 @@
 
             <!-- Expenses List -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                    <h2 class="text-lg font-bold text-slate-800">Historial de Gastos</h2>
-                    <div class="flex gap-4 items-center">
+                <div class="bg-slate-50/50 p-4 border-b border-slate-100 flex flex-col gap-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-slate-800">Historial de Gastos</h2>
+                    </div>
+                    <div class="flex flex-wrap gap-3 items-center">
                         <div class="relative">
-                            <span
-                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                             </span>
-                            <input type="text" v-model="searchQuery" @input="debounceFetch"
-                                placeholder="Buscar por descripción..."
-                                class="pl-10 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none w-64 transition-all">
+                            <input type="text" v-model="searchQuery" @input="debounceFetch" placeholder="Buscar descripción..." class="pl-10 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-56 transition-all bg-white">
                         </div>
-                        <input type="date" v-model="startDate" @change="fetchGastos"
-                            class="px-3 py-2 rounded-lg border border-slate-200 text-sm">
-                        <input type="date" v-model="endDate" @change="fetchGastos"
-                            class="px-3 py-2 rounded-lg border border-slate-200 text-sm">
+                        
+                        <div class="flex items-center gap-2">
+                            <input type="date" v-model="startDate" @change="fetchGastos" class="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                            <span class="text-slate-400 text-sm">a</span>
+                            <input type="date" v-model="endDate" @change="fetchGastos" class="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                        </div>
+                        
+                        <select v-model="filterCategoria" @change="fetchGastos" class="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
+                            <option value="">Todas las Categorías</option>
+                            <option value="GENERAL">General</option>
+                            <option value="NÓMINA">Nómina</option>
+                            <option value="INSUMOS">Insumos</option>
+                            <option value="MANTENIMIENTO">Mantenimiento</option>
+                        </select>
+                        <select v-model="filterMetodo" @change="fetchGastos" class="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
+                            <option value="">Todos los Métodos</option>
+                            <option value="EFECTIVO">Efectivo 💵</option>
+                            <option value="TRANSFERENCIA">Transferencia 🏦</option>
+                            <option value="TARJETA">Tarjeta 💳</option>
+                        </select>
+                        <select v-model="filterUsuarioId" @change="fetchGastos" class="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white w-48 truncate">
+                            <option value="">Cualquier Registrador</option>
+                            <option v-for="u in usuarios" :key="u.id" :value="u.id">{{ u.username }}</option>
+                        </select>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -221,7 +237,11 @@
                                 <td class="px-6 py-4">
                                     <span v-if="g.metodo_pago === 'EFECTIVO'" class="text-emerald-600 font-medium">💵
                                         Efectivo</span>
-                                    <span v-else class="text-blue-600 font-medium">🏦 Transf.</span>
+                                    <span v-else-if="g.metodo_pago === 'TRANSFERENCIA'" class="text-blue-600 font-medium">🏦
+                                        Transf.</span>
+                                    <span v-else-if="g.metodo_pago === 'TARJETA'" class="text-purple-600 font-medium">💳
+                                        Tarjeta</span>
+                                    <span v-else class="text-gray-600 font-medium">{{ g.metodo_pago }}</span>
                                 </td>
                                 <td class="px-6 py-4 text-right font-black text-rose-600">
                                     -${{ Number(g.monto || 0).toFixed(2) }}
@@ -305,7 +325,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-2 text-center">Forma de Pago</label>
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-3 gap-4">
                             <button type="button" @click="form.metodo_pago = 'EFECTIVO'"
                                 :class="form.metodo_pago === 'EFECTIVO' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100' : 'bg-white border-slate-200 text-slate-500'"
                                 class="p-4 rounded-2xl border-2 font-bold transition flex flex-col items-center gap-1">
@@ -316,7 +336,13 @@
                                 :class="form.metodo_pago === 'TRANSFERENCIA' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100' : 'bg-white border-slate-200 text-slate-500'"
                                 class="p-4 rounded-2xl border-2 font-bold transition flex flex-col items-center gap-1">
                                 <span class="text-2xl">🏦</span>
-                                <span class="text-xs uppercase">Transf./Banco</span>
+                                <span class="text-xs uppercase">Transf.</span>
+                            </button>
+                            <button type="button" @click="form.metodo_pago = 'TARJETA'"
+                                :class="form.metodo_pago === 'TARJETA' ? 'bg-purple-50 border-purple-500 text-purple-700 ring-2 ring-purple-100' : 'bg-white border-slate-200 text-slate-500'"
+                                class="p-4 rounded-2xl border-2 font-bold transition flex flex-col items-center gap-1">
+                                <span class="text-2xl">💳</span>
+                                <span class="text-xs uppercase">Tarjeta</span>
                             </button>
                         </div>
                     </div>
@@ -529,16 +555,21 @@
                                         </option>
                                     </select>
                                 </div>
-                                <div class="grid grid-cols-2 gap-4">
+                                <div class="grid grid-cols-3 gap-4">
                                     <button type="button" @click="retiroForm.metodo_pago = 'EFECTIVO'"
                                         :class="retiroForm.metodo_pago === 'EFECTIVO' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-2' : 'bg-white border-slate-200 text-slate-500'"
-                                        class="p-4 rounded-xl border flex justify-center items-center gap-2 font-bold transition">
-                                        <span>💵 Efectivo</span>
+                                        class="p-4 rounded-xl border flex flex-col justify-center items-center gap-1 font-bold transition">
+                                        <span class="text-xl">💵</span><span class="text-xs">Efectivo</span>
                                     </button>
                                     <button type="button" @click="retiroForm.metodo_pago = 'TRANSFERENCIA'"
                                         :class="retiroForm.metodo_pago === 'TRANSFERENCIA' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-2' : 'bg-white border-slate-200 text-slate-500'"
-                                        class="p-4 rounded-xl border flex justify-center items-center gap-2 font-bold transition">
-                                        <span>🏦 Banco</span>
+                                        class="p-4 rounded-xl border flex flex-col justify-center items-center gap-1 font-bold transition">
+                                        <span class="text-xl">🏦</span><span class="text-xs">Banco</span>
+                                    </button>
+                                    <button type="button" @click="retiroForm.metodo_pago = 'TARJETA'"
+                                        :class="retiroForm.metodo_pago === 'TARJETA' ? 'bg-purple-50 border-purple-500 text-purple-700 ring-2' : 'bg-white border-slate-200 text-slate-500'"
+                                        class="p-4 rounded-xl border flex flex-col justify-center items-center gap-1 font-bold transition">
+                                        <span class="text-xl">💳</span><span class="text-xs">Tarjeta</span>
                                     </button>
                                 </div>
                                 <div>
@@ -663,6 +694,9 @@
 
                 const showTransferModal = ref(false)
                 const searchQuery = ref('')
+                const filterCategoria = ref('')
+                const filterMetodo = ref('')
+                const filterUsuarioId = ref('')
                 const transferForm = ref({
                     desde: 'EFECTIVO',
                     hacia: 'TRANSFERENCIA',
@@ -696,6 +730,9 @@
                                 start_date: startDate.value,
                                 end_date: endDate.value,
                                 search: searchQuery.value,
+                                categoria: filterCategoria.value || null,
+                                metodo_pago: filterMetodo.value || null,
+                                usuario_id: filterUsuarioId.value || null,
                                 page: currentPage.value,
                                 size: 50
                             }
@@ -790,17 +827,21 @@
                             </div>
                             <hr class="my-4 border-gray-200">
                             <h4 class="font-bold text-gray-700 mb-2 uppercase tracking-wide text-xs">Abonar Vía:</h4>
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-3 gap-4">
                                 <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
                                     <label class="block font-bold text-emerald-700 mb-1">Efectivo ($)</label>
                                     <input id="swal-efectivo" type="number" step="0.01" value="${empleado.comisiones_acumuladas.toFixed(2)}" class="block w-full px-3 py-2 border border-emerald-300 rounded-md shadow-sm font-bold text-emerald-800 focus:ring-emerald-500 focus:border-emerald-500">
                                 </div>
                                 <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                                    <label class="block font-bold text-blue-700 mb-1">Transfer.', TC ($)</label>
+                                    <label class="block font-bold text-blue-700 mb-1">Transfer. ($)</label>
                                     <input id="swal-transferencia" type="number" step="0.01" value="0.00" class="block w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm font-bold text-blue-800 focus:ring-blue-500 focus:border-blue-500">
                                 </div>
+                                <div class="bg-purple-50 p-3 rounded-lg border border-purple-100">
+                                    <label class="block font-bold text-purple-700 mb-1">Tarjeta ($)</label>
+                                    <input id="swal-tarjeta" type="number" step="0.01" value="0.00" class="block w-full px-3 py-2 border border-purple-300 rounded-md shadow-sm font-bold text-purple-800 focus:ring-purple-500 focus:border-purple-500">
+                                </div>
                             </div>
-                            <p class="text-xs text-gray-500 mt-2 text-center">La suma de Efectivo y Transferencia debe igualar el Total a Pagar.</p>
+                            <p class="text-xs text-gray-500 mt-2 text-center">La suma de todos los métodos debe igualar al Total a Pagar.</p>
                         </div>
                     `;
 
@@ -818,14 +859,15 @@
                             const sueldoBaseInput = document.getElementById('swal-sueldo-base');
                             const efectivoInput = document.getElementById('swal-efectivo');
                             const transInput = document.getElementById('swal-transferencia');
+                            const tarjetaInput = document.getElementById('swal-tarjeta');
 
                             const updateTotals = () => {
                                 const base = parseFloat(sueldoBaseInput.value) || 0;
                                 const com = parseFloat(empleado.comisiones_acumuladas) || 0;
                                 const total = base + com;
-                                // Simple auto-adjust to cash if they change base salary
                                 efectivoInput.value = total.toFixed(2);
                                 transInput.value = "0.00";
+                                tarjetaInput.value = "0.00";
                             };
                             sueldoBaseInput.addEventListener('change', updateTotals);
                         },
@@ -834,22 +876,40 @@
                             const sueldoBase = parseFloat(document.getElementById('swal-sueldo-base').value) || 0;
                             const efectivo = parseFloat(document.getElementById('swal-efectivo').value) || 0;
                             const transferencia = parseFloat(document.getElementById('swal-transferencia').value) || 0;
+                            const tarjeta = parseFloat(document.getElementById('swal-tarjeta').value) || 0;
                             const comisiones = parseFloat(empleado.comisiones_acumuladas) || 0;
 
                             const totalAPagar = sueldoBase + comisiones;
-                            const totalEntregado = efectivo + transferencia;
+                            const totalEntregado = efectivo + transferencia + tarjeta;
 
                             if (Math.abs(totalAPagar - totalEntregado) > 0.02) {
                                 Swal.showValidationMessage(`El total ingresado ($${totalEntregado.toFixed(2)}) no coincide con el Total a Pagar ($${totalAPagar.toFixed(2)})`);
+                                return false;
                             }
-                            return { responsable, sueldoBase, efectivo, transferencia, comisiones };
+                            
+                            const maxEfectivo = balances.value.efectivo || 0;
+                            const maxTrans = balances.value.transferencia || 0;
+                            const maxTarjeta = balances.value.tarjeta || 0;
+                            if (efectivo > maxEfectivo) {
+                                Swal.showValidationMessage(`Hacen falta fondos en Efectivo. Disponible: $${maxEfectivo.toFixed(2)}`);
+                                return false;
+                            }
+                            if (transferencia > maxTrans) {
+                                Swal.showValidationMessage(`Hacen falta fondos en Banco. Disponible: $${maxTrans.toFixed(2)}`);
+                                return false;
+                            }
+                            if (tarjeta > maxTarjeta) {
+                                Swal.showValidationMessage(`Hacen falta fondos en Tarjeta. Disponible: $${maxTarjeta.toFixed(2)}`);
+                                return false;
+                            }
+                            return { responsable, sueldoBase, efectivo, transferencia, tarjeta, comisiones };
                         }
                     });
 
                     if (!formValues) return;
 
                     try {
-                        const { sueldoBase, efectivo, transferencia, comisiones } = formValues;
+                        const { sueldoBase, efectivo, transferencia, tarjeta, comisiones } = formValues;
                         await axios.post('/api/nomina/pagar', {
                             empleado_id: empleado.id,
                             tipo_empleado: tipo,
@@ -857,6 +917,7 @@
                             comisiones: comisiones,
                             efectivo: efectivo,
                             transferencia: transferencia,
+                            tarjeta: tarjeta,
                             responsable: formValues.responsable,
                             start_date: filterNominaStartDate.value || null,
                             end_date: filterNominaEndDate.value || null
@@ -873,6 +934,15 @@
                 const procesarRetiro = async () => {
                     if (retiroForm.value.monto <= 0) {
                         return Swal.fire('Atención', 'El monto a retirar debe ser mayor a 0', 'warning')
+                    }
+                    
+                    const maxEfectivo = balances.value.efectivo || 0;
+                    const maxTrans = balances.value.transferencia || 0;
+                    if (retiroForm.value.metodo_pago === 'EFECTIVO' && retiroForm.value.monto > maxEfectivo) {
+                        return Swal.fire('Error', `Fondos insuficientes en Efectivo. Disponible: $${maxEfectivo.toFixed(2)}`, 'error')
+                    }
+                    if (retiroForm.value.metodo_pago === 'TRANSFERENCIA' && retiroForm.value.monto > maxTrans) {
+                        return Swal.fire('Error', `Fondos insuficientes en Banco. Disponible: $${maxTrans.toFixed(2)}`, 'error')
                     }
 
                     try {
@@ -966,7 +1036,7 @@
                     currentPage, changePage,
                     openNominaModal, procesarNomina, procesarRetiro,
                     showTransferModal, transferForm, procesarTransferencia,
-                    searchQuery, debounceFetch
+                    searchQuery, debounceFetch, filterCategoria, filterMetodo, filterUsuarioId
                 }
             }
         }).mount('#app')

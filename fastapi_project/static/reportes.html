@@ -115,6 +115,32 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Global Cashflow Summary -->
+                <div class="col-span-1 md:col-span-2 mb-2 bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl shadow-lg p-6 relative overflow-hidden border border-slate-700 mt-2">
+                    <div class="absolute top-0 right-0 -m-8 opacity-10">
+                        <svg class="w-48 h-48 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.31-8.86c-1.77-.45-2.34-.94-2.34-1.67 0-.84.79-1.43 2.1-1.43 1.38 0 1.9.66 1.94 1.64h1.71c-.05-1.97-1.31-3.24-3.14-3.59V6h-1.63v2.09c-1.92.38-3.34 1.54-3.34 3.19 0 2.2 1.96 2.87 4.56 3.4 1.94.41 2.5 1.09 2.5 1.92 0 1.03-.92 1.6-2.26 1.6-1.67 0-2.38-.85-2.45-1.97h-1.72c.08 2.06 1.36 3.39 3.55 3.75V22h1.63v-2.07c1.99-.34 3.49-1.66 3.49-3.38 0-2.26-1.9-2.92-4.5-3.41z"/></svg>
+                    </div>
+                    <div class="relative z-10">
+                        <h2 class="text-white text-lg font-bold mb-6 flex items-center gap-2">
+                            <span class="bg-indigo-500/20 p-2 rounded-lg">📊</span>
+                            Balance General de la Clínica
+                        </h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="bg-white/10 rounded-xl p-5 backdrop-blur-sm border border-white/5">
+                                <p class="text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">Total Ingresos</p>
+                                <h3 class="text-3xl font-black text-white">${{ Number(flujoCajaData.ingresos || 0).toFixed(2) }}</h3>
+                            </div>
+                            <div class="bg-white/10 rounded-xl p-5 backdrop-blur-sm border border-white/5">
+                                <p class="text-red-400 text-xs font-bold uppercase tracking-wider mb-1">Egresos / Liquidaciones</p>
+                                <h3 class="text-3xl font-black text-white">${{ Number(flujoCajaData.egresos || 0).toFixed(2) }}</h3>
+                            </div>
+                            <div class="bg-indigo-500/20 rounded-xl p-5 backdrop-blur-sm border border-indigo-400/30">
+                                <p class="text-indigo-300 text-xs font-bold uppercase tracking-wider mb-1">Saldo Neto (Utilidad Rápida)</p>
+                                <h3 class="text-3xl font-black text-white">${{ Number(flujoCajaData.saldo_neto || 0).toFixed(2) }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Ingresos y Producción -->
                 <div class="col-span-1 md:col-span-2 mb-4">
@@ -299,6 +325,7 @@
                 const ingresosData = ref([])
                 const doctoresData = ref([])
                 const activeDocTab = ref(null)
+                const flujoCajaData = ref({ ingresos: 0, egresos: 0, saldo_neto: 0 })
 
                 const rawTotalIngresos = Vue.computed(() => {
                     return ingresosData.value.reduce((sum, item) => sum + item.total, 0)
@@ -325,6 +352,15 @@
                         } else {
                             activeDocTab.value = null
                         }
+                        
+                        const resFlujo = await axios.get('/api/reportes/flujo-caja-global', {
+                            params: {
+                                start_date: filterStartDate.value,
+                                end_date: filterEndDate.value
+                            }
+                        })
+                        flujoCajaData.value = resFlujo.data
+
                     } catch (error) {
                         console.error('Error fetching ingresos:', error)
                     }
@@ -471,7 +507,8 @@
                     activeDocTab,
                     rawTotalIngresos,
                     activeDoctorDef,
-                    loadIngresosData
+                    loadIngresosData,
+                    flujoCajaData
                 }
             }
         }).mount('#app')

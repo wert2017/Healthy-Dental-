@@ -137,6 +137,7 @@ class AtencionDetalle(SQLModel, table=True):
     
     # Payroll / Commissions Tracking
     comision_pagada: bool = Field(default=False)
+    comision_pagada_monto: float = Field(default=0.0)
     fecha_pago_comision: Optional[datetime] = None
     vendedor_id: Optional[int] = Field(default=None, foreign_key="user.id") # Usually for secretaries selling kits
     
