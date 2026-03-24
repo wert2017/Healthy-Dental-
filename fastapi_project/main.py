@@ -178,12 +178,22 @@ async def login_for_access_token(
         }, 
         expires_delta=access_token_expires
     )
+    
+    # Get Doctor Full Name if applicable
+    full_name = user.username
+    if user.doctor_id:
+        doc = session.get(Doctor, user.doctor_id)
+        if doc:
+            full_name = f"{doc.nombres} {doc.apellidos}"
+
     return {
         "access_token": access_token, 
         "token_type": "bearer",
         "role": user.role,
         "doctor_id": user.doctor_id,
-        "sucursal_id": final_sucursal_id
+        "sucursal_id": final_sucursal_id,
+        "username": user.username,
+        "full_name": full_name
     }
 
 # Main redirects
@@ -2102,8 +2112,11 @@ def get_nomina_pendientes(start_date: str = None, end_date: str = None, session:
     
     doctores_pendientes = {}
     
-    # Initialize with all active doctors of the sucursal
-    all_docs = session.exec(select(Doctor).where(Doctor.sucursal_id == user.sucursal_id).where(Doctor.activo == True)).all()
+    # Initialize with all active doctors of the sucursal (including global ones)
+    doc_query = select(Doctor).where(Doctor.activo == True)
+    if user.sucursal_id:
+        doc_query = doc_query.where((Doctor.sucursal_id == user.sucursal_id) | (Doctor.sucursal_id == None))
+    all_docs = session.exec(doc_query).all()
     for doc in all_docs:
         doctores_pendientes[doc.id] = {
             "id": doc.id,

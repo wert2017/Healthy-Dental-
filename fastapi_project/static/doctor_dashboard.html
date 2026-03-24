@@ -363,7 +363,7 @@
                 // Auth Check
                 const token = localStorage.getItem('token')
                 const sucursalId = localStorage.getItem('sucursal_id')
-                const doctorName = ref(localStorage.getItem('username') || 'Usuario')
+                const doctorName = ref(localStorage.getItem('full_name') || localStorage.getItem('username') || 'Usuario')
 
                 if (!token) window.location.href = '/login'
 

@@ -101,10 +101,12 @@
 
             try {
                 const response = await axios.post('/token', formData);
-                const { access_token, role, doctor_id, sucursal_id: sid } = response.data;
+                const { access_token, role, doctor_id, sucursal_id: sid, username, full_name } = response.data;
 
                 localStorage.setItem('token', access_token);
                 localStorage.setItem('role', role);
+                if (username) localStorage.setItem('username', username);
+                if (full_name) localStorage.setItem('full_name', full_name);
                 if (doctor_id) localStorage.setItem('doctor_id', doctor_id);
                 if (sid) localStorage.setItem('sucursal_id', sid);
 
