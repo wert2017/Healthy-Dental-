@@ -115,6 +115,27 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Filtros Generales Del Reporte / Balance -->
+                <div class="col-span-1 md:col-span-2 mb-2">
+                    <div
+                        class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-end">
+                        <div class="flex-1">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Filtro de Fechas Global (Balance y Detalles)</label>
+                            <div class="flex gap-2 items-center">
+                                <input type="date" v-model="filterStartDate"
+                                    class="w-full text-sm border-gray-200 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none">
+                                <span class="text-gray-400 text-sm">a</span>
+                                <input type="date" v-model="filterEndDate"
+                                    class="w-full text-sm border-gray-200 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                        </div>
+                        <button @click="loadIngresosData"
+                            class="px-6 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-bold text-sm transition h-[38px] shadow-sm">
+                            Generar Reportes Filtradros
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Global Cashflow Summary -->
                 <div class="col-span-1 md:col-span-2 mb-2 bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl shadow-lg p-6 relative overflow-hidden border border-slate-700 mt-2">
                     <div class="absolute top-0 right-0 -m-8 opacity-10">
@@ -144,25 +165,7 @@
 
                 <!-- Ingresos y Producción -->
                 <div class="col-span-1 md:col-span-2 mb-4">
-                    <div
-                        class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-end mb-6">
-                        <div class="flex-1">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Rango de Fechas
-                                (Opcional)</label>
-                            <div class="flex gap-2 items-center">
-                                <input type="date" v-model="filterStartDate"
-                                    class="w-full text-sm border-gray-200 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none">
-                                <span class="text-gray-400 text-sm">a</span>
-                                <input type="date" v-model="filterEndDate"
-                                    class="w-full text-sm border-gray-200 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none">
-                            </div>
-                        </div>
-                        <button @click="loadIngresosData"
-                            class="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold text-sm transition h-[38px] shadow-sm">
-                            Cargar Ingresos
-                        </button>
-                    </div>
-
+                        <!-- Removed Filter Block because it was moved to the very top -->
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
                         <!-- Ingresos Mensuales Tab -->
                         <div
@@ -258,6 +261,7 @@
                             </div>
                     </div>
                 </div>
+                </div> <!-- END CONTENEDOR PRINCIPAL Ingresos y Produccion -->
 
                 <!-- Tabla de Datos -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
