@@ -689,13 +689,13 @@ def solicitar_revision_atencion(atencion_id: int, session: Session = Depends(get
         atencion_id=atencion.id,
         usuario_id=user.id,
         accion="SOLICITAR_REVISION",
-        detalles="El doctor solicitó revisión a recepción"
+        descripcion="El doctor solicitó revisión a recepción"
     )
     session.add(log)
     
     session.add(atencion)
     session.commit()
-    return {"status": "ok", "estado": "POR_REVISAR"}
+    return {"message": "Solicitud de revisión enviada a Recepción", "estado": "POR_REVISAR"}
 
 @app.post("/api/atenciones/{atencion_id}/terminar")
 def terminar_atencion_clinica(atencion_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
@@ -715,29 +715,6 @@ def terminar_atencion_clinica(atencion_id: int, session: Session = Depends(get_s
     session.add(atencion)
     session.commit()
     return {"status": "ok", "estado": "REALIZADO"}
-
-@app.post("/api/atenciones/{atencion_id}/solicitar-revision")
-def solicitar_revision_atencion(atencion_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    atencion = session.get(Atencion, atencion_id)
-    if not atencion:
-        raise HTTPException(status_code=404, detail="Atención no encontrada")
-    
-    if atencion.validado:
-        raise HTTPException(status_code=400, detail="La atención ya ha sido validada")
-
-    atencion.estado = "POR_REVISAR"
-    
-    # Optional: Log to Auditoria
-    auditoria = AuditoriaAtencion(
-        atencion_id=atencion.id,
-        usuario_id=user.id,
-        accion="SOLICITUD_REVISION",
-        detalles=f"Doctor {user.username} solicitó revisión para la atención #{atencion_id}"
-    )
-    session.add(auditoria)
-    session.add(atencion)
-    session.commit()
-    return {"message": "Solicitud de revisión enviada", "estado": atencion.estado}
 
 @app.get("/api/doctores")
 def get_doctores(session: Session = Depends(get_session)):
