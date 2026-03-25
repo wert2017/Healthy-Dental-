@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Query, status, Request, Form
+from fastapi import FastAPI, Depends, HTTPException, Query, status, Request, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import engine, create_db_and_tables, get_session
 from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono
@@ -614,6 +614,92 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session)):
         
     return results_data
 
+@app.post("/api/pacientes/importar-excel")
+async def importar_pacientes_excel(file: UploadFile = File(...), session: Session = Depends(get_session)):
+    import pandas as pd
+    import io
+    
+    if not file.filename.endswith('.xlsx'):
+        raise HTTPException(status_code=400, detail="El archivo debe ser un documento Excel (.xlsx)")
+        
+    try:
+        contents = await file.read()
+        df = pd.read_excel(io.BytesIO(contents))
+        df.columns = df.columns.astype(str).str.strip()
+        
+        existing_count = session.exec(select(Paciente)).all()
+        hc_counter = len(existing_count) + 1
+        prov_counter = 1
+        inserted = 0
+        skipped = 0
+        
+        def clean_str(val):
+            if pd.isna(val):
+                return None
+            s = str(val).strip()
+            return s if s else None
+            
+        for index, row in df.iterrows():
+            apellidos = clean_str(row.get('APELLIDOS'))
+            nombres = clean_str(row.get('NOMBRE'))
+            
+            if not apellidos and not nombres:
+                skipped += 1
+                continue
+                
+            apellidos = apellidos or "Desconocido"
+            nombres = nombres or ""
+            sexo = clean_str(row.get('SEXO'))
+            
+            edad_val = row.get('EDAD')
+            edad = None
+            if not pd.isna(edad_val):
+                try:
+                    edad = int(float(edad_val))
+                except:
+                    pass
+                    
+            telefono = clean_str(row.get('TELEFONO'))
+            if not telefono:
+                telefono = "0999999999"
+                
+            cedula = clean_str(row.get('CEDULA'))
+            if not cedula or len(cedula) < 4:
+                cedula = f"PROV-{prov_counter:05d}"
+                prov_counter += 1
+                
+            # Verificar si existe cédula en base de datos
+            existing = session.exec(select(Paciente).where(Paciente.numero_identificacion == cedula)).first()
+            if existing:
+                skipped += 1
+                continue
+                
+            ciudad = clean_str(row.get('CIUDAD'))
+            historia_clinica = f"HC-{hc_counter:05d}"
+            hc_counter += 1
+            
+            nuevo_paciente = Paciente(
+                tipo_identificacion="CED" if not cedula.startswith("PROV") else "PROV",
+                numero_identificacion=cedula,
+                nombres=nombres,
+                apellidos=apellidos,
+                historia_clinica=historia_clinica,
+                telefono=telefono,
+                email=None,
+                sexo=sexo,
+                edad=edad,
+                ciudad=ciudad,
+                activo=True
+            )
+            session.add(nuevo_paciente)
+            inserted += 1
+            
+        session.commit()
+        return {"status": "success", "message": f"¡Éxito! {inserted} pacientes importados masivamente.", "inserted": inserted, "skipped": skipped}
+        
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
 @app.get("/api/doctores")
 def list_doctores(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     """List active doctors, filtered by the user's sucursal if they are not an admin."""

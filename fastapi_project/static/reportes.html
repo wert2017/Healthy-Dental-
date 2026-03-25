@@ -95,7 +95,16 @@
 
         <div class="max-w-screen-2xl mx-auto px-6 py-8">
             <!-- Acciones Rápidas -->
-            <div class="mb-8 flex justify-end">
+            <div class="mb-8 flex justify-end gap-3">
+                <label v-if="role !== 'doctor'"
+                    class="cursor-pointer inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg shadow-blue-600/20"
+                    :class="{'opacity-50 cursor-not-allowed': isImporting}">
+                    <input type="file" class="hidden" accept=".xlsx" @change="importExcel" :disabled="isImporting">
+                    <svg v-if="!isImporting" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    <svg v-else class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    {{ isImporting ? 'Subiendo...' : '📥 Importar Archivo Excel' }}
+                </label>
+
                 <button @click="exportMasterReport" :disabled="isExporting"
                     class="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
                     <svg v-if="!isExporting" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,7 +119,7 @@
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
                         </path>
                     </svg>
-                    {{ isExporting ? 'Generando Excel...' : '📊 Descargar Reporte (.xlsx)' }}
+                    {{ isExporting ? 'Generando...' : '📊 Bajar Reporte (.xlsx)' }}
                 </button>
             </div>
 
@@ -447,6 +456,33 @@
                         isExporting.value = false
                     }
                 }
+                
+                const isImporting = ref(false)
+
+                const importExcel = async (event) => {
+                    const file = event.target.files[0]
+                    if (!file) return
+
+                    isImporting.value = true
+                    const formData = new FormData()
+                    formData.append("file", file)
+
+                    try {
+                        const token = localStorage.getItem('token')
+                        const res = await axios.post("/api/pacientes/importar-excel", formData, {
+                            headers: {
+                                "Content-Type": "multipart/form-data",
+                                Authorization: `Bearer ${token}`
+                            }
+                        })
+                        alert(res.data.message)
+                    } catch (error) {
+                        alert(error.response?.data?.detail || "Error al importar el archivo")
+                    } finally {
+                        isImporting.value = false
+                        event.target.value = ''
+                    }
+                }
 
                 const renderChart = (data) => {
                     const ctx = document.getElementById('treatmentChart').getContext('2d');
@@ -504,6 +540,10 @@
                     isActive,
                     logout,
                     exportMasterReport,
+                    
+                    isImporting,
+                    importExcel,
+
                     filterStartDate,
                     filterEndDate,
                     ingresosData,
