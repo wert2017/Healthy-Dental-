@@ -105,9 +105,27 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
         
     return user
 
+from sqlalchemy import text
+
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+    
+    # Auto-migration for new Paciente columns (Safe for both SQLite and Postgres)
+    with Session(engine) as session:
+        try:
+            session.execute(text("ALTER TABLE paciente ADD COLUMN sexo VARCHAR;"))
+        except Exception:
+            pass
+        try:
+            session.execute(text("ALTER TABLE paciente ADD COLUMN edad INTEGER;"))
+        except Exception:
+            pass
+        try:
+            session.execute(text("ALTER TABLE paciente ADD COLUMN ciudad VARCHAR;"))
+        except Exception:
+            pass
+        session.commit()
     # Create or Reset Default Admin User
     with Session(engine) as session:
         user = session.exec(select(User).where(User.username == "admin")).first()

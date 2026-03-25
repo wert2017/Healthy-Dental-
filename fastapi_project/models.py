@@ -38,6 +38,9 @@ class Paciente(SQLModel, table=True):
     historia_clinica: str = Field(unique=True)
     telefono: str
     email: Optional[str] = None
+    sexo: Optional[str] = None
+    edad: Optional[int] = None
+    ciudad: Optional[str] = None
     activo: bool = True
     fecha_creacion: datetime = Field(default_factory=datetime.now)
     
