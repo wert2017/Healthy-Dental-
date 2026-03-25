@@ -2099,24 +2099,100 @@ def get_gastos_balances(session: Session = Depends(get_session), user: User = De
 
 # --- SISTEMA DE NÓMINA Y COMISIONES (Módulo 35) ---
 
+def calcular_cascada_paciente(session: Session, pacientes_ids: set, sucursal_id: int = None, start_date: str = None, end_date: str = None, empleado_id: int = None, tipo_empleado: str = None):
+    """
+    Lógica Núcleo de la Cascada FIFO.
+    Agrupa los pagos globales de cada paciente y los distribuye cronológicamente sobre sus tratamientos.
+    """
+    resultados = []
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1) if end_date else None
+
+    for pac_id in pacientes_ids:
+        atenciones = session.exec(
+            select(Atencion)
+            .where(Atencion.paciente_id == pac_id)
+            .options(
+                selectinload(Atencion.pagos), 
+                selectinload(Atencion.detalles).selectinload(AtencionDetalle.tratamiento)
+            )
+        ).all()
+        
+        atenciones.sort(key=lambda a: a.fecha)
+        pool_pagos = sum(float(p.monto) for a in atenciones for p in a.pagos)
+        
+        for atencion in atenciones:
+            if not atencion.validado:
+                continue
+                
+            detalles = sorted(atencion.detalles, key=lambda d: d.id)
+            suma_calculada_detalles = sum(float(d.total_calculado) for d in detalles)
+            
+            total_atn = float(atencion.total_atencion) if getattr(atencion, 'total_atencion', None) else 0.0
+            factor = (total_atn / suma_calculada_detalles) if suma_calculada_detalles > 0 else 1.0
+            
+            for detalle in detalles:
+                costo_efectivo = float(detalle.total_calculado) * factor
+                
+                cobrado = min(pool_pagos, costo_efectivo)
+                pool_pagos -= cobrado
+                
+                porcentaje_detalle = (cobrado / costo_efectivo) if costo_efectivo > 0 else 1.0
+                
+                comision_teorica = float(detalle.comision_valor)
+                comision_real_total = comision_teorica * porcentaje_detalle
+                comision_ya_pagada = float(detalle.comision_pagada_monto) if getattr(detalle, 'comision_pagada_monto', None) else 0.0
+                comision_pendiente = comision_real_total - comision_ya_pagada
+                
+                if comision_pendiente > 0.01:
+                    if sucursal_id and atencion.sucursal_id != sucursal_id:
+                        continue
+                    if start_dt and atencion.fecha < start_dt:
+                        continue
+                    if end_dt and atencion.fecha >= end_dt:
+                        continue
+                        
+                    if empleado_id and tipo_empleado:
+                        if tipo_empleado == 'Doctor' and detalle.doctor_id != empleado_id:
+                            continue
+                        if tipo_empleado == 'Secretaria' and detalle.vendedor_id != empleado_id:
+                            continue
+                            
+                    resultados.append({
+                        "detalle": detalle,
+                        "comision_pendiente": comision_pendiente,
+                        "comision_real_total": comision_real_total,
+                        "porcentaje_pago_paciente": porcentaje_detalle,
+                        "atencion": atencion
+                    })
+    return resultados
+
+def get_cascada_pendientes_global(session: Session, sucursal_id: int = None, start_date: str = None, end_date: str = None, empleado_id: int = None, tipo_empleado: str = None):
+    query_pendientes = select(AtencionDetalle).join(Atencion).where(Atencion.validado == True).where(AtencionDetalle.comision_pagada == False)
+    if sucursal_id:
+        query_pendientes = query_pendientes.where(Atencion.sucursal_id == sucursal_id)
+        
+    pendientes_crudos = session.exec(query_pendientes).all()
+    if not pendientes_crudos:
+        return []
+        
+    pacientes_ids = {p.atencion.paciente_id for p in pendientes_crudos if p.atencion}
+    return calcular_cascada_paciente(session, pacientes_ids, sucursal_id, start_date, end_date, empleado_id, tipo_empleado)
+
 @app.get("/api/nomina/pendientes")
 def get_nomina_pendientes(start_date: str = None, end_date: str = None, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     """
-    Returns pending commissions for Doctors and Secretaries in the current branch.
+    Returns pending commissions iteratively via FIFO across all patient's attentions.
     """
     if not user.sucursal_id:
         raise HTTPException(status_code=400, detail="El usuario no tiene una sucursal asignada")
     
-    # 1. DOCTORS pending commissions
-    # A commission is owed if the treatment is finished/validated AND it hasn't been paid to the doctor yet.
-    
     doctores_pendientes = {}
-    
-    # Initialize with all active doctors of the sucursal (including global ones)
     doc_query = select(Doctor).where(Doctor.activo == True)
     if user.sucursal_id:
         doc_query = doc_query.where((Doctor.sucursal_id == user.sucursal_id) | (Doctor.sucursal_id == None))
     all_docs = session.exec(doc_query).all()
+    
     for doc in all_docs:
         doctores_pendientes[doc.id] = {
             "id": doc.id,
@@ -2126,106 +2202,47 @@ def get_nomina_pendientes(start_date: str = None, end_date: str = None, session:
             "detalles": []
         }
     
-    query_docs = (
-        select(AtencionDetalle)
-        .join(Atencion)
-        .where(Atencion.sucursal_id == user.sucursal_id)
-        .where(Atencion.validado == True)
-        .where(AtencionDetalle.comision_pagada == False)
-        .where(AtencionDetalle.doctor_id != None)
-        .options(
-            selectinload(AtencionDetalle.doctor), 
-            selectinload(AtencionDetalle.tratamiento),
-            selectinload(AtencionDetalle.atencion).selectinload(Atencion.pagos)
-        )
-    )
-    if start_date:
-        query_docs = query_docs.where(Atencion.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
-    if end_date:
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
-        query_docs = query_docs.where(Atencion.fecha < end_dt)
-        
-    detalles_docs = session.exec(query_docs).all()
-    
-    for d in detalles_docs:
-        doc_id = d.doctor_id
-        if doc_id in doctores_pendientes:
-            atencion = d.atencion
-            total_atn = float(atencion.total_atencion) if getattr(atencion, 'total_atencion', 0) else 0.0
-            pagado = sum(float(p.monto) for p in atencion.pagos) if getattr(atencion, 'pagos', []) else 0.0
-            porcentaje_pagado = min(pagado / total_atn, 1.0) if total_atn > 0 else 1.0
-            
-            comision_teorica = float(d.comision_valor)
-            comision_real_total = comision_teorica * porcentaje_pagado
-            comision_ya_pagada = float(d.comision_pagada_monto) if getattr(d, 'comision_pagada_monto', 0.0) else 0.0
-            comision_pendiente = comision_real_total - comision_ya_pagada
-            
-            if comision_pendiente > 0.01:
-                doctores_pendientes[doc_id]["comisiones_acumuladas"] += comision_pendiente
-                doctores_pendientes[doc_id]["detalles"].append({
-                    "tratamiento": d.tratamiento.nombre if d.tratamiento else "Desconocido",
-                    "valor_tratamiento": float(d.total_calculado),
-                    "porcentaje": float(d.porcentaje_comision),
-                    "comision": round(comision_pendiente, 2),
-                    "fecha": d.atencion.fecha.isoformat()
-                })
-        
-    # 2. SECRETARIES / USERS pending commissions (Kit Sales)
     vendedores_pendientes = {}
     
-    # Initialize all non-admin users removed so we only return secretaries WITH commissions
+    cascada_results = get_cascada_pendientes_global(session, user.sucursal_id, start_date, end_date)
     
-    query_ventas = (
-        select(AtencionDetalle)
-        .join(Atencion)
-        .where(Atencion.sucursal_id == user.sucursal_id)
-        .where(Atencion.validado == True)
-        .where(AtencionDetalle.comision_pagada == False)
-        .where(AtencionDetalle.vendedor_id != None)
-        .options(
-            selectinload(AtencionDetalle.vendedor), 
-            selectinload(AtencionDetalle.tratamiento),
-            selectinload(AtencionDetalle.atencion).selectinload(Atencion.pagos)
-        )
-    )
-    if start_date:
-        query_ventas = query_ventas.where(Atencion.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
-    if end_date:
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
-        query_ventas = query_ventas.where(Atencion.fecha < end_dt)
+    for res in cascada_results:
+        d = res["detalle"]
+        com_pen = res["comision_pendiente"]
         
-    detalles_ventas = session.exec(query_ventas).all()
-    
-    for d in detalles_ventas:
-        vend_id = d.vendedor_id
-        if vend_id not in vendedores_pendientes:
-            vendedores_pendientes[vend_id] = {
-                "id": vend_id,
-                "nombre": d.vendedor.username if d.vendedor else "Usuario",
-                "tipo": "Secretaria/Ventas",
-                "comisiones_acumuladas": 0.0,
-                "detalles": []
-            }
+        # Doc logic
+        if d.doctor_id and d.doctor_id in doctores_pendientes:
+            doctores_pendientes[d.doctor_id]["comisiones_acumuladas"] += com_pen
+            doctores_pendientes[d.doctor_id]["detalles"].append({
+                "tratamiento": d.tratamiento.nombre if d.tratamiento else "Desconocido",
+                "valor_tratamiento": float(d.total_calculado),
+                "porcentaje": float(d.porcentaje_comision),
+                "comision": round(com_pen, 2),
+                "fecha": res["atencion"].fecha.isoformat(),
+                "porcentaje_pago_real": res["porcentaje_pago_paciente"]
+            })
             
-        atencion = d.atencion
-        total_atn = float(atencion.total_atencion) if getattr(atencion, 'total_atencion', 0) else 0.0
-        pagado = sum(float(p.monto) for p in atencion.pagos) if getattr(atencion, 'pagos', []) else 0.0
-        porcentaje_pagado = min(pagado / total_atn, 1.0) if total_atn > 0 else 1.0
-        
-        comision_teorica = float(d.comision_valor)
-        comision_real_total = comision_teorica * porcentaje_pagado
-        comision_ya_pagada = float(d.comision_pagada_monto) if getattr(d, 'comision_pagada_monto', 0.0) else 0.0
-        comision_pendiente = comision_real_total - comision_ya_pagada
-        
-        if comision_pendiente > 0.01:
-            vendedores_pendientes[vend_id]["comisiones_acumuladas"] += comision_pendiente
-            vendedores_pendientes[vend_id]["detalles"].append({
+        # Sec logic
+        if d.vendedor_id:
+            if d.vendedor_id not in vendedores_pendientes:
+                vendedor_user = session.get(User, d.vendedor_id)
+                vendedores_pendientes[d.vendedor_id] = {
+                    "id": d.vendedor_id,
+                    "nombre": vendedor_user.username if vendedor_user else "Usuario",
+                    "tipo": "Secretaria/Ventas",
+                    "comisiones_acumuladas": 0.0,
+                    "detalles": []
+                }
+            vendedores_pendientes[d.vendedor_id]["comisiones_acumuladas"] += com_pen
+            vendedores_pendientes[d.vendedor_id]["detalles"].append({
                 "tratamiento": d.tratamiento.nombre if d.tratamiento else "Venta",
                 "valor_tratamiento": float(d.total_calculado),
                 "porcentaje": float(d.porcentaje_comision),
-                "comision": round(comision_pendiente, 2),
-                "fecha": d.atencion.fecha.isoformat()
+                "comision": round(com_pen, 2),
+                "fecha": res["atencion"].fecha.isoformat(),
+                "porcentaje_pago_real": res["porcentaje_pago_paciente"]
             })
+            
     return {
         "doctores": list(doctores_pendientes.values()),
         "vendedores": list(vendedores_pendientes.values())
@@ -2278,88 +2295,35 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
     now = datetime.now()
     empleado_nombre = "Empleado"
     
-    # Marcar comisiones como pagadas
     if data.tipo_empleado == 'Doctor':
         doctor = session.get(Doctor, data.empleado_id)
         if doctor: empleado_nombre = f"Dr(a). {doctor.nombres} {doctor.apellidos}"
-        
-        query_pendientes = (
-            select(AtencionDetalle)
-            .join(Atencion)
-            .where(Atencion.sucursal_id == user.sucursal_id)
-            .where(Atencion.validado == True)
-            .where(AtencionDetalle.comision_pagada == False)
-            .where(AtencionDetalle.doctor_id == data.empleado_id)
-            .options(selectinload(AtencionDetalle.atencion).selectinload(Atencion.pagos))
-        )
-        if data.start_date:
-            query_pendientes = query_pendientes.where(Atencion.fecha >= datetime.strptime(data.start_date, "%Y-%m-%d"))
-        if data.end_date:
-            end_dt = datetime.strptime(data.end_date, "%Y-%m-%d") + timedelta(days=1)
-            query_pendientes = query_pendientes.where(Atencion.fecha < end_dt)
-            
-        detalles_pendientes = session.exec(query_pendientes).all()
-        
-        for d in detalles_pendientes:
-            atencion = d.atencion
-            total_atn = float(atencion.total_atencion) if getattr(atencion, 'total_atencion', 0) else 0.0
-            pagado = sum(float(p.monto) for p in atencion.pagos) if getattr(atencion, 'pagos', []) else 0.0
-            porcentaje_pagado = min(pagado / total_atn, 1.0) if total_atn > 0 else 1.0
-            
-            comision_teorica = float(d.comision_valor)
-            comision_real_total = comision_teorica * porcentaje_pagado
-            comision_ya_pagada = float(d.comision_pagada_monto) if getattr(d, 'comision_pagada_monto', 0.0) else 0.0
-            comision_pendiente = comision_real_total - comision_ya_pagada
-            
-            if comision_pendiente > 0.01:
-                d.comision_pagada_monto = comision_ya_pagada + comision_pendiente
-                d.fecha_pago_comision = now
-                
-                if porcentaje_pagado >= 0.99 and abs(float(d.comision_pagada_monto) - comision_teorica) < 0.02:
-                    d.comision_pagada = True
-                    
-            session.add(d)
-            
     elif data.tipo_empleado == 'Secretaria':
         secretaria = session.get(User, data.empleado_id)
         if secretaria: empleado_nombre = f"Sec. {secretaria.username}"
+
+    # Extract pending details with proper FIFO mapping matching exactly what was visualized
+    cascada_results = get_cascada_pendientes_global(
+        session=session, 
+        sucursal_id=user.sucursal_id, 
+        start_date=data.start_date, 
+        end_date=data.end_date,
+        empleado_id=data.empleado_id,
+        tipo_empleado=data.tipo_empleado
+    )
+    
+    for res in cascada_results:
+        d = res["detalle"]
+        com_pen = res["comision_pendiente"]
+        pct_pago = res["porcentaje_pago_paciente"]
         
-        query_pendientes = (
-            select(AtencionDetalle)
-            .join(Atencion)
-            .where(Atencion.sucursal_id == user.sucursal_id)
-            .where(Atencion.validado == True)
-            .where(AtencionDetalle.comision_pagada == False)
-            .where(AtencionDetalle.vendedor_id == data.empleado_id)
-            .options(selectinload(AtencionDetalle.atencion).selectinload(Atencion.pagos))
-        )
-        if data.start_date:
-            query_pendientes = query_pendientes.where(Atencion.fecha >= datetime.strptime(data.start_date, "%Y-%m-%d"))
-        if data.end_date:
-            end_dt = datetime.strptime(data.end_date, "%Y-%m-%d") + timedelta(days=1)
-            query_pendientes = query_pendientes.where(Atencion.fecha < end_dt)
-            
-        detalles_pendientes = session.exec(query_pendientes).all()
+        d.comision_pagada_monto = float(getattr(d, 'comision_pagada_monto', 0.0) or 0.0) + com_pen
+        d.fecha_pago_comision = now
         
-        for d in detalles_pendientes:
-            atencion = d.atencion
-            total_atn = float(atencion.total_atencion) if getattr(atencion, 'total_atencion', 0) else 0.0
-            pagado = sum(float(p.monto) for p in atencion.pagos) if getattr(atencion, 'pagos', []) else 0.0
-            porcentaje_pagado = min(pagado / total_atn, 1.0) if total_atn > 0 else 1.0
+        if pct_pago >= 0.99:
+            d.comision_pagada = True
             
-            comision_teorica = float(d.comision_valor)
-            comision_real_total = comision_teorica * porcentaje_pagado
-            comision_ya_pagada = float(d.comision_pagada_monto) if getattr(d, 'comision_pagada_monto', 0.0) else 0.0
-            comision_pendiente = comision_real_total - comision_ya_pagada
-            
-            if comision_pendiente > 0.01:
-                d.comision_pagada_monto = comision_ya_pagada + comision_pendiente
-                d.fecha_pago_comision = now
-                
-                if porcentaje_pagado >= 0.99 and abs(float(d.comision_pagada_monto) - comision_teorica) < 0.02:
-                    d.comision_pagada = True
-                    
-            session.add(d)
+        session.add(d)
     
     # Create Gasto dynamically based on amounts
     desc_base = f"Liquidación de Nómina: {empleado_nombre} (Base: ${data.sueldo_base}, Comisiones: ${data.comisiones})"

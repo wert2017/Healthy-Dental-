@@ -456,6 +456,7 @@
                                             <span class="text-xs text-slate-400 ml-2">{{ formatDate(det.fecha) }}</span>
                                         </div>
                                         <div class="text-right whitespace-nowrap">
+                                            <span v-if="det.porcentaje_pago_real < 0.99" class="text-[10px] bg-orange-100 text-orange-700 px-1 py-0.5 rounded font-bold mr-2 uppercase">Parcial ({{ Math.round(det.porcentaje_pago_real * 100) }}%)</span>
                                             <span class="text-slate-500 text-xs">Total: ${{
                                                 det.valor_tratamiento.toFixed(2) }} | {{ det.porcentaje }}% -></span>
                                             <span class="font-bold text-emerald-600 ml-2">+${{ det.comision.toFixed(2)
@@ -514,6 +515,7 @@
                                             <span class="text-xs text-slate-400 ml-2">{{ formatDate(det.fecha) }}</span>
                                         </div>
                                         <div class="text-right whitespace-nowrap">
+                                            <span v-if="det.porcentaje_pago_real < 0.99" class="text-[10px] bg-orange-100 text-orange-700 px-1 py-0.5 rounded font-bold mr-2 uppercase">Parcial ({{ Math.round(det.porcentaje_pago_real * 100) }}%)</span>
                                             <span class="text-slate-500 text-xs">Total Vendido: ${{
                                                 det.valor_tratamiento.toFixed(2) }} | {{ det.porcentaje }}% -></span>
                                             <span class="font-bold text-emerald-600 ml-2">+${{ det.comision.toFixed(2)
