@@ -2128,7 +2128,7 @@ def calcular_cascada_paciente(session: Session, pacientes_ids: set, sucursal_id:
             detalles = sorted(atencion.detalles, key=lambda d: d.id)
             suma_calculada_detalles = sum(float(d.total_calculado) for d in detalles)
             
-            total_atn = float(atencion.total_atencion) if getattr(atencion, 'total_atencion', None) else 0.0
+            total_atn = float(atencion.total_atencion_valor) if getattr(atencion, 'total_atencion_valor', None) else 0.0
             factor = (total_atn / suma_calculada_detalles) if suma_calculada_detalles > 0 else 1.0
             
             for detalle in detalles:
@@ -2312,15 +2312,24 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
         tipo_empleado=data.tipo_empleado
     )
     
+    monto_a_repartir = float(data.comisiones)
+    
     for res in cascada_results:
         d = res["detalle"]
         com_pen = res["comision_pendiente"]
         pct_pago = res["porcentaje_pago_paciente"]
         
-        d.comision_pagada_monto = float(getattr(d, 'comision_pagada_monto', 0.0) or 0.0) + com_pen
+        if monto_a_repartir <= 0.001:
+            break
+            
+        pago_para_este_detalle = min(monto_a_repartir, com_pen)
+        monto_a_repartir -= pago_para_este_detalle
+        
+        d.comision_pagada_monto = float(getattr(d, 'comision_pagada_monto', 0.0) or 0.0) + pago_para_este_detalle
         d.fecha_pago_comision = now
         
-        if pct_pago >= 0.99:
+        # Treatment is fully paid by patient AND the clinic fully paid the doctor for the theoretical amount
+        if pct_pago >= 0.99 and abs(float(d.comision_pagada_monto) - float(d.comision_valor)) < 0.02:
             d.comision_pagada = True
             
         session.add(d)

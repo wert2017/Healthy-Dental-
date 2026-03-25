@@ -823,7 +823,7 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block font-medium text-gray-700">Comisiones ($)</label>
-                                    <input type="number" readonly value="${empleado.comisiones_acumuladas.toFixed(2)}" class="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm font-bold text-gray-600">
+                                    <input id="swal-comisiones" type="number" step="0.01" max="${empleado.comisiones_acumuladas.toFixed(2)}" value="${empleado.comisiones_acumuladas.toFixed(2)}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-bold text-indigo-700">
                                 </div>
                                 <div>
                                     <label class="block font-medium text-gray-700">Sueldo Fijo ($)</label>
@@ -862,19 +862,28 @@
                         didOpen: () => {
                             // Link fields to keep total balanced if possible
                             const sueldoBaseInput = document.getElementById('swal-sueldo-base');
+                            const comisionesInput = document.getElementById('swal-comisiones');
                             const efectivoInput = document.getElementById('swal-efectivo');
                             const transInput = document.getElementById('swal-transferencia');
                             const tarjetaInput = document.getElementById('swal-tarjeta');
 
                             const updateTotals = () => {
                                 const base = parseFloat(sueldoBaseInput.value) || 0;
-                                const com = parseFloat(empleado.comisiones_acumuladas) || 0;
+                                let com = parseFloat(comisionesInput.value) || 0;
+                                // Force max comisiones
+                                const maxCom = parseFloat(empleado.comisiones_acumuladas) || 0;
+                                if (com > maxCom) {
+                                    com = maxCom;
+                                    comisionesInput.value = com.toFixed(2);
+                                }
+                                
                                 const total = base + com;
                                 efectivoInput.value = total.toFixed(2);
                                 transInput.value = "0.00";
                                 tarjetaInput.value = "0.00";
                             };
-                            sueldoBaseInput.addEventListener('change', updateTotals);
+                            sueldoBaseInput.addEventListener('input', updateTotals);
+                            comisionesInput.addEventListener('input', updateTotals);
                         },
                         preConfirm: () => {
                             const responsable = document.getElementById('swal-responsable').value;
@@ -882,7 +891,10 @@
                             const efectivo = parseFloat(document.getElementById('swal-efectivo').value) || 0;
                             const transferencia = parseFloat(document.getElementById('swal-transferencia').value) || 0;
                             const tarjeta = parseFloat(document.getElementById('swal-tarjeta').value) || 0;
-                            const comisiones = parseFloat(empleado.comisiones_acumuladas) || 0;
+                            let comisiones = parseFloat(document.getElementById('swal-comisiones').value) || 0;
+                            
+                            const maxCom = parseFloat(empleado.comisiones_acumuladas) || 0;
+                            if (comisiones > maxCom) { comisiones = maxCom; }
 
                             const totalAPagar = sueldoBase + comisiones;
                             const totalEntregado = efectivo + transferencia + tarjeta;
