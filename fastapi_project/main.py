@@ -614,6 +614,25 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session)):
         
     return results_data
 
+@app.delete("/api/admin/nuke-pacientes")
+def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role != "admin" or user.username != "admin":
+        raise HTTPException(status_code=403, detail="Unicamente el Super-Administrador puede ejecutar esta accion")
+    from sqlalchemy import text
+    try:
+        session.exec(text("DELETE FROM auditoriaatencion"))
+        session.exec(text("DELETE FROM pago"))
+        session.exec(text("DELETE FROM atenciondetalle"))
+        session.exec(text("DELETE FROM atencion"))
+        session.exec(text("DELETE FROM tratamientoencurso"))
+        session.exec(text("DELETE FROM historialabono"))
+        session.exec(text("DELETE FROM paciente"))
+        session.commit()
+        return {"status": "success", "message": "Todos los pacientes y registros vinculados han sido eliminados de la base de datos de pruebas."}
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/pacientes/importar-excel")
 async def importar_pacientes_excel(file: UploadFile = File(...), session: Session = Depends(get_session)):
     import openpyxl
