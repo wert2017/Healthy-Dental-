@@ -1264,7 +1264,9 @@ def add_detalle(
     return {"message": "Detalle agregado"}
 
 @app.delete("/api/detalles/{detalle_id}")
-def delete_detalle(detalle_id: int, session: Session = Depends(get_session)):
+def delete_detalle(detalle_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo el administrador puede eliminar tratamientos")
     detalle = session.get(AtencionDetalle, detalle_id)
     if detalle:
         atencion = session.get(Atencion, detalle.atencion_id)
@@ -1625,7 +1627,9 @@ def add_atencion_pago(atencion_id: int, data: dict, session: Session = Depends(g
     return {"message": "Pago registrado correctamente", "pagos": atencion.pagos}
 
 @app.delete("/api/atenciones/{atencion_id}")
-def delete_atencion(atencion_id: int, session: Session = Depends(get_session)):
+def delete_atencion(atencion_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo el administrador puede eliminar atenciones")
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
