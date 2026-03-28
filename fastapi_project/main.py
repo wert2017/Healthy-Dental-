@@ -1809,7 +1809,7 @@ def reporte_flujo_caja_global(start_date: str = None, end_date: str = None, sess
         raise HTTPException(status_code=403, detail="No autorizado")
 
     # 1. Ingresos: Pagos (forma_pago != 'AB')
-    query_pagos = select(Pago).where(Pago.sucursal_id == user.sucursal_id).where(Pago.forma_pago != 'AB')
+    query_pagos = select(Pago).join(Atencion).where(Atencion.sucursal_id == user.sucursal_id).where(Pago.forma_pago != 'AB')
     if start_date:
         query_pagos = query_pagos.where(Pago.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
     if end_date:
