@@ -706,7 +706,7 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
                 
             ciudad = clean_str(get_col('CIUDAD'))
             
-            ficha_val = clean_str(get_col('FICHA '))
+            ficha_val = clean_str(get_col('FICHA'))
             if ficha_val:
                 historia_clinica = ficha_val
             else:
