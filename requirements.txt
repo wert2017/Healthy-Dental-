@@ -26,6 +26,7 @@ narwhals==2.14.0
 numpy==2.4.0
 packaging==25.0
 pandas==2.3.3
+openpyxl
 pillow==12.0.0
 plotly==6.5.0
 propcache==0.4.1

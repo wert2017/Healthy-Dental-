@@ -616,7 +616,7 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session)):
 
 @app.post("/api/pacientes/importar-excel")
 async def importar_pacientes_excel(file: UploadFile = File(...), session: Session = Depends(get_session)):
-    import pandas as pd
+    import openpyxl
     import io
     
     if not file.filename.endswith('.xlsx'):
@@ -624,8 +624,11 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
         
     try:
         contents = await file.read()
-        df = pd.read_excel(io.BytesIO(contents))
-        df.columns = df.columns.astype(str).str.strip()
+        wb = openpyxl.load_workbook(io.BytesIO(contents), data_only=True)
+        sheet = wb.active
+        
+        # Read the headers from the first row
+        headers = {str(cell.value).strip(): idx for idx, cell in enumerate(sheet[1]) if cell.value is not None}
         
         existing_count = session.exec(select(Paciente)).all()
         hc_counter = len(existing_count) + 1
@@ -634,14 +637,22 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
         skipped = 0
         
         def clean_str(val):
-            if pd.isna(val):
+            if val is None:
                 return None
             s = str(val).strip()
             return s if s else None
             
-        for index, row in df.iterrows():
-            apellidos = clean_str(row.get('APELLIDOS'))
-            nombres = clean_str(row.get('NOMBRE'))
+        # Iterate over the rows, skipping the header (row 2 onwards)
+        for row in sheet.iter_rows(min_row=2, values_only=True):
+            def get_col(col_name):
+                if col_name in headers:
+                    idx = headers[col_name]
+                    if idx < len(row):
+                        return row[idx]
+                return None
+
+            apellidos = clean_str(get_col('APELLIDOS'))
+            nombres = clean_str(get_col('NOMBRE'))
             
             if not apellidos and not nombres:
                 skipped += 1
@@ -649,21 +660,21 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
                 
             apellidos = apellidos or "Desconocido"
             nombres = nombres or ""
-            sexo = clean_str(row.get('SEXO'))
+            sexo = clean_str(get_col('SEXO'))
             
-            edad_val = row.get('EDAD')
+            edad_val = get_col('EDAD')
             edad = None
-            if not pd.isna(edad_val):
+            if edad_val is not None:
                 try:
                     edad = int(float(edad_val))
-                except:
+                except (ValueError, TypeError):
                     pass
                     
-            telefono = clean_str(row.get('TELEFONO'))
+            telefono = clean_str(get_col('TELEFONO'))
             if not telefono:
                 telefono = "0999999999"
                 
-            cedula = clean_str(row.get('CEDULA'))
+            cedula = clean_str(get_col('CEDULA'))
             if not cedula or len(cedula) < 4:
                 cedula = f"PROV-{prov_counter:05d}"
                 prov_counter += 1
@@ -674,7 +685,7 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
                 skipped += 1
                 continue
                 
-            ciudad = clean_str(row.get('CIUDAD'))
+            ciudad = clean_str(get_col('CIUDAD'))
             historia_clinica = f"HC-{hc_counter:05d}"
             hc_counter += 1
             
