@@ -2683,5 +2683,41 @@ def view_historial():
     with open("static/historial.html", "r", encoding="utf-8") as f:
         return f.read()
 
+@app.get("/api/secret/patch-db")
+def secret_patch_db(session: Session = Depends(get_session)):
+    from sqlalchemy import text
+    try:
+        session.execute(text("ALTER TABLE paciente ADD COLUMN sucursal_id INTEGER REFERENCES sucursal (id);"))
+        session.commit()
+    except Exception:
+        session.rollback()
+
+    target_name = "Healthy Dental La Magdalena Sur"
+    sucursal = session.exec(select(Sucursal).where(Sucursal.nombre == target_name)).first()
+    if not sucursal:
+        sucursal = Sucursal(nombre=target_name, direccion="Sur")
+        session.add(sucursal)
+        session.commit()
+        session.refresh(sucursal)
+
+    pacientes = session.exec(select(Paciente)).all()
+    count = 0
+    for p in pacientes:
+        if not p.sucursal_id:
+            p.sucursal_id = sucursal.id
+        suc = session.get(Sucursal, p.sucursal_id)
+        prefix = suc.nombre[:3].upper() if suc and len(suc.nombre) >= 3 else "GEN"
+        expected_hc = f"HC-{prefix}-{p.id:04d}"
+        if p.historia_clinica != expected_hc:
+            p.historia_clinica = expected_hc
+            count += 1
+        session.add(p)
+    if count > 0:
+        session.commit()
+        
+    return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
+
+# --- END API ROUTES ---
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
