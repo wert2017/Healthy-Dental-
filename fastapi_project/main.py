@@ -328,7 +328,8 @@ class PacienteAdmin(ModelView, model=Paciente):
         
         # 2. Auto-generate Clinical History Number if missing OR if creating a new one (Force override)
         if is_created or not model.historia_clinica:
-            with Session(request.app.state.engine) as session:
+            from database import engine as db_engine
+            with Session(db_engine) as session:
                 # Find the Sucursal to get prefix
                 from models import Sucursal
                 suc = session.get(Sucursal, model.sucursal_id)
@@ -1898,6 +1899,93 @@ def reporte_doctores(
     }
 
     return {"filas": filas, "totales": totales}
+
+@app.get("/api/reportes/tratamientos-en-curso")
+def reporte_tratamientos_en_curso(
+    start_date: str = None,
+    end_date: str = None,
+    tratamiento_id: Optional[int] = None,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    """
+    Two blocks:
+    1. Patients who STARTED a treatment within the date range (new starters).
+    2. Patients currently ACTIVE in a treatment (regardless of date).
+    Both filterable by tratamiento.
+    """
+    if user.role not in ["admin", "recepcion"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+
+    # --- Block 1: new starters in period ---
+    q_new = (
+        select(TratamientoEnCurso)
+        .options(
+            selectinload(TratamientoEnCurso.paciente),
+            selectinload(TratamientoEnCurso.tratamiento)
+        )
+        .order_by(TratamientoEnCurso.fecha_inicio.asc())
+    )
+    if start_date:
+        q_new = q_new.where(TratamientoEnCurso.fecha_inicio >= datetime.strptime(start_date, "%Y-%m-%d"))
+    if end_date:
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        q_new = q_new.where(TratamientoEnCurso.fecha_inicio < end_dt)
+    if tratamiento_id:
+        q_new = q_new.where(TratamientoEnCurso.tratamiento_id == tratamiento_id)
+
+    nuevos = session.exec(q_new).all()
+    nuevos_list = [
+        {
+            "id": r.id,
+            "paciente": r.paciente.nombre_mostrar if r.paciente else "—",
+            "historia_clinica": r.paciente.historia_clinica if r.paciente else "—",
+            "tratamiento": r.tratamiento.nombre if r.tratamiento else "—",
+            "fecha_inicio": r.fecha_inicio.strftime("%Y-%m-%d"),
+            "activo": r.activo,
+            "fecha_fin": r.fecha_fin.strftime("%Y-%m-%d") if r.fecha_fin else None,
+        }
+        for r in nuevos
+    ]
+
+    # --- Block 2: currently active (no date filter, only tratamiento filter) ---
+    q_activos = (
+        select(TratamientoEnCurso)
+        .where(TratamientoEnCurso.activo == True)
+        .options(
+            selectinload(TratamientoEnCurso.paciente),
+            selectinload(TratamientoEnCurso.tratamiento)
+        )
+        .order_by(TratamientoEnCurso.tratamiento_id, TratamientoEnCurso.fecha_inicio.asc())
+    )
+    if tratamiento_id:
+        q_activos = q_activos.where(TratamientoEnCurso.tratamiento_id == tratamiento_id)
+
+    activos = session.exec(q_activos).all()
+
+    # Group by tratamiento for summary
+    resumen_activos: dict = {}
+    activos_list = []
+    for r in activos:
+        t_nombre = r.tratamiento.nombre if r.tratamiento else "—"
+        resumen_activos[t_nombre] = resumen_activos.get(t_nombre, 0) + 1
+        activos_list.append({
+            "id": r.id,
+            "paciente": r.paciente.nombre_mostrar if r.paciente else "—",
+            "historia_clinica": r.paciente.historia_clinica if r.paciente else "—",
+            "tratamiento": t_nombre,
+            "fecha_inicio": r.fecha_inicio.strftime("%Y-%m-%d"),
+        })
+
+    resumen_list = [{"tratamiento": k, "total": v} for k, v in sorted(resumen_activos.items())]
+
+    return {
+        "nuevos": nuevos_list,
+        "activos": activos_list,
+        "resumen_activos": resumen_list,
+        "total_nuevos": len(nuevos_list),
+        "total_activos": len(activos_list),
+    }
 
 @app.get("/api/reportes/pacientes-por-tratamiento")
 def reporte_pacientes_tratamiento(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
