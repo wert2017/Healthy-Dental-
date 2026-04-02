@@ -188,7 +188,9 @@ async def login_for_access_token(
          pass
 
     # Set role cookie for Admin Panel seamless access
-    response.set_cookie(key="user_role", value=user.role, httponly=False) 
+    response.set_cookie(key="user_role", value=user.role, httponly=False)
+    if final_sucursal_id:
+        response.set_cookie(key="sucursal_id", value=str(final_sucursal_id), httponly=False) 
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
