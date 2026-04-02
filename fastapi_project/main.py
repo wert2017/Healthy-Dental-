@@ -1988,6 +1988,138 @@ def reporte_financiero_completo(session: Session = Depends(get_session), user: U
 
     return report_results
 
+@app.get("/api/reportes/resumen-financiero")
+def reporte_resumen_financiero(
+    start_date: str = None,
+    end_date: str = None,
+    doctor_id: Optional[int] = None,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    """
+    Comprehensive financial report:
+    - Income breakdown by treatment type (quantity + amount)
+    - Income breakdown by doctor (with treatment detail)
+    - Expense breakdown by category (NÓMINA, INSUMOS, SERVICIOS BÁSICOS, etc.)
+    - Balance general
+    """
+    if user.role not in ["admin", "recepcion"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1) if end_date else None
+
+    # 1. Load AtencionDetalles filtered by date, sucursal, optionally doctor
+    q_detalles = (
+        select(AtencionDetalle)
+        .join(Atencion)
+        .where(Atencion.sucursal_id == user.sucursal_id)
+        .options(
+            selectinload(AtencionDetalle.tratamiento),
+            selectinload(AtencionDetalle.doctor)
+        )
+    )
+    if start_dt:
+        q_detalles = q_detalles.where(Atencion.fecha >= start_dt)
+    if end_dt:
+        q_detalles = q_detalles.where(Atencion.fecha < end_dt)
+    if doctor_id:
+        q_detalles = q_detalles.where(AtencionDetalle.doctor_id == doctor_id)
+
+    detalles = session.exec(q_detalles).all()
+
+    # Aggregate ingresos by treatment
+    trat_map = {}
+    for d in detalles:
+        t_nombre = d.tratamiento.nombre if d.tratamiento else "Sin tratamiento"
+        if t_nombre not in trat_map:
+            trat_map[t_nombre] = {"nombre": t_nombre, "cantidad": 0, "monto_total": 0.0}
+        trat_map[t_nombre]["cantidad"] += d.cantidad
+        trat_map[t_nombre]["monto_total"] += float(d.total_calculado)
+
+    ingresos_por_tratamiento = sorted(trat_map.values(), key=lambda x: x["monto_total"], reverse=True)
+    for i in ingresos_por_tratamiento:
+        i["monto_total"] = round(i["monto_total"], 2)
+    total_produccion = round(sum(i["monto_total"] for i in ingresos_por_tratamiento), 2)
+
+    # Aggregate ingresos by doctor
+    doc_map = {}
+    for d in detalles:
+        if not d.doctor_id:
+            continue
+        doc_id = d.doctor_id
+        if doc_id not in doc_map:
+            doc_nombre = f"{d.doctor.nombres} {d.doctor.apellidos}" if d.doctor else "Desconocido"
+            doc_map[doc_id] = {"doctor_id": doc_id, "nombre": doc_nombre, "total": 0.0, "tratamientos": {}}
+        t_nombre = d.tratamiento.nombre if d.tratamiento else "Sin tratamiento"
+        monto = float(d.total_calculado)
+        doc_map[doc_id]["total"] += monto
+        if t_nombre not in doc_map[doc_id]["tratamientos"]:
+            doc_map[doc_id]["tratamientos"][t_nombre] = {"nombre": t_nombre, "cantidad": 0, "monto": 0.0}
+        doc_map[doc_id]["tratamientos"][t_nombre]["cantidad"] += d.cantidad
+        doc_map[doc_id]["tratamientos"][t_nombre]["monto"] += monto
+
+    ingresos_por_doctor = []
+    for doc_id, data in doc_map.items():
+        trats = sorted(data["tratamientos"].values(), key=lambda x: x["monto"], reverse=True)
+        for t in trats:
+            t["monto"] = round(t["monto"], 2)
+        ingresos_por_doctor.append({
+            "doctor_id": doc_id,
+            "nombre": data["nombre"],
+            "total": round(data["total"], 2),
+            "tratamientos": trats
+        })
+    ingresos_por_doctor.sort(key=lambda x: x["total"], reverse=True)
+
+    # 2. Total payments actually collected (forma_pago != 'AB')
+    q_pagos = (
+        select(Pago)
+        .join(Atencion)
+        .where(Atencion.sucursal_id == user.sucursal_id)
+        .where(Pago.forma_pago != 'AB')
+    )
+    if start_dt:
+        q_pagos = q_pagos.where(Pago.fecha >= start_dt)
+    if end_dt:
+        q_pagos = q_pagos.where(Pago.fecha < end_dt)
+    pagos = session.exec(q_pagos).all()
+    total_cobrado = round(sum(float(p.monto) for p in pagos), 2)
+
+    # 3. Gastos por categoría
+    q_gastos = select(Gasto).where(Gasto.sucursal_id == user.sucursal_id)
+    if start_dt:
+        q_gastos = q_gastos.where(Gasto.fecha >= start_dt)
+    if end_dt:
+        q_gastos = q_gastos.where(Gasto.fecha < end_dt)
+    gastos = session.exec(q_gastos).all()
+
+    cat_map = {}
+    for g in gastos:
+        cat = g.categoria or "GENERAL"
+        cat_map[cat] = cat_map.get(cat, 0.0) + float(g.monto)
+
+    gastos_por_categoria = [{"categoria": k, "total": round(v, 2)} for k, v in cat_map.items()]
+    gastos_por_categoria.sort(key=lambda x: x["total"], reverse=True)
+    total_gastos = round(sum(g["total"] for g in gastos_por_categoria), 2)
+
+    return {
+        "ingresos": {
+            "total_produccion": total_produccion,
+            "total_cobrado": total_cobrado,
+            "por_tratamiento": ingresos_por_tratamiento,
+            "por_doctor": ingresos_por_doctor
+        },
+        "gastos": {
+            "total": total_gastos,
+            "sueldos": round(cat_map.get("NÓMINA", 0.0), 2),
+            "insumos": round(cat_map.get("INSUMOS", 0.0), 2),
+            "servicios_basicos": round(cat_map.get("SERVICIOS BÁSICOS", 0.0), 2),
+            "por_categoria": gastos_por_categoria
+        },
+        "balance": round(total_cobrado - total_gastos, 2)
+    }
+
 @app.post("/api/pacientes/{paciente_id}/tratamientos")
 def iniciar_tratamiento(paciente_id: int, tratamiento_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     # Check if already active
