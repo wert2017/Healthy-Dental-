@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,610 +12,468 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
-        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        body { font-family: 'Inter', sans-serif; background: #f9fafb; color: #111827; }
+        .section { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 16px; }
+        .section-header { padding: 14px 20px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+        .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #374151; }
+        .section-body { padding: 0 20px 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { padding: 10px 0; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+        th.r, td.r { text-align: right; }
+        th.c, td.c { text-align: center; }
+        td { padding: 9px 0; border-bottom: 1px solid #f3f4f6; color: #374151; }
+        tr:last-child td { border-bottom: none; }
+        tfoot td { padding-top: 10px; border-top: 2px solid #e5e7eb; border-bottom: none; font-weight: 700; color: #111827; }
+        .badge { display: inline-block; padding: 1px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; background: #f3f4f6; color: #374151; }
+        .summary-row { display: flex; gap: 0; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+        .summary-cell { flex: 1; padding: 16px 20px; border-right: 1px solid #e5e7eb; }
+        .summary-cell:last-child { border-right: none; }
+        .summary-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 4px; }
+        .summary-value { font-size: 22px; font-weight: 800; color: #111827; }
+        .summary-sub { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+        .balance-pos { color: #059669; }
+        .balance-neg { color: #dc2626; }
+        input[type=date], select { border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px; font-size: 13px; outline: none; background: #fff; color: #374151; }
+        input[type=date]:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 2px #eef2ff; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: background 0.15s; }
+        .btn-primary { background: #4f46e5; color: #fff; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-primary:disabled { opacity: 0.5; cursor: default; }
+        .btn-outline { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+        .btn-outline:hover { background: #f9fafb; }
+        .empty { padding: 28px 0; text-align: center; color: #9ca3af; font-size: 13px; }
     </style>
 </head>
+<body>
+<div id="app" style="padding-bottom: 48px;">
 
-<body class="bg-gray-50 min-h-screen">
-    <div id="app" class="pb-10">
-        <!-- Header -->
-        <header class="bg-white shadow-sm border-b border-gray-200 mb-8 sticky top-0 z-30">
-            <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-                <div class="flex-shrink-0 flex items-center gap-4">
-                    <img src="/static/logo.png" alt="Logo Clínica HD" class="h-10 w-auto">
-                    <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
-                        Clínica HD
-                    </h1>
-                </div>
-                <div class="flex items-center gap-1 overflow-x-auto">
-                    <a href="/recepcion" class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/recepcion') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">Recepción</a>
-                    <a href="/static/pagos.html" class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/static/pagos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">CxC / Abonos</a>
-                    <a v-if="role !== 'doctor'" href="/gastos" class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/gastos') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">Gastos</a>
-                    <a v-if="role !== 'doctor'" href="/admin" class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/admin') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">Administración</a>
-                    <a v-if="role !== 'doctor'" href="/admin/paciente/list" class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/admin/paciente/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">Pacientes</a>
-                    <a v-if="role !== 'doctor'" href="/static/reportes.html" class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/static/reportes.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">Reportes</a>
-                    <a href="/recepcion/historial" class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/recepcion/historial') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">Historial</a>
-                    <a v-if="role !== 'doctor'" href="/admin/insumo/list" class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/admin/insumo/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">Mantenimiento</a>
-                    <a href="#" @click.prevent="logout" class="px-3 py-2 rounded-md text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors ml-2 whitespace-nowrap">Salir</a>
-                </div>
+    <!-- Header -->
+    <header style="background:#fff; border-bottom:1px solid #e5e7eb; position:sticky; top:0; z-index:30; margin-bottom:24px;">
+        <div style="max-width:1280px; margin:0 auto; padding:0 24px; height:56px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <img src="/static/logo.png" alt="Clínica HD" style="height:36px;">
+                <span style="font-size:17px; font-weight:700; color:#1e40af;">Clínica HD</span>
             </div>
-        </header>
+            <nav style="display:flex; gap:2px; align-items:center; overflow-x:auto;">
+                <a href="/recepcion" class="nav-link">Recepción</a>
+                <a href="/static/pagos.html" class="nav-link">CxC / Abonos</a>
+                <a v-if="role !== 'doctor'" href="/gastos" class="nav-link">Gastos</a>
+                <a v-if="role !== 'doctor'" href="/admin" class="nav-link">Administración</a>
+                <a v-if="role !== 'doctor'" href="/admin/paciente/list" class="nav-link">Pacientes</a>
+                <a v-if="role !== 'doctor'" href="/static/reportes.html" class="nav-link active">Reportes</a>
+                <a href="/recepcion/historial" class="nav-link">Historial</a>
+                <a v-if="role !== 'doctor'" href="/admin/insumo/list" class="nav-link">Mantenimiento</a>
+                <a href="#" @click.prevent="logout" class="nav-link" style="color:#dc2626; margin-left:8px;">Salir</a>
+            </nav>
+        </div>
+    </header>
 
-        <div class="max-w-screen-2xl mx-auto px-6">
+    <div style="max-width:1280px; margin:0 auto; padding:0 24px;">
 
-            <!-- Acciones Rápidas -->
-            <div class="mb-6 flex justify-end gap-3">
-                <label v-if="role !== 'doctor'"
-                    class="cursor-pointer inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-lg shadow-blue-600/20 text-sm"
-                    :class="{'opacity-50 cursor-not-allowed': isImporting}">
-                    <input type="file" class="hidden" accept=".xlsx" @change="importExcel" :disabled="isImporting">
-                    <svg v-if="!isImporting" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                    <svg v-else class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    {{ isImporting ? 'Subiendo...' : 'Importar Excel' }}
-                </label>
-                <button @click="exportMasterReport" :disabled="isExporting"
-                    class="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-lg shadow-emerald-600/20 disabled:opacity-50 text-sm">
-                    <svg v-if="!isExporting" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <svg v-else class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    {{ isExporting ? 'Generando...' : 'Bajar Reporte (.xlsx)' }}
+        <!-- Acciones -->
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:16px;">
+            <label v-if="role !== 'doctor'" class="btn btn-outline" :style="isImporting ? 'opacity:.5;cursor:default' : ''">
+                <input type="file" style="display:none" accept=".xlsx" @change="importExcel" :disabled="isImporting">
+                {{ isImporting ? 'Subiendo...' : 'Importar Excel' }}
+            </label>
+            <button class="btn btn-outline" @click="exportMasterReport" :disabled="isExporting">
+                {{ isExporting ? 'Generando...' : 'Exportar .xlsx' }}
+            </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-title">Filtros</span>
+            </div>
+            <div style="padding:14px 20px; display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+                <div>
+                    <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;">Desde</div>
+                    <input type="date" v-model="filterStartDate">
+                </div>
+                <div>
+                    <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;">Hasta</div>
+                    <input type="date" v-model="filterEndDate">
+                </div>
+                <div>
+                    <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;">Doctor</div>
+                    <select v-model="filterDoctorId" style="min-width:200px;">
+                        <option :value="null">Todos los doctores</option>
+                        <option v-for="doc in doctoresList" :key="doc.id" :value="doc.id">{{ doc.nombres }} {{ doc.apellidos }}</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" @click="loadResumen" :disabled="isLoading">
+                    <svg v-if="isLoading" style="width:14px;height:14px;animation:spin 1s linear infinite" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity=".25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>
+                    {{ isLoading ? 'Cargando...' : 'Generar Reporte' }}
                 </button>
             </div>
+        </div>
 
-            <!-- ====== FILTROS ====== -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-                <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Filtros del Reporte</h2>
-                <div class="flex flex-col md:flex-row gap-4 items-end">
-                    <!-- Rango de fechas -->
-                    <div class="flex-1">
-                        <label class="block text-xs font-semibold text-gray-500 mb-1.5">Período</label>
-                        <div class="flex gap-2 items-center">
-                            <input type="date" v-model="filterStartDate"
-                                class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none">
-                            <span class="text-gray-400 text-sm font-medium">a</span>
-                            <input type="date" v-model="filterEndDate"
-                                class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                    </div>
-                    <!-- Filtro por doctor -->
-                    <div class="flex-1">
-                        <label class="block text-xs font-semibold text-gray-500 mb-1.5">Doctor (opcional)</label>
-                        <select v-model="filterDoctorId"
-                            class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none">
-                            <option :value="null">Todos los doctores</option>
-                            <option v-for="doc in doctoresList" :key="doc.id" :value="doc.id">
-                                {{ doc.nombres }} {{ doc.apellidos }}
-                            </option>
-                        </select>
-                    </div>
-                    <!-- Botón generar -->
-                    <button @click="loadResumen" :disabled="isLoading"
-                        class="px-8 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-lg font-bold text-sm transition shadow-sm flex items-center gap-2 h-[38px]">
-                        <svg v-if="isLoading" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        {{ isLoading ? 'Cargando...' : 'Generar Reporte' }}
-                    </button>
-                </div>
+        <!-- Balance General -->
+        <div class="summary-row">
+            <div class="summary-cell">
+                <div class="summary-label">Producción Total</div>
+                <div class="summary-value">${{ fmt(resumen.ingresos?.total_produccion) }}</div>
+                <div class="summary-sub">Tratamientos facturados</div>
             </div>
-
-            <!-- ====== BALANCE GENERAL ====== -->
-            <div class="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl shadow-lg p-6 mb-6 border border-slate-700 relative overflow-hidden">
-                <div class="absolute top-0 right-0 -m-8 opacity-10">
-                    <svg class="w-48 h-48 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.31-8.86c-1.77-.45-2.34-.94-2.34-1.67 0-.84.79-1.43 2.1-1.43 1.38 0 1.9.66 1.94 1.64h1.71c-.05-1.97-1.31-3.24-3.14-3.59V6h-1.63v2.09c-1.92.38-3.34 1.54-3.34 3.19 0 2.2 1.96 2.87 4.56 3.4 1.94.41 2.5 1.09 2.5 1.92 0 1.03-.92 1.6-2.26 1.6-1.67 0-2.38-.85-2.45-1.97h-1.72c.08 2.06 1.36 3.39 3.55 3.75V22h1.63v-2.07c1.99-.34 3.49-1.66 3.49-3.38 0-2.26-1.9-2.92-4.5-3.41z"/></svg>
-                </div>
-                <div class="relative z-10">
-                    <h2 class="text-white text-lg font-bold mb-5 flex items-center gap-2">
-                        <span class="bg-indigo-500/20 p-2 rounded-lg">📊</span>
-                        Balance General de la Clínica
-                        <span v-if="filterStartDate || filterEndDate" class="text-xs font-normal text-slate-400 ml-2">
-                            ({{ filterStartDate || '...' }} — {{ filterEndDate || '...' }})
-                        </span>
-                    </h2>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/5">
-                            <p class="text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">Producción Total</p>
-                            <h3 class="text-2xl font-black text-white">${{ fmt(resumen.ingresos?.total_produccion) }}</h3>
-                            <p class="text-slate-400 text-xs mt-1">Tratamientos facturados</p>
-                        </div>
-                        <div class="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/5">
-                            <p class="text-blue-300 text-xs font-bold uppercase tracking-wider mb-1">Total Cobrado</p>
-                            <h3 class="text-2xl font-black text-white">${{ fmt(resumen.ingresos?.total_cobrado) }}</h3>
-                            <p class="text-slate-400 text-xs mt-1">Pagos recibidos</p>
-                        </div>
-                        <div class="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/5">
-                            <p class="text-red-400 text-xs font-bold uppercase tracking-wider mb-1">Total Gastos</p>
-                            <h3 class="text-2xl font-black text-white">${{ fmt(resumen.gastos?.total) }}</h3>
-                            <p class="text-slate-400 text-xs mt-1">Egresos registrados</p>
-                        </div>
-                        <div class="rounded-xl p-4 backdrop-blur-sm border"
-                            :class="(resumen.balance || 0) >= 0 ? 'bg-emerald-500/20 border-emerald-400/30' : 'bg-red-500/20 border-red-400/30'">
-                            <p class="text-xs font-bold uppercase tracking-wider mb-1"
-                                :class="(resumen.balance || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'">Saldo Neto</p>
-                            <h3 class="text-2xl font-black text-white">${{ fmt(resumen.balance) }}</h3>
-                            <p class="text-slate-400 text-xs mt-1">Cobrado − Gastos</p>
-                        </div>
-                    </div>
-                </div>
+            <div class="summary-cell">
+                <div class="summary-label">Total Cobrado</div>
+                <div class="summary-value">${{ fmt(resumen.ingresos?.total_cobrado) }}</div>
+                <div class="summary-sub">Pagos recibidos</div>
             </div>
-
-            <!-- ====== INGRESOS POR TRATAMIENTO ====== -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-                <!-- Tabla de ingresos por tratamiento -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h2 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                        Ingresos por Tipo de Tratamiento
-                    </h2>
-                    <p class="text-xs text-gray-400 mb-4">Producción facturada (precio × cantidad)</p>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-                                    <th class="pb-3">Tratamiento</th>
-                                    <th class="pb-3 text-center">Cantidad</th>
-                                    <th class="pb-3 text-right">Monto Total</th>
-                                    <th class="pb-3 text-right">% del Total</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50 text-sm">
-                                <tr v-for="item in resumen.ingresos?.por_tratamiento || []" :key="item.nombre"
-                                    class="hover:bg-gray-50 transition">
-                                    <td class="py-2.5 font-medium text-gray-800">{{ item.nombre }}</td>
-                                    <td class="py-2.5 text-center">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700">
-                                            {{ item.cantidad }}
-                                        </span>
-                                    </td>
-                                    <td class="py-2.5 text-right font-bold text-emerald-700">${{ fmt(item.monto_total) }}</td>
-                                    <td class="py-2.5 text-right text-gray-400 text-xs">
-                                        {{ resumen.ingresos?.total_produccion > 0 ? ((item.monto_total / resumen.ingresos.total_produccion) * 100).toFixed(1) + '%' : '—' }}
-                                    </td>
-                                </tr>
-                                <tr v-if="!resumen.ingresos?.por_tratamiento?.length">
-                                    <td colspan="4" class="py-8 text-center text-gray-400">Sin datos en este período</td>
-                                </tr>
-                            </tbody>
-                            <tfoot v-if="resumen.ingresos?.por_tratamiento?.length">
-                                <tr class="border-t-2 border-gray-200">
-                                    <td class="pt-3 font-bold text-gray-700">Total</td>
-                                    <td class="pt-3 text-center font-bold text-gray-700">
-                                        {{ (resumen.ingresos?.por_tratamiento || []).reduce((s,i) => s + i.cantidad, 0) }}
-                                    </td>
-                                    <td class="pt-3 text-right font-black text-emerald-700 text-base">${{ fmt(resumen.ingresos?.total_produccion) }}</td>
-                                    <td class="pt-3 text-right text-gray-400 text-xs">100%</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Gráfico distribución tratamientos -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col">
-                    <h2 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
-                        Distribución Visual
-                    </h2>
-                    <p class="text-xs text-gray-400 mb-4">Por monto de producción</p>
-                    <div class="flex-1 flex items-center justify-center min-h-[220px]">
-                        <canvas id="tratamientoChart"></canvas>
-                    </div>
-                </div>
+            <div class="summary-cell">
+                <div class="summary-label">Total Gastos</div>
+                <div class="summary-value">${{ fmt(resumen.gastos?.total) }}</div>
+                <div class="summary-sub">Egresos registrados</div>
             </div>
-
-            <!-- ====== INGRESOS POR DOCTOR ====== -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-                <h2 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>
-                    Ingresos por Doctor
-                </h2>
-                <p class="text-xs text-gray-400 mb-5">Producción facturada desglosada por profesional</p>
-
-                <div v-if="!resumen.ingresos?.por_doctor?.length" class="text-center py-8 text-gray-400 text-sm border border-dashed border-gray-200 rounded-xl">
-                    Sin datos de producción para este período
-                </div>
-
-                <div v-else>
-                    <!-- Selector de doctor -->
-                    <div class="mb-5">
-                        <select v-model="activeDocId"
-                            class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-auto min-w-[280px]">
-                            <option v-for="doc in resumen.ingresos.por_doctor" :key="doc.doctor_id" :value="doc.doctor_id">
-                                {{ doc.nombre }} — ${{ fmt(doc.total) }}
-                            </option>
-                        </select>
-                    </div>
-
-                    <!-- Detalle del doctor seleccionado -->
-                    <div v-if="activeDoctor" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="md:col-span-1 bg-indigo-50 rounded-xl p-5 border border-indigo-100 flex flex-col justify-center">
-                            <p class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">Total Producido</p>
-                            <h3 class="text-3xl font-black text-indigo-700">${{ fmt(activeDoctor.total) }}</h3>
-                            <p class="text-indigo-400 text-sm mt-1 font-medium">{{ activeDoctor.nombre }}</p>
-                        </div>
-                        <div class="md:col-span-2 overflow-x-auto">
-                            <table class="w-full text-left border-collapse text-sm">
-                                <thead>
-                                    <tr class="text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-                                        <th class="pb-3">Tratamiento</th>
-                                        <th class="pb-3 text-center">Cant.</th>
-                                        <th class="pb-3 text-right">Monto</th>
-                                        <th class="pb-3 text-right">% Aporte</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-50">
-                                    <tr v-for="t in activeDoctor.tratamientos" :key="t.nombre" class="hover:bg-gray-50">
-                                        <td class="py-2.5 font-medium text-gray-700">{{ t.nombre }}</td>
-                                        <td class="py-2.5 text-center">
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700">{{ t.cantidad }}</span>
-                                        </td>
-                                        <td class="py-2.5 text-right font-bold text-gray-800">${{ fmt(t.monto) }}</td>
-                                        <td class="py-2.5 text-right text-gray-400 text-xs">
-                                            {{ activeDoctor.total > 0 ? ((t.monto / activeDoctor.total) * 100).toFixed(1) + '%' : '—' }}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+            <div class="summary-cell">
+                <div class="summary-label">Saldo Neto</div>
+                <div class="summary-value" :class="(resumen.balance||0) >= 0 ? 'balance-pos' : 'balance-neg'">${{ fmt(resumen.balance) }}</div>
+                <div class="summary-sub">Cobrado − Gastos</div>
             </div>
+        </div>
 
-            <!-- ====== GASTOS ====== -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-                <h2 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
-                    Gastos por Categoría
-                </h2>
-                <p class="text-xs text-gray-400 mb-5">Desglose de egresos registrados en el período</p>
-
-                <!-- Cards de categorías principales -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div class="bg-orange-50 border border-orange-100 rounded-xl p-4">
-                        <p class="text-xs font-bold text-orange-500 uppercase tracking-wider mb-1">Sueldos / Nómina</p>
-                        <h3 class="text-xl font-black text-orange-700">${{ fmt(resumen.gastos?.sueldos) }}</h3>
-                    </div>
-                    <div class="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                        <p class="text-xs font-bold text-purple-500 uppercase tracking-wider mb-1">Insumos</p>
-                        <h3 class="text-xl font-black text-purple-700">${{ fmt(resumen.gastos?.insumos) }}</h3>
-                    </div>
-                    <div class="bg-sky-50 border border-sky-100 rounded-xl p-4">
-                        <p class="text-xs font-bold text-sky-500 uppercase tracking-wider mb-1">Servicios Básicos</p>
-                        <h3 class="text-xl font-black text-sky-700">${{ fmt(resumen.gastos?.servicios_basicos) }}</h3>
-                    </div>
-                    <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total Gastos</p>
-                        <h3 class="text-xl font-black text-gray-800">${{ fmt(resumen.gastos?.total) }}</h3>
-                    </div>
-                </div>
-
-                <!-- Tabla detallada por categoría -->
-                <div v-if="resumen.gastos?.por_categoria?.length">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Detalle por Categoría</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-sm">
-                            <thead>
-                                <tr class="text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-                                    <th class="pb-3">Categoría</th>
-                                    <th class="pb-3 text-right">Total</th>
-                                    <th class="pb-3 text-right">% del Total</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50">
-                                <tr v-for="g in resumen.gastos.por_categoria" :key="g.categoria" class="hover:bg-gray-50 transition">
-                                    <td class="py-2.5">
-                                        <span class="inline-flex items-center gap-1.5">
-                                            <span class="w-2 h-2 rounded-full inline-block" :style="{ background: catColor(g.categoria) }"></span>
-                                            <span class="font-medium text-gray-700">{{ g.categoria }}</span>
-                                        </span>
-                                    </td>
-                                    <td class="py-2.5 text-right font-bold text-red-600">${{ fmt(g.total) }}</td>
-                                    <td class="py-2.5 text-right text-gray-400 text-xs">
-                                        {{ resumen.gastos.total > 0 ? ((g.total / resumen.gastos.total) * 100).toFixed(1) + '%' : '—' }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                            <tfoot>
-                                <tr class="border-t-2 border-gray-200">
-                                    <td class="pt-3 font-bold text-gray-700">Total</td>
-                                    <td class="pt-3 text-right font-black text-red-700 text-base">${{ fmt(resumen.gastos?.total) }}</td>
-                                    <td class="pt-3 text-right text-gray-400 text-xs">100%</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-                <div v-else class="text-center py-6 text-gray-400 text-sm border border-dashed border-gray-200 rounded-xl">
-                    Sin gastos registrados en este período
-                </div>
+        <!-- Ingresos por Tratamiento -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-title">Ingresos por Tratamiento</span>
+                <span style="font-size:12px;color:#6b7280;">Producción facturada (precio × cantidad)</span>
             </div>
+            <div class="section-body" style="padding-top:8px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tratamiento</th>
+                            <th class="c">Cantidad</th>
+                            <th class="r">Monto Total</th>
+                            <th class="r">% del Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="item in resumen.ingresos?.por_tratamiento || []" :key="item.nombre">
+                            <td>{{ item.nombre }}</td>
+                            <td class="c"><span class="badge">{{ item.cantidad }}</span></td>
+                            <td class="r" style="font-weight:600;">${{ fmt(item.monto_total) }}</td>
+                            <td class="r" style="color:#9ca3af;">{{ resumen.ingresos?.total_produccion > 0 ? ((item.monto_total / resumen.ingresos.total_produccion)*100).toFixed(1)+'%' : '—' }}</td>
+                        </tr>
+                        <tr v-if="!resumen.ingresos?.por_tratamiento?.length">
+                            <td colspan="4" class="empty">Sin datos en este período</td>
+                        </tr>
+                    </tbody>
+                    <tfoot v-if="resumen.ingresos?.por_tratamiento?.length">
+                        <tr>
+                            <td>Total</td>
+                            <td class="c">{{ (resumen.ingresos?.por_tratamiento||[]).reduce((s,i)=>s+i.cantidad,0) }}</td>
+                            <td class="r">${{ fmt(resumen.ingresos?.total_produccion) }}</td>
+                            <td class="r" style="color:#9ca3af;">100%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
 
-            <!-- ====== PACIENTES ACTIVOS POR TRATAMIENTO ====== -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h2 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-teal-500 inline-block"></span>
-                        Pacientes Activos por Tratamiento
-                    </h2>
-                    <p class="text-xs text-gray-400 mb-4">Pacientes únicos con tratamiento activo actualmente</p>
-                    <table class="w-full text-left border-collapse text-sm">
+        <!-- Ingresos por Doctor -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-title">Ingresos por Doctor</span>
+                <select v-if="resumen.ingresos?.por_doctor?.length" v-model="activeDocId" style="font-size:12px;">
+                    <option v-for="doc in resumen.ingresos.por_doctor" :key="doc.doctor_id" :value="doc.doctor_id">
+                        {{ doc.nombre }} — ${{ fmt(doc.total) }}
+                    </option>
+                </select>
+            </div>
+            <div class="section-body" style="padding-top:8px;">
+                <div v-if="!resumen.ingresos?.por_doctor?.length" class="empty">Sin datos de producción para este período</div>
+                <template v-else-if="activeDoctor">
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0 14px; border-bottom:1px solid #e5e7eb; margin-bottom:4px;">
+                        <span style="font-size:13px; color:#374151;">{{ activeDoctor.nombre }}</span>
+                        <span style="font-size:18px; font-weight:800; color:#111827;">${{ fmt(activeDoctor.total) }}</span>
+                    </div>
+                    <table>
                         <thead>
-                            <tr class="text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-                                <th class="pb-3">Tratamiento</th>
-                                <th class="pb-3 text-right"># Pacientes</th>
+                            <tr>
+                                <th>Tratamiento</th>
+                                <th class="c">Cant.</th>
+                                <th class="r">Monto</th>
+                                <th class="r">% Aporte</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            <tr v-for="item in pacientesPorTrat" :key="item.nombre" class="hover:bg-gray-50 transition">
-                                <td class="py-2.5 font-medium text-gray-800">{{ item.nombre }}</td>
-                                <td class="py-2.5 text-right">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-50 text-teal-700">
-                                        {{ item.total_pacientes }}
-                                    </span>
-                                </td>
+                        <tbody>
+                            <tr v-for="t in activeDoctor.tratamientos" :key="t.nombre">
+                                <td>{{ t.nombre }}</td>
+                                <td class="c"><span class="badge">{{ t.cantidad }}</span></td>
+                                <td class="r" style="font-weight:600;">${{ fmt(t.monto) }}</td>
+                                <td class="r" style="color:#9ca3af;">{{ activeDoctor.total > 0 ? ((t.monto/activeDoctor.total)*100).toFixed(1)+'%' : '—' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </template>
+            </div>
+        </div>
+
+        <!-- Gastos -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-title">Gastos por Categoría</span>
+                <span style="font-size:12px;color:#6b7280;">Total: <strong style="color:#111827;">${{ fmt(resumen.gastos?.total) }}</strong></span>
+            </div>
+            <div class="section-body" style="padding-top:4px;">
+                <!-- Resumen rápido de categorías clave -->
+                <div style="display:flex; gap:24px; padding:12px 0; border-bottom:1px solid #f3f4f6; margin-bottom:4px; flex-wrap:wrap;">
+                    <div>
+                        <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Sueldos / Nómina</div>
+                        <div style="font-size:16px;font-weight:700;color:#111827;">${{ fmt(resumen.gastos?.sueldos) }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Insumos</div>
+                        <div style="font-size:16px;font-weight:700;color:#111827;">${{ fmt(resumen.gastos?.insumos) }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Servicios Básicos</div>
+                        <div style="font-size:16px;font-weight:700;color:#111827;">${{ fmt(resumen.gastos?.servicios_basicos) }}</div>
+                    </div>
+                </div>
+                <table v-if="resumen.gastos?.por_categoria?.length">
+                    <thead>
+                        <tr>
+                            <th>Categoría</th>
+                            <th class="r">Total</th>
+                            <th class="r">% del Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="g in resumen.gastos.por_categoria" :key="g.categoria">
+                            <td>{{ g.categoria }}</td>
+                            <td class="r" style="font-weight:600;">${{ fmt(g.total) }}</td>
+                            <td class="r" style="color:#9ca3af;">{{ resumen.gastos.total > 0 ? ((g.total/resumen.gastos.total)*100).toFixed(1)+'%' : '—' }}</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td>Total</td>
+                            <td class="r">${{ fmt(resumen.gastos?.total) }}</td>
+                            <td class="r" style="color:#9ca3af;">100%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <div v-else class="empty">Sin gastos registrados en este período</div>
+            </div>
+        </div>
+
+        <!-- Pacientes activos por tratamiento -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-title">Pacientes Activos por Tratamiento</span>
+                <span style="font-size:12px;color:#6b7280;">Pacientes únicos con tratamiento activo actualmente</span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
+                <div style="padding:8px 20px 16px; border-right:1px solid #e5e7eb;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tratamiento</th>
+                                <th class="r"># Pacientes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="item in pacientesPorTrat" :key="item.nombre">
+                                <td>{{ item.nombre }}</td>
+                                <td class="r"><span class="badge">{{ item.total_pacientes }}</span></td>
                             </tr>
                             <tr v-if="!pacientesPorTrat.length">
-                                <td colspan="2" class="py-8 text-center text-gray-400">Sin tratamientos activos</td>
+                                <td colspan="2" class="empty">Sin tratamientos activos</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center justify-center">
-                    <h2 class="text-base font-bold text-gray-800 mb-1 self-start flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
-                        Distribución de Pacientes
-                    </h2>
-                    <p class="text-xs text-gray-400 mb-4 self-start">Por tratamiento activo</p>
-                    <div class="w-full h-64 relative">
+                <div style="padding:8px 20px 16px; display:flex; align-items:center; justify-content:center;">
+                    <div style="width:100%;max-width:280px;height:240px;position:relative;">
                         <canvas id="pacientesChart"></canvas>
                     </div>
                 </div>
             </div>
-
         </div>
+
     </div>
+</div>
 
-    <script>
-        const { createApp, ref, computed, onMounted, watch } = Vue
+<style>
+    .nav-link { padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; color: #6b7280; text-decoration: none; white-space: nowrap; transition: background .15s, color .15s; }
+    .nav-link:hover { background: #f3f4f6; color: #111827; }
+    .nav-link.active { background: #eff6ff; color: #1d4ed8; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+</style>
 
-        createApp({
-            setup() {
-                // Auth
-                const token = localStorage.getItem('token')
-                if (!token) window.location.href = '/login'
-                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+<script>
+    const { createApp, ref, computed, onMounted } = Vue
 
-                const role = ref(localStorage.getItem('role') || 'admin')
-                const isActive = (path) => window.location.pathname === path
-                const logout = () => { localStorage.clear(); window.location.href = '/login' }
+    createApp({
+        setup() {
+            const token = localStorage.getItem('token')
+            if (!token) window.location.href = '/login'
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
-                // Filters
-                const filterStartDate = ref('')
-                const filterEndDate = ref('')
-                const filterDoctorId = ref(null)
+            const role = ref(localStorage.getItem('role') || 'admin')
+            const isActive = (path) => window.location.pathname === path
+            const logout = () => { localStorage.clear(); window.location.href = '/login' }
 
-                // Data
-                const resumen = ref({ ingresos: null, gastos: null, balance: 0 })
-                const pacientesPorTrat = ref([])
-                const doctoresList = ref([])
-                const activeDocId = ref(null)
-                const isLoading = ref(false)
-                const isExporting = ref(false)
-                const isImporting = ref(false)
+            const filterStartDate = ref('')
+            const filterEndDate = ref('')
+            const filterDoctorId = ref(null)
 
-                // Charts
-                let chartTratamiento = null
-                let chartPacientes = null
+            const resumen = ref({ ingresos: null, gastos: null, balance: 0 })
+            const pacientesPorTrat = ref([])
+            const doctoresList = ref([])
+            const activeDocId = ref(null)
+            const isLoading = ref(false)
+            const isExporting = ref(false)
+            const isImporting = ref(false)
 
-                const fmt = (val) => Number(val || 0).toFixed(2)
+            let chartPacientes = null
 
-                const activeDoctor = computed(() => {
-                    if (!activeDocId.value || !resumen.value.ingresos?.por_doctor) return null
-                    return resumen.value.ingresos.por_doctor.find(d => d.doctor_id === activeDocId.value)
-                })
+            const fmt = (val) => Number(val || 0).toFixed(2)
 
-                const catColor = (cat) => {
-                    const colors = {
-                        'NÓMINA': '#f97316',
-                        'INSUMOS': '#a855f7',
-                        'SERVICIOS BÁSICOS': '#0ea5e9',
-                        'MANTENIMIENTO': '#10b981',
-                        'RETIRO SOCIOS': '#ef4444',
-                        'GENERAL': '#6b7280',
-                        'OTROS': '#8b5cf6'
+            const activeDoctor = computed(() => {
+                if (!activeDocId.value || !resumen.value.ingresos?.por_doctor) return null
+                return resumen.value.ingresos.por_doctor.find(d => d.doctor_id === activeDocId.value)
+            })
+
+            const loadResumen = async () => {
+                isLoading.value = true
+                try {
+                    const params = {}
+                    if (filterStartDate.value) params.start_date = filterStartDate.value
+                    if (filterEndDate.value) params.end_date = filterEndDate.value
+                    if (filterDoctorId.value) params.doctor_id = filterDoctorId.value
+                    const res = await axios.get('/api/reportes/resumen-financiero', { params })
+                    resumen.value = res.data
+                    if (res.data.ingresos?.por_doctor?.length) {
+                        activeDocId.value = res.data.ingresos.por_doctor[0].doctor_id
+                    } else {
+                        activeDocId.value = null
                     }
-                    return colors[cat] || '#94a3b8'
-                }
-
-                const loadResumen = async () => {
-                    isLoading.value = true
-                    try {
-                        const params = {}
-                        if (filterStartDate.value) params.start_date = filterStartDate.value
-                        if (filterEndDate.value) params.end_date = filterEndDate.value
-                        if (filterDoctorId.value) params.doctor_id = filterDoctorId.value
-
-                        const res = await axios.get('/api/reportes/resumen-financiero', { params })
-                        resumen.value = res.data
-
-                        if (res.data.ingresos?.por_doctor?.length) {
-                            activeDocId.value = res.data.ingresos.por_doctor[0].doctor_id
-                        } else {
-                            activeDocId.value = null
-                        }
-
-                        renderTratChart(res.data.ingresos?.por_tratamiento || [])
-                    } catch (err) {
-                        console.error('Error loading resumen:', err)
-                        if (err.response?.status === 401) window.location.href = '/login'
-                    } finally {
-                        isLoading.value = false
-                    }
-                }
-
-                const loadPacientesPorTrat = async () => {
-                    try {
-                        const res = await axios.get('/api/reportes/pacientes-por-tratamiento')
-                        pacientesPorTrat.value = res.data
-                        renderPacientesChart(res.data)
-                    } catch (err) {
-                        console.error('Error loading pacientes por tratamiento:', err)
-                    }
-                }
-
-                const loadDoctores = async () => {
-                    try {
-                        const res = await axios.get('/api/doctores')
-                        doctoresList.value = res.data
-                    } catch (err) {
-                        console.error('Error loading doctores:', err)
-                    }
-                }
-
-                const renderTratChart = (data) => {
-                    const ctx = document.getElementById('tratamientoChart')
-                    if (!ctx) return
-                    const labels = data.map(d => d.nombre)
-                    const values = data.map(d => d.monto_total)
-                    const bg = ['#10B981','#3B82F6','#F59E0B','#EF4444','#8B5CF6','#EC4899','#6366F1','#14B8A6','#F97316','#06B6D4']
-                    if (chartTratamiento) chartTratamiento.destroy()
-                    chartTratamiento = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: { labels, datasets: [{ data: values, backgroundColor: bg, borderWidth: 0 }] },
-                        options: {
-                            responsive: true, maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 } } } },
-                            cutout: '60%'
-                        }
-                    })
-                }
-
-                const renderPacientesChart = (data) => {
-                    const ctx = document.getElementById('pacientesChart')
-                    if (!ctx) return
-                    const labels = data.map(d => d.nombre)
-                    const values = data.map(d => d.total_pacientes)
-                    const bg = ['#14B8A6','#3B82F6','#F59E0B','#EF4444','#8B5CF6','#10B981','#F97316','#6366F1']
-                    if (chartPacientes) chartPacientes.destroy()
-                    chartPacientes = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: { labels, datasets: [{ data: values, backgroundColor: bg, borderWidth: 0 }] },
-                        options: {
-                            responsive: true, maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 } } } },
-                            cutout: '60%'
-                        }
-                    })
-                }
-
-                const exportMasterReport = async () => {
-                    if (isExporting.value) return
-                    isExporting.value = true
-                    try {
-                        const res = await axios.get('/api/reportes/financiero-completo')
-                        const data = res.data
-
-                        const treatmentsRows = []
-                        data.forEach(at => {
-                            at.detalles.forEach(det => {
-                                treatmentsRows.push({
-                                    "Fecha": new Date(at.fecha).toLocaleString(),
-                                    "Paciente": at.paciente,
-                                    "ID Paciente": at.paciente_id,
-                                    "Sucursal": at.sucursal,
-                                    "Doctor Atencion": at.doctor_principal,
-                                    "Doctor Procedimiento": det.doctor_procedimiento,
-                                    "Tratamiento": det.tratamiento,
-                                    "Cantidad": det.cantidad,
-                                    "Precio Unit.": det.precio_unitario,
-                                    "Total Fila": det.total,
-                                    "Notas": at.observaciones || ""
-                                })
-                            })
-                        })
-
-                        const paymentsRows = []
-                        data.forEach(at => {
-                            at.pagos.forEach(p => {
-                                paymentsRows.push({
-                                    "Fecha Pago": new Date(p.fecha).toLocaleString(),
-                                    "Atencion ID": at.id,
-                                    "Paciente": at.paciente,
-                                    "Sucursal": at.sucursal,
-                                    "Forma de Pago": p.forma_pago,
-                                    "Monto": p.monto,
-                                    "Referencia": p.referencia || "N/A"
-                                })
-                            })
-                        })
-
-                        const wb = XLSX.utils.book_new()
-                        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(treatmentsRows), "Tratamientos")
-                        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentsRows), "Pagos y Recaudación")
-                        XLSX.writeFile(wb, `Reporte_ClínicaHD_${new Date().toISOString().split('T')[0]}.xlsx`)
-                    } catch (error) {
-                        console.error("Export error", error)
-                        alert("Error al generar el reporte")
-                    } finally {
-                        isExporting.value = false
-                    }
-                }
-
-                const importExcel = async (event) => {
-                    const file = event.target.files[0]
-                    if (!file) return
-                    isImporting.value = true
-                    const formData = new FormData()
-                    formData.append("file", file)
-                    try {
-                        const res = await axios.post("/api/pacientes/importar-excel", formData, {
-                            headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` }
-                        })
-                        alert(res.data.message)
-                    } catch (error) {
-                        alert(error.response?.data?.detail || "Error al importar el archivo")
-                    } finally {
-                        isImporting.value = false
-                        event.target.value = ''
-                    }
-                }
-
-                onMounted(() => {
-                    loadDoctores()
-                    loadResumen()
-                    loadPacientesPorTrat()
-                })
-
-                return {
-                    role, isActive, logout,
-                    filterStartDate, filterEndDate, filterDoctorId,
-                    resumen, pacientesPorTrat, doctoresList,
-                    activeDocId, activeDoctor,
-                    isLoading, isExporting, isImporting,
-                    fmt, catColor,
-                    loadResumen, exportMasterReport, importExcel
+                } catch (err) {
+                    console.error('Error loading resumen:', err)
+                    if (err.response?.status === 401) window.location.href = '/login'
+                } finally {
+                    isLoading.value = false
                 }
             }
-        }).mount('#app')
-    </script>
-</body>
 
+            const loadPacientesPorTrat = async () => {
+                try {
+                    const res = await axios.get('/api/reportes/pacientes-por-tratamiento')
+                    pacientesPorTrat.value = res.data
+                    renderPacientesChart(res.data)
+                } catch (err) {
+                    console.error('Error:', err)
+                }
+            }
+
+            const loadDoctores = async () => {
+                try {
+                    const res = await axios.get('/api/doctores')
+                    doctoresList.value = res.data
+                } catch (err) {
+                    console.error('Error:', err)
+                }
+            }
+
+            const renderPacientesChart = (data) => {
+                const ctx = document.getElementById('pacientesChart')
+                if (!ctx) return
+                const bg = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#14b8a6','#f97316','#3b82f6']
+                if (chartPacientes) chartPacientes.destroy()
+                chartPacientes = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.map(d => d.nombre),
+                        datasets: [{ data: data.map(d => d.total_pacientes), backgroundColor: bg, borderWidth: 0 }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 }, boxWidth: 10, padding: 10 } } },
+                        cutout: '55%'
+                    }
+                })
+            }
+
+            const exportMasterReport = async () => {
+                if (isExporting.value) return
+                isExporting.value = true
+                try {
+                    const res = await axios.get('/api/reportes/financiero-completo')
+                    const data = res.data
+                    const treatmentsRows = []
+                    data.forEach(at => {
+                        at.detalles.forEach(det => {
+                            treatmentsRows.push({
+                                "Fecha": new Date(at.fecha).toLocaleString(),
+                                "Paciente": at.paciente, "ID Paciente": at.paciente_id,
+                                "Sucursal": at.sucursal, "Doctor Atencion": at.doctor_principal,
+                                "Doctor Procedimiento": det.doctor_procedimiento,
+                                "Tratamiento": det.tratamiento, "Cantidad": det.cantidad,
+                                "Precio Unit.": det.precio_unitario, "Total Fila": det.total,
+                                "Notas": at.observaciones || ""
+                            })
+                        })
+                    })
+                    const paymentsRows = []
+                    data.forEach(at => {
+                        at.pagos.forEach(p => {
+                            paymentsRows.push({
+                                "Fecha Pago": new Date(p.fecha).toLocaleString(),
+                                "Atencion ID": at.id, "Paciente": at.paciente, "Sucursal": at.sucursal,
+                                "Forma de Pago": p.forma_pago, "Monto": p.monto, "Referencia": p.referencia || "N/A"
+                            })
+                        })
+                    })
+                    const wb = XLSX.utils.book_new()
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(treatmentsRows), "Tratamientos")
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentsRows), "Pagos y Recaudación")
+                    XLSX.writeFile(wb, `Reporte_ClínicaHD_${new Date().toISOString().split('T')[0]}.xlsx`)
+                } catch (error) {
+                    alert("Error al generar el reporte")
+                } finally {
+                    isExporting.value = false
+                }
+            }
+
+            const importExcel = async (event) => {
+                const file = event.target.files[0]
+                if (!file) return
+                isImporting.value = true
+                const formData = new FormData()
+                formData.append("file", file)
+                try {
+                    const res = await axios.post("/api/pacientes/importar-excel", formData, {
+                        headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` }
+                    })
+                    alert(res.data.message)
+                } catch (error) {
+                    alert(error.response?.data?.detail || "Error al importar")
+                } finally {
+                    isImporting.value = false
+                    event.target.value = ''
+                }
+            }
+
+            onMounted(() => {
+                loadDoctores()
+                loadResumen()
+                loadPacientesPorTrat()
+            })
+
+            return {
+                role, isActive, logout,
+                filterStartDate, filterEndDate, filterDoctorId,
+                resumen, pacientesPorTrat, doctoresList,
+                activeDocId, activeDoctor,
+                isLoading, isExporting, isImporting,
+                fmt, loadResumen, exportMasterReport, importExcel
+            }
+        }
+    }).mount('#app')
+</script>
+</body>
 </html>
