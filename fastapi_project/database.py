@@ -17,7 +17,10 @@ if database_url.startswith("sqlite"):
 engine = create_engine(database_url, echo=True, connect_args=connect_args)
 
 def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+    try:
+        SQLModel.metadata.create_all(engine)
+    except Exception as e:
+        print(f"Skipping create_all due to error: {e}")
 
 def get_session():
     with Session(engine) as session:
