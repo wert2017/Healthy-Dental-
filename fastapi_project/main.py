@@ -469,16 +469,19 @@ class MovimientosLink(BaseView):
 
 # --- APP STARTUP & SEEDING ---
 def seed_data(session: Session):
-    # Seed Sucursales (Clinics) - CRITICAL for first login
-    if not session.exec(select(Sucursal)).first():
-        sucursales = [
-            Sucursal(nombre="HEALTHY DENTAL LA MAGDALENA", direccion="Sur"),
-            Sucursal(nombre="Sucursal Norte", direccion="Calle Norte 456"),
-        ]
-        for s in sucursales:
-            session.add(s)
-        session.commit()
-        print("SEED: Sucursales agregadas.")
+    # Seed Sucursales (Clinics)
+    target_sucursales = [
+        {"nombre": "HEALTHY DENTAL LA MAGDALENA", "direccion": "Sur"},
+        {"nombre": "Sucursal Norte", "direccion": "Calle Norte 456"},
+    ]
+    for s_data in target_sucursales:
+        try:
+            exists = session.exec(select(Sucursal).where(Sucursal.nombre == s_data["nombre"])).first()
+            if not exists:
+                session.add(Sucursal(**s_data))
+                session.commit()
+        except Exception:
+            session.rollback()
 
     # Seed Treatments
     if not session.exec(select(Tratamiento)).first():

@@ -7,7 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 class Sucursal(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    nombre: str
+    nombre: str = Field(unique=True)
     direccion: Optional[str] = None
     
     doctores: List["Doctor"] = Relationship(back_populates="sucursal")
