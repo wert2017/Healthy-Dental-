@@ -5,307 +5,341 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reportes - Clínica HD</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f9fafb; color: #111827; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #f3f4f6; color: #111827; font-size: 13px; }
+
+        /* NAV */
+        .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 30; height: 52px; display: flex; align-items: center; padding: 0 24px; gap: 16px; }
+        .topbar-brand { font-size: 16px; font-weight: 700; color: #1e40af; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .topbar-brand img { height: 32px; }
+        .nav { display: flex; gap: 2px; align-items: center; overflow-x: auto; }
+        .nav a { padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: 500; color: #6b7280; text-decoration: none; white-space: nowrap; }
+        .nav a:hover { background: #f3f4f6; color: #111827; }
+        .nav a.active { background: #eff6ff; color: #1d4ed8; }
+        .nav a.exit { color: #dc2626; margin-left: 6px; }
+
+        /* LAYOUT */
+        .page { max-width: 1300px; margin: 0 auto; padding: 20px 24px 48px; }
+
+        /* TABS */
+        .tabs { display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
+        .tab-btn { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #6b7280; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; }
+        .tab-btn.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+
+        /* SECTION */
         .section { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 16px; }
-        .section-header { padding: 14px 20px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
-        .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #374151; }
-        .section-body { padding: 0 20px 16px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { padding: 10px 0; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+        .section-head { padding: 12px 18px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+        .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #374151; }
+        .section-desc { font-size: 11px; color: #9ca3af; }
+        .section-body { padding: 4px 18px 16px; }
+
+        /* FILTER BAR */
+        .filter-bar { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 18px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+        .filter-group label { display: block; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+        input[type=date], select { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 9px; font-size: 12px; outline: none; background: #fff; color: #374151; font-family: inherit; }
+        input[type=date]:focus, select:focus { border-color: #6366f1; }
+
+        /* BUTTONS */
+        .btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #d1d5db; background: #fff; color: #374151; font-family: inherit; transition: background .12s; }
+        .btn:hover { background: #f9fafb; }
+        .btn-primary { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-primary:disabled { opacity: .5; cursor: default; }
+
+        /* SUMMARY BAR */
+        .summary-bar { display: flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+        .sc { flex: 1; padding: 14px 18px; border-right: 1px solid #e5e7eb; }
+        .sc:last-child { border-right: none; }
+        .sc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; margin-bottom: 3px; }
+        .sc-value { font-size: 20px; font-weight: 800; color: #111827; }
+        .sc-sub { font-size: 10px; color: #d1d5db; margin-top: 2px; }
+        .pos { color: #059669; }
+        .neg { color: #dc2626; }
+
+        /* TABLE */
+        table { width: 100%; border-collapse: collapse; }
+        th { padding: 9px 6px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+        th:first-child { padding-left: 0; }
+        th:last-child { padding-right: 0; }
         th.r, td.r { text-align: right; }
         th.c, td.c { text-align: center; }
-        td { padding: 9px 0; border-bottom: 1px solid #f3f4f6; color: #374151; }
+        td { padding: 8px 6px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+        td:first-child { padding-left: 0; }
+        td:last-child { padding-right: 0; }
         tr:last-child td { border-bottom: none; }
-        tfoot td { padding-top: 10px; border-top: 2px solid #e5e7eb; border-bottom: none; font-weight: 700; color: #111827; }
-        .badge { display: inline-block; padding: 1px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; background: #f3f4f6; color: #374151; }
-        .summary-row { display: flex; gap: 0; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
-        .summary-cell { flex: 1; padding: 16px 20px; border-right: 1px solid #e5e7eb; }
-        .summary-cell:last-child { border-right: none; }
-        .summary-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 4px; }
-        .summary-value { font-size: 22px; font-weight: 800; color: #111827; }
-        .summary-sub { font-size: 11px; color: #9ca3af; margin-top: 2px; }
-        .balance-pos { color: #059669; }
-        .balance-neg { color: #dc2626; }
-        input[type=date], select { border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px; font-size: 13px; outline: none; background: #fff; color: #374151; }
-        input[type=date]:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 2px #eef2ff; }
-        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: background 0.15s; }
-        .btn-primary { background: #4f46e5; color: #fff; }
-        .btn-primary:hover { background: #4338ca; }
-        .btn-primary:disabled { opacity: 0.5; cursor: default; }
-        .btn-outline { background: #fff; color: #374151; border: 1px solid #d1d5db; }
-        .btn-outline:hover { background: #f9fafb; }
-        .empty { padding: 28px 0; text-align: center; color: #9ca3af; font-size: 13px; }
+        tfoot td { padding-top: 10px; border-top: 2px solid #e5e7eb; border-bottom: none; font-weight: 700; color: #111827; background: #fafafa; }
+        .badge { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 10px; font-weight: 700; background: #f3f4f6; color: #374151; }
+        .badge-ok { background: #d1fae5; color: #065f46; }
+        .badge-warn { background: #fef3c7; color: #92400e; }
+        .empty { padding: 28px 0; text-align: center; color: #9ca3af; }
+
+        /* RESULTS TABLE */
+        .res-table { width: 100%; border-collapse: collapse; }
+        .res-table td { padding: 7px 0; border-bottom: 1px solid #f3f4f6; }
+        .res-table tr:last-child td { border-bottom: none; }
+        .res-section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; padding-top: 14px !important; }
+        .res-indent { padding-left: 20px !important; color: #374151; }
+        .res-total { font-weight: 700; color: #111827; border-top: 2px solid #e5e7eb !important; padding-top: 8px !important; }
+        .res-result-pos { font-weight: 800; font-size: 15px; color: #059669; border-top: 2px solid #111827 !important; padding-top: 8px !important; }
+        .res-result-neg { font-weight: 800; font-size: 15px; color: #dc2626; border-top: 2px solid #111827 !important; padding-top: 8px !important; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { width: 13px; height: 13px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
     </style>
 </head>
 <body>
-<div id="app" style="padding-bottom: 48px;">
+<div id="app">
 
     <!-- Header -->
-    <header style="background:#fff; border-bottom:1px solid #e5e7eb; position:sticky; top:0; z-index:30; margin-bottom:24px;">
-        <div style="max-width:1280px; margin:0 auto; padding:0 24px; height:56px; display:flex; justify-content:space-between; align-items:center;">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <img src="/static/logo.png" alt="Clínica HD" style="height:36px;">
-                <span style="font-size:17px; font-weight:700; color:#1e40af;">Clínica HD</span>
-            </div>
-            <nav style="display:flex; gap:2px; align-items:center; overflow-x:auto;">
-                <a href="/recepcion" class="nav-link">Recepción</a>
-                <a href="/static/pagos.html" class="nav-link">CxC / Abonos</a>
-                <a v-if="role !== 'doctor'" href="/gastos" class="nav-link">Gastos</a>
-                <a v-if="role !== 'doctor'" href="/admin" class="nav-link">Administración</a>
-                <a v-if="role !== 'doctor'" href="/admin/paciente/list" class="nav-link">Pacientes</a>
-                <a v-if="role !== 'doctor'" href="/static/reportes.html" class="nav-link active">Reportes</a>
-                <a href="/recepcion/historial" class="nav-link">Historial</a>
-                <a v-if="role !== 'doctor'" href="/admin/insumo/list" class="nav-link">Mantenimiento</a>
-                <a href="#" @click.prevent="logout" class="nav-link" style="color:#dc2626; margin-left:8px;">Salir</a>
-            </nav>
+    <header class="topbar">
+        <div class="topbar-brand">
+            <img src="/static/logo.png" alt="Clínica HD">
+            Clínica HD
         </div>
+        <nav class="nav">
+            <a href="/recepcion">Recepción</a>
+            <a href="/static/pagos.html">CxC / Abonos</a>
+            <a v-if="role !== 'doctor'" href="/gastos">Gastos</a>
+            <a v-if="role !== 'doctor'" href="/admin">Administración</a>
+            <a v-if="role !== 'doctor'" href="/admin/paciente/list">Pacientes</a>
+            <a v-if="role !== 'doctor'" href="/static/reportes.html" class="active">Reportes</a>
+            <a href="/recepcion/historial">Historial</a>
+            <a v-if="role !== 'doctor'" href="/admin/insumo/list">Mantenimiento</a>
+            <a href="#" @click.prevent="logout" class="exit">Salir</a>
+        </nav>
     </header>
 
-    <div style="max-width:1280px; margin:0 auto; padding:0 24px;">
+    <div class="page">
 
-        <!-- Acciones -->
+        <!-- Acciones globales -->
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:16px;">
-            <label v-if="role !== 'doctor'" class="btn btn-outline" :style="isImporting ? 'opacity:.5;cursor:default' : ''">
+            <label v-if="role !== 'doctor'" class="btn" :style="isImporting ? 'opacity:.5;cursor:default' : 'cursor:pointer'">
                 <input type="file" style="display:none" accept=".xlsx" @change="importExcel" :disabled="isImporting">
                 {{ isImporting ? 'Subiendo...' : 'Importar Excel' }}
             </label>
-            <button class="btn btn-outline" @click="exportMasterReport" :disabled="isExporting">
+            <button class="btn" @click="exportMasterReport" :disabled="isExporting">
                 {{ isExporting ? 'Generando...' : 'Exportar .xlsx' }}
             </button>
         </div>
 
-        <!-- Filtros -->
-        <div class="section">
-            <div class="section-header">
-                <span class="section-title">Filtros</span>
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab-btn" :class="{ active: tab === 'doctores' }" @click="tab = 'doctores'">Doctores</button>
+            <button class="tab-btn" :class="{ active: tab === 'resultados' }" @click="tab = 'resultados'">Resultados</button>
+        </div>
+
+        <!-- ===== TAB DOCTORES ===== -->
+        <div v-show="tab === 'doctores'">
+
+            <!-- Descripción -->
+            <div class="section-desc" style="margin-bottom:12px; color:#6b7280;">
+                Muestra la producción de cada doctor por rango de fecha: tratamientos realizados, valor cancelado del tratamiento y comisiones.
             </div>
-            <div style="padding:14px 20px; display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
-                <div>
-                    <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;">Desde</div>
-                    <input type="date" v-model="filterStartDate">
+
+            <!-- Filtros -->
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>Fecha inicio</label>
+                    <input type="date" v-model="docStartDate">
                 </div>
-                <div>
-                    <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;">Hasta</div>
-                    <input type="date" v-model="filterEndDate">
+                <div class="filter-group">
+                    <label>Fecha fin</label>
+                    <input type="date" v-model="docEndDate">
                 </div>
-                <div>
-                    <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;">Doctor</div>
-                    <select v-model="filterDoctorId" style="min-width:200px;">
-                        <option :value="null">Todos los doctores</option>
-                        <option v-for="doc in doctoresList" :key="doc.id" :value="doc.id">{{ doc.nombres }} {{ doc.apellidos }}</option>
+                <div class="filter-group">
+                    <label>Tipo de tratamiento</label>
+                    <select v-model="docTratamientoId" style="min-width:180px;">
+                        <option :value="null">Todos los tratamientos</option>
+                        <option v-for="t in tratamientosList" :key="t.id" :value="t.id">{{ t.nombre }}</option>
                     </select>
                 </div>
-                <button class="btn btn-primary" @click="loadResumen" :disabled="isLoading">
-                    <svg v-if="isLoading" style="width:14px;height:14px;animation:spin 1s linear infinite" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity=".25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>
-                    {{ isLoading ? 'Cargando...' : 'Generar Reporte' }}
+                <div class="filter-group">
+                    <label>Doctor</label>
+                    <select v-model="docDoctorId" style="min-width:180px;">
+                        <option :value="null">Todos los doctores</option>
+                        <option v-for="d in doctoresList" :key="d.id" :value="d.id">{{ d.nombres }} {{ d.apellidos }}</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" @click="loadDocReport" :disabled="isLoadingDoc">
+                    <div v-if="isLoadingDoc" class="spin"></div>
+                    {{ isLoadingDoc ? 'Cargando...' : 'Generar' }}
                 </button>
             </div>
-        </div>
 
-        <!-- Balance General -->
-        <div class="summary-row">
-            <div class="summary-cell">
-                <div class="summary-label">Producción Total</div>
-                <div class="summary-value">${{ fmt(resumen.ingresos?.total_produccion) }}</div>
-                <div class="summary-sub">Tratamientos facturados</div>
-            </div>
-            <div class="summary-cell">
-                <div class="summary-label">Total Cobrado</div>
-                <div class="summary-value">${{ fmt(resumen.ingresos?.total_cobrado) }}</div>
-                <div class="summary-sub">Pagos recibidos</div>
-            </div>
-            <div class="summary-cell">
-                <div class="summary-label">Total Gastos</div>
-                <div class="summary-value">${{ fmt(resumen.gastos?.total) }}</div>
-                <div class="summary-sub">Egresos registrados</div>
-            </div>
-            <div class="summary-cell">
-                <div class="summary-label">Saldo Neto</div>
-                <div class="summary-value" :class="(resumen.balance||0) >= 0 ? 'balance-pos' : 'balance-neg'">${{ fmt(resumen.balance) }}</div>
-                <div class="summary-sub">Cobrado − Gastos</div>
-            </div>
-        </div>
-
-        <!-- Ingresos por Tratamiento -->
-        <div class="section">
-            <div class="section-header">
-                <span class="section-title">Ingresos por Tratamiento</span>
-                <span style="font-size:12px;color:#6b7280;">Producción facturada (precio × cantidad)</span>
-            </div>
-            <div class="section-body" style="padding-top:8px;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Tratamiento</th>
-                            <th class="c">Cantidad</th>
-                            <th class="r">Monto Total</th>
-                            <th class="r">% del Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="item in resumen.ingresos?.por_tratamiento || []" :key="item.nombre">
-                            <td>{{ item.nombre }}</td>
-                            <td class="c"><span class="badge">{{ item.cantidad }}</span></td>
-                            <td class="r" style="font-weight:600;">${{ fmt(item.monto_total) }}</td>
-                            <td class="r" style="color:#9ca3af;">{{ resumen.ingresos?.total_produccion > 0 ? ((item.monto_total / resumen.ingresos.total_produccion)*100).toFixed(1)+'%' : '—' }}</td>
-                        </tr>
-                        <tr v-if="!resumen.ingresos?.por_tratamiento?.length">
-                            <td colspan="4" class="empty">Sin datos en este período</td>
-                        </tr>
-                    </tbody>
-                    <tfoot v-if="resumen.ingresos?.por_tratamiento?.length">
-                        <tr>
-                            <td>Total</td>
-                            <td class="c">{{ (resumen.ingresos?.por_tratamiento||[]).reduce((s,i)=>s+i.cantidad,0) }}</td>
-                            <td class="r">${{ fmt(resumen.ingresos?.total_produccion) }}</td>
-                            <td class="r" style="color:#9ca3af;">100%</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        </div>
-
-        <!-- Ingresos por Doctor -->
-        <div class="section">
-            <div class="section-header">
-                <span class="section-title">Ingresos por Doctor</span>
-                <select v-if="resumen.ingresos?.por_doctor?.length" v-model="activeDocId" style="font-size:12px;">
-                    <option v-for="doc in resumen.ingresos.por_doctor" :key="doc.doctor_id" :value="doc.doctor_id">
-                        {{ doc.nombre }} — ${{ fmt(doc.total) }}
-                    </option>
-                </select>
-            </div>
-            <div class="section-body" style="padding-top:8px;">
-                <div v-if="!resumen.ingresos?.por_doctor?.length" class="empty">Sin datos de producción para este período</div>
-                <template v-else-if="activeDoctor">
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0 14px; border-bottom:1px solid #e5e7eb; margin-bottom:4px;">
-                        <span style="font-size:13px; color:#374151;">{{ activeDoctor.nombre }}</span>
-                        <span style="font-size:18px; font-weight:800; color:#111827;">${{ fmt(activeDoctor.total) }}</span>
-                    </div>
+            <!-- Tabla doctores -->
+            <div class="section">
+                <div class="section-head">
+                    <span class="section-title">Detalle por Doctor</span>
+                    <span class="section-desc">{{ docData.filas?.length || 0 }} registros</span>
+                </div>
+                <div class="section-body" style="overflow-x:auto;">
                     <table>
                         <thead>
                             <tr>
+                                <th>Fecha</th>
+                                <th>Doctor</th>
                                 <th>Tratamiento</th>
-                                <th class="c">Cant.</th>
-                                <th class="r">Monto</th>
-                                <th class="r">% Aporte</th>
+                                <th class="r">Valor Cancelado</th>
+                                <th class="c">% Comisión</th>
+                                <th class="r">Valor de Comisión</th>
+                                <th class="r">Comisión Cancelada</th>
+                                <th class="r">Pendiente por Cancelar</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="t in activeDoctor.tratamientos" :key="t.nombre">
-                                <td>{{ t.nombre }}</td>
-                                <td class="c"><span class="badge">{{ t.cantidad }}</span></td>
-                                <td class="r" style="font-weight:600;">${{ fmt(t.monto) }}</td>
-                                <td class="r" style="color:#9ca3af;">{{ activeDoctor.total > 0 ? ((t.monto/activeDoctor.total)*100).toFixed(1)+'%' : '—' }}</td>
+                            <tr v-for="(f, i) in docData.filas || []" :key="i">
+                                <td style="white-space:nowrap; color:#6b7280;">{{ f.fecha }}</td>
+                                <td style="font-weight:500;">{{ f.doctor }}</td>
+                                <td>{{ f.tratamiento }}</td>
+                                <td class="r">${{ fmt(f.valor_cancelado) }}</td>
+                                <td class="c"><span class="badge">{{ f.pct_comision }}%</span></td>
+                                <td class="r">${{ fmt(f.valor_comision) }}</td>
+                                <td class="r">${{ fmt(f.valor_comision_pagada) }}</td>
+                                <td class="r">
+                                    <span :class="f.comision_pendiente > 0 ? 'badge badge-warn' : 'badge badge-ok'">
+                                        ${{ fmt(f.comision_pendiente) }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr v-if="!docData.filas?.length">
+                                <td colspan="8" class="empty">Sin datos — ajusta los filtros y presiona Generar</td>
                             </tr>
                         </tbody>
-                    </table>
-                </template>
-            </div>
-        </div>
-
-        <!-- Gastos -->
-        <div class="section">
-            <div class="section-header">
-                <span class="section-title">Gastos por Categoría</span>
-                <span style="font-size:12px;color:#6b7280;">Total: <strong style="color:#111827;">${{ fmt(resumen.gastos?.total) }}</strong></span>
-            </div>
-            <div class="section-body" style="padding-top:4px;">
-                <!-- Resumen rápido de categorías clave -->
-                <div style="display:flex; gap:24px; padding:12px 0; border-bottom:1px solid #f3f4f6; margin-bottom:4px; flex-wrap:wrap;">
-                    <div>
-                        <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Sueldos / Nómina</div>
-                        <div style="font-size:16px;font-weight:700;color:#111827;">${{ fmt(resumen.gastos?.sueldos) }}</div>
-                    </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Insumos</div>
-                        <div style="font-size:16px;font-weight:700;color:#111827;">${{ fmt(resumen.gastos?.insumos) }}</div>
-                    </div>
-                    <div>
-                        <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Servicios Básicos</div>
-                        <div style="font-size:16px;font-weight:700;color:#111827;">${{ fmt(resumen.gastos?.servicios_basicos) }}</div>
-                    </div>
-                </div>
-                <table v-if="resumen.gastos?.por_categoria?.length">
-                    <thead>
-                        <tr>
-                            <th>Categoría</th>
-                            <th class="r">Total</th>
-                            <th class="r">% del Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="g in resumen.gastos.por_categoria" :key="g.categoria">
-                            <td>{{ g.categoria }}</td>
-                            <td class="r" style="font-weight:600;">${{ fmt(g.total) }}</td>
-                            <td class="r" style="color:#9ca3af;">{{ resumen.gastos.total > 0 ? ((g.total/resumen.gastos.total)*100).toFixed(1)+'%' : '—' }}</td>
-                        </tr>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td>Total</td>
-                            <td class="r">${{ fmt(resumen.gastos?.total) }}</td>
-                            <td class="r" style="color:#9ca3af;">100%</td>
-                        </tr>
-                    </tfoot>
-                </table>
-                <div v-else class="empty">Sin gastos registrados en este período</div>
-            </div>
-        </div>
-
-        <!-- Pacientes activos por tratamiento -->
-        <div class="section">
-            <div class="section-header">
-                <span class="section-title">Pacientes Activos por Tratamiento</span>
-                <span style="font-size:12px;color:#6b7280;">Pacientes únicos con tratamiento activo actualmente</span>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
-                <div style="padding:8px 20px 16px; border-right:1px solid #e5e7eb;">
-                    <table>
-                        <thead>
+                        <tfoot v-if="docData.filas?.length">
                             <tr>
-                                <th>Tratamiento</th>
-                                <th class="r"># Pacientes</th>
+                                <td colspan="3" style="font-weight:700; color:#374151;">TOTALES</td>
+                                <td class="r">${{ fmt(docData.totales?.valor_cancelado) }}</td>
+                                <td></td>
+                                <td class="r">${{ fmt(docData.totales?.valor_comision) }}</td>
+                                <td class="r">${{ fmt(docData.totales?.valor_comision_pagada) }}</td>
+                                <td class="r">${{ fmt(docData.totales?.comision_pendiente) }}</td>
                             </tr>
-                        </thead>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TAB RESULTADOS ===== -->
+        <div v-show="tab === 'resultados'">
+
+            <!-- Descripción -->
+            <div class="section-desc" style="margin-bottom:12px; color:#6b7280;">
+                Muestra el total de ingresos generados en un período (valores de tratamientos cancelados) menos los costos y gastos ejecutados en el mismo período.
+            </div>
+
+            <!-- Filtros -->
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>Fecha inicio</label>
+                    <input type="date" v-model="resStartDate">
+                </div>
+                <div class="filter-group">
+                    <label>Fecha fin</label>
+                    <input type="date" v-model="resEndDate">
+                </div>
+                <button class="btn btn-primary" @click="loadResumen" :disabled="isLoadingRes">
+                    <div v-if="isLoadingRes" class="spin"></div>
+                    {{ isLoadingRes ? 'Cargando...' : 'Generar' }}
+                </button>
+            </div>
+
+            <!-- Tabla de resultados -->
+            <div class="section">
+                <div class="section-head">
+                    <span class="section-title">Resultados</span>
+                    <span v-if="resStartDate || resEndDate" class="section-desc">{{ resStartDate || '...' }} — {{ resEndDate || '...' }}</span>
+                </div>
+                <div class="section-body" style="max-width:560px;">
+                    <table class="res-table">
                         <tbody>
-                            <tr v-for="item in pacientesPorTrat" :key="item.nombre">
-                                <td>{{ item.nombre }}</td>
-                                <td class="r"><span class="badge">{{ item.total_pacientes }}</span></td>
+                            <!-- INGRESOS -->
+                            <tr>
+                                <td class="res-section-label">Ingresos</td>
+                                <td></td>
                             </tr>
-                            <tr v-if="!pacientesPorTrat.length">
-                                <td colspan="2" class="empty">Sin tratamientos activos</td>
+                            <tr>
+                                <td class="res-indent">Total de tratamientos cancelados</td>
+                                <td class="r" style="font-weight:600;">${{ fmt(resumen.ingresos?.total_cobrado) }}</td>
+                            </tr>
+
+                            <!-- GASTOS -->
+                            <tr>
+                                <td class="res-section-label" style="padding-top:18px !important;">Total de costos y gastos</td>
+                                <td></td>
+                            </tr>
+                            <tr v-for="cat in resumen.gastos?.por_categoria || []" :key="cat.categoria">
+                                <td class="res-indent">{{ cat.categoria }}</td>
+                                <td class="r">${{ fmt(cat.total) }}</td>
+                            </tr>
+                            <tr v-if="!resumen.gastos?.por_categoria?.length">
+                                <td class="res-indent" style="color:#9ca3af;">Sin gastos registrados</td>
+                                <td class="r">$0.00</td>
+                            </tr>
+
+                            <!-- SUBTOTAL GASTOS -->
+                            <tr>
+                                <td class="res-total">Total de costos y gastos</td>
+                                <td class="r res-total">${{ fmt(resumen.gastos?.total) }}</td>
+                            </tr>
+
+                            <!-- RESULTADO -->
+                            <tr>
+                                <td :class="(resumen.balance || 0) >= 0 ? 'res-result-pos' : 'res-result-neg'">
+                                    Resultado
+                                </td>
+                                <td class="r" :class="(resumen.balance || 0) >= 0 ? 'res-result-pos' : 'res-result-neg'">
+                                    ${{ fmt(resumen.balance) }}
+                                </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                <div style="padding:8px 20px 16px; display:flex; align-items:center; justify-content:center;">
-                    <div style="width:100%;max-width:280px;height:240px;position:relative;">
-                        <canvas id="pacientesChart"></canvas>
-                    </div>
+            </div>
+
+            <!-- Desglose de nómina (nuevo) -->
+            <div class="section" v-if="resumen.gastos">
+                <div class="section-head">
+                    <span class="section-title">Desglose de Nómina</span>
+                </div>
+                <div class="section-body" style="max-width:400px;">
+                    <table class="res-table">
+                        <tbody>
+                            <tr>
+                                <td class="res-indent">Sueldos fijos</td>
+                                <td class="r">${{ fmt(resumen.gastos.sueldo_fijo) }}</td>
+                            </tr>
+                            <tr>
+                                <td class="res-indent">Comisiones pagadas</td>
+                                <td class="r">${{ fmt(resumen.gastos.comisiones) }}</td>
+                            </tr>
+                            <tr v-if="(resumen.gastos.nomina_legacy || 0) > 0">
+                                <td class="res-indent" style="color:#9ca3af;">Nómina (registros anteriores)</td>
+                                <td class="r" style="color:#9ca3af;">${{ fmt(resumen.gastos.nomina_legacy) }}</td>
+                            </tr>
+                            <tr>
+                                <td class="res-total">Total nómina</td>
+                                <td class="r res-total">
+                                    ${{ fmt((resumen.gastos.sueldo_fijo || 0) + (resumen.gastos.comisiones || 0) + (resumen.gastos.nomina_legacy || 0)) }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
+
         </div>
 
     </div>
 </div>
 
-<style>
-    .nav-link { padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; color: #6b7280; text-decoration: none; white-space: nowrap; transition: background .15s, color .15s; }
-    .nav-link:hover { background: #f3f4f6; color: #111827; }
-    .nav-link.active { background: #eff6ff; color: #1d4ed8; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-</style>
-
 <script>
-    const { createApp, ref, computed, onMounted } = Vue
+    const { createApp, ref, onMounted } = Vue
 
     createApp({
         setup() {
@@ -314,88 +348,74 @@
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
             const role = ref(localStorage.getItem('role') || 'admin')
-            const isActive = (path) => window.location.pathname === path
             const logout = () => { localStorage.clear(); window.location.href = '/login' }
 
-            const filterStartDate = ref('')
-            const filterEndDate = ref('')
-            const filterDoctorId = ref(null)
+            const tab = ref('doctores')
 
-            const resumen = ref({ ingresos: null, gastos: null, balance: 0 })
-            const pacientesPorTrat = ref([])
-            const doctoresList = ref([])
-            const activeDocId = ref(null)
-            const isLoading = ref(false)
+            // Doctor report
+            const docStartDate    = ref('')
+            const docEndDate      = ref('')
+            const docDoctorId     = ref(null)
+            const docTratamientoId = ref(null)
+            const docData         = ref({ filas: [], totales: {} })
+            const isLoadingDoc    = ref(false)
+            const doctoresList    = ref([])
+            const tratamientosList = ref([])
+
+            // Results report
+            const resStartDate  = ref('')
+            const resEndDate    = ref('')
+            const resumen       = ref({ ingresos: null, gastos: null, balance: 0 })
+            const isLoadingRes  = ref(false)
+
+            // Export/import
             const isExporting = ref(false)
             const isImporting = ref(false)
 
-            let chartPacientes = null
+            const fmt = (v) => Number(v || 0).toFixed(2)
 
-            const fmt = (val) => Number(val || 0).toFixed(2)
-
-            const activeDoctor = computed(() => {
-                if (!activeDocId.value || !resumen.value.ingresos?.por_doctor) return null
-                return resumen.value.ingresos.por_doctor.find(d => d.doctor_id === activeDocId.value)
-            })
-
-            const loadResumen = async () => {
-                isLoading.value = true
+            const loadDocReport = async () => {
+                isLoadingDoc.value = true
                 try {
                     const params = {}
-                    if (filterStartDate.value) params.start_date = filterStartDate.value
-                    if (filterEndDate.value) params.end_date = filterEndDate.value
-                    if (filterDoctorId.value) params.doctor_id = filterDoctorId.value
-                    const res = await axios.get('/api/reportes/resumen-financiero', { params })
-                    resumen.value = res.data
-                    if (res.data.ingresos?.por_doctor?.length) {
-                        activeDocId.value = res.data.ingresos.por_doctor[0].doctor_id
-                    } else {
-                        activeDocId.value = null
-                    }
+                    if (docStartDate.value)      params.start_date      = docStartDate.value
+                    if (docEndDate.value)        params.end_date        = docEndDate.value
+                    if (docDoctorId.value)       params.doctor_id       = docDoctorId.value
+                    if (docTratamientoId.value)  params.tratamiento_id  = docTratamientoId.value
+                    const res = await axios.get('/api/reportes/reporte-doctores', { params })
+                    docData.value = res.data
                 } catch (err) {
-                    console.error('Error loading resumen:', err)
+                    console.error(err)
                     if (err.response?.status === 401) window.location.href = '/login'
                 } finally {
-                    isLoading.value = false
+                    isLoadingDoc.value = false
                 }
             }
 
-            const loadPacientesPorTrat = async () => {
+            const loadResumen = async () => {
+                isLoadingRes.value = true
                 try {
-                    const res = await axios.get('/api/reportes/pacientes-por-tratamiento')
-                    pacientesPorTrat.value = res.data
-                    renderPacientesChart(res.data)
+                    const params = {}
+                    if (resStartDate.value) params.start_date = resStartDate.value
+                    if (resEndDate.value)   params.end_date   = resEndDate.value
+                    const res = await axios.get('/api/reportes/resumen-financiero', { params })
+                    resumen.value = res.data
                 } catch (err) {
-                    console.error('Error:', err)
+                    console.error(err)
+                } finally {
+                    isLoadingRes.value = false
                 }
             }
 
-            const loadDoctores = async () => {
+            const loadCatalogs = async () => {
                 try {
-                    const res = await axios.get('/api/doctores')
-                    doctoresList.value = res.data
-                } catch (err) {
-                    console.error('Error:', err)
-                }
-            }
-
-            const renderPacientesChart = (data) => {
-                const ctx = document.getElementById('pacientesChart')
-                if (!ctx) return
-                const bg = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#14b8a6','#f97316','#3b82f6']
-                if (chartPacientes) chartPacientes.destroy()
-                chartPacientes = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: data.map(d => d.nombre),
-                        datasets: [{ data: data.map(d => d.total_pacientes), backgroundColor: bg, borderWidth: 0 }]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 }, boxWidth: 10, padding: 10 } } },
-                        cutout: '55%'
-                    }
-                })
+                    const [rd, rt] = await Promise.all([
+                        axios.get('/api/doctores'),
+                        axios.get('/api/tratamientos')
+                    ])
+                    doctoresList.value    = rd.data
+                    tratamientosList.value = rt.data
+                } catch (e) { console.error(e) }
             }
 
             const exportMasterReport = async () => {
@@ -410,10 +430,10 @@
                             treatmentsRows.push({
                                 "Fecha": new Date(at.fecha).toLocaleString(),
                                 "Paciente": at.paciente, "ID Paciente": at.paciente_id,
-                                "Sucursal": at.sucursal, "Doctor Atencion": at.doctor_principal,
+                                "Sucursal": at.sucursal, "Doctor Atención": at.doctor_principal,
                                 "Doctor Procedimiento": det.doctor_procedimiento,
                                 "Tratamiento": det.tratamiento, "Cantidad": det.cantidad,
-                                "Precio Unit.": det.precio_unitario, "Total Fila": det.total,
+                                "Precio Unit.": det.precio_unitario, "Total": det.total,
                                 "Notas": at.observaciones || ""
                             })
                         })
@@ -423,20 +443,18 @@
                         at.pagos.forEach(p => {
                             paymentsRows.push({
                                 "Fecha Pago": new Date(p.fecha).toLocaleString(),
-                                "Atencion ID": at.id, "Paciente": at.paciente, "Sucursal": at.sucursal,
-                                "Forma de Pago": p.forma_pago, "Monto": p.monto, "Referencia": p.referencia || "N/A"
+                                "Atención ID": at.id, "Paciente": at.paciente,
+                                "Forma de Pago": p.forma_pago, "Monto": p.monto,
+                                "Referencia": p.referencia || "N/A"
                             })
                         })
                     })
                     const wb = XLSX.utils.book_new()
                     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(treatmentsRows), "Tratamientos")
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentsRows), "Pagos y Recaudación")
-                    XLSX.writeFile(wb, `Reporte_ClínicaHD_${new Date().toISOString().split('T')[0]}.xlsx`)
-                } catch (error) {
-                    alert("Error al generar el reporte")
-                } finally {
-                    isExporting.value = false
-                }
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentsRows), "Pagos")
+                    XLSX.writeFile(wb, `Reporte_ClinicaHD_${new Date().toISOString().split('T')[0]}.xlsx`)
+                } catch (e) { alert("Error al generar el reporte") }
+                finally { isExporting.value = false }
             }
 
             const importExcel = async (event) => {
@@ -450,27 +468,24 @@
                         headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` }
                     })
                     alert(res.data.message)
-                } catch (error) {
-                    alert(error.response?.data?.detail || "Error al importar")
-                } finally {
-                    isImporting.value = false
-                    event.target.value = ''
-                }
+                } catch (e) { alert(e.response?.data?.detail || "Error al importar") }
+                finally { isImporting.value = false; event.target.value = '' }
             }
 
             onMounted(() => {
-                loadDoctores()
+                loadCatalogs()
+                loadDocReport()
                 loadResumen()
-                loadPacientesPorTrat()
             })
 
             return {
-                role, isActive, logout,
-                filterStartDate, filterEndDate, filterDoctorId,
-                resumen, pacientesPorTrat, doctoresList,
-                activeDocId, activeDoctor,
-                isLoading, isExporting, isImporting,
-                fmt, loadResumen, exportMasterReport, importExcel
+                role, logout, tab,
+                docStartDate, docEndDate, docDoctorId, docTratamientoId,
+                docData, isLoadingDoc, doctoresList, tratamientosList,
+                resStartDate, resEndDate, resumen, isLoadingRes,
+                isExporting, isImporting,
+                fmt, loadDocReport, loadResumen,
+                exportMasterReport, importExcel
             }
         }
     }).mount('#app')

@@ -129,29 +129,28 @@ def on_startup():
             session.commit()
         except Exception as e:
             session.rollback()
-            print(f"Skipping user creation error: {e}")
-    # Create or Reset Default Admin User
-    with Session(engine) as session:
-        user = session.exec(select(User).where(User.username == "admin")).first()
-        if not user:
-            print("Creating default admin user...")
-            hashed = pwd_context.hash("admin")
-            admin_user = User(username="admin", hashed_password=hashed, role="admin")
-            session.add(admin_user)
-        else:
-            print("Resetting admin password to 'admin'...")
-            user.hashed_password = pwd_context.hash("admin")
-            session.add(user)
-        
-        # Test User 'ana'
-        ana = session.exec(select(User).where(User.username == "ana")).first()
-        if not ana:
-            print("Creating test user 'ana'...")
-            s_id = session.exec(select(Sucursal.id)).first()
-            ana_user = User(username="ana", hashed_password=pwd_context.hash("123"), role="recepcion", sucursal_id=s_id)
-            session.add(ana_user)
+            print(f"Skipping migration commit error: {e}")
             
-        session.commit()
+    # Create Default Admin User (If it doesn't exist)
+    with Session(engine) as session:
+        try:
+            user = session.exec(select(User).where(User.username == "admin")).first()
+            if not user:
+                print("Creating default admin user...")
+                hashed = pwd_context.hash("admin")
+                admin_user = User(username="admin", hashed_password=hashed, role="admin")
+                session.add(admin_user)
+                session.commit()
+            else:
+                # Do NOT reset password in production/live environments
+                pass
+        except Exception as e:
+            session.rollback()
+            print(f"Skipping admin creation error: {e}")
+    
+    # Disable auto-seeding of test data for production
+    # with Session(engine) as session:
+    #     seed_data(session)
 
 @app.get("/api/public/sucursales")
 def list_public_sucursales(session: Session = Depends(get_session)):
@@ -289,18 +288,15 @@ class PacienteAdmin(ModelView, model=Paciente):
         Paciente.nombres,
         Paciente.apellidos,
         Paciente.razon_social,
-        Paciente.historia_clinica,
         Paciente.telefono,
         Paciente.email
     ]
-    
+
     # Restrict choices for Tipo Identificacion using WTForms SelectField
     form_overrides = {
         "tipo_identificacion": SelectField
     }
-    form_widget_args = {
-        "historia_clinica": {"readonly": True, "placeholder": "Generado automáticamente"}
-    }
+    form_widget_args = {}
     form_args = {
         "tipo_identificacion": {
             "choices": [("CEDULA", "CEDULA"), ("RUC", "RUC")],
@@ -527,6 +523,8 @@ def seed_data(session: Session):
         categorias_default = [
             CategoriaGasto(nombre="GENERAL"),
             CategoriaGasto(nombre="NÓMINA"),
+            CategoriaGasto(nombre="SUELDO FIJO"),
+            CategoriaGasto(nombre="COMISIONES"),
             CategoriaGasto(nombre="INSUMOS"),
             CategoriaGasto(nombre="MANTENIMIENTO"),
             CategoriaGasto(nombre="RETIRO SOCIOS"),
@@ -537,14 +535,21 @@ def seed_data(session: Session):
             session.add(c)
         session.commit()
         print("SEED: Categorías de gasto agregadas.")
+    else:
+        # Ensure SUELDO FIJO and COMISIONES exist even on existing installs
+        for nombre_nuevo in ["SUELDO FIJO", "COMISIONES"]:
+            if not session.exec(select(CategoriaGasto).where(CategoriaGasto.nombre == nombre_nuevo)).first():
+                session.add(CategoriaGasto(nombre=nombre_nuevo))
+        session.commit()
 
     session.commit()
 
-@app.on_event("startup")
-def on_startup():
-    create_db_and_tables()
-    with Session(engine) as session:
-        seed_data(session)
+# Startup event merged into the primary on_startup handler above
+# @app.on_event("startup")
+# def on_startup_redundant():
+#     create_db_and_tables()
+#     with Session(engine) as session:
+#         seed_data(session)
 
 # --- ADMIN SETUP ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1823,6 +1828,74 @@ def validar_atencion(atencion_id: int, session: Session = Depends(get_session), 
         session.commit()
     return {"message": "Validado con éxito"}
 
+@app.get("/api/reportes/reporte-doctores")
+def reporte_doctores(
+    start_date: str = None,
+    end_date: str = None,
+    doctor_id: Optional[int] = None,
+    tratamiento_id: Optional[int] = None,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    """
+    Detailed doctor commission report.
+    Returns one row per AtencionDetalle with:
+    fecha, doctor, tratamiento, valor_cancelado (treatment value),
+    pct_comision, valor_comision (theoretical), valor_comision_pagada, comision_pendiente.
+    """
+    if user.role not in ["admin", "recepcion"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+
+    q = (
+        select(AtencionDetalle)
+        .join(Atencion)
+        .where(Atencion.sucursal_id == user.sucursal_id)
+        .options(
+            selectinload(AtencionDetalle.doctor),
+            selectinload(AtencionDetalle.tratamiento),
+            selectinload(AtencionDetalle.atencion)
+        )
+        .order_by(Atencion.fecha.asc())
+    )
+    if start_date:
+        q = q.where(Atencion.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
+    if end_date:
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        q = q.where(Atencion.fecha < end_dt)
+    if doctor_id:
+        q = q.where(AtencionDetalle.doctor_id == doctor_id)
+    if tratamiento_id:
+        q = q.where(AtencionDetalle.tratamiento_id == tratamiento_id)
+
+    detalles = session.exec(q).all()
+
+    filas = []
+    for d in detalles:
+        valor_trat   = float(d.total_calculado)
+        pct          = float(d.porcentaje_comision)
+        val_comision = round(valor_trat * pct / 100, 2)
+        val_pagado   = round(float(d.comision_pagada_monto or 0), 2)
+        pendiente    = round(val_comision - val_pagado, 2)
+        filas.append({
+            "fecha":               d.atencion.fecha.strftime("%Y-%m-%d") if d.atencion else "",
+            "doctor":              f"{d.doctor.nombres} {d.doctor.apellidos}" if d.doctor else "—",
+            "tratamiento":         d.tratamiento.nombre if d.tratamiento else "—",
+            "valor_cancelado":     valor_trat,
+            "pct_comision":        pct,
+            "valor_comision":      val_comision,
+            "valor_comision_pagada": val_pagado,
+            "comision_pendiente":  max(pendiente, 0)
+        })
+
+    totales = {
+        "valor_cancelado":       round(sum(f["valor_cancelado"]       for f in filas), 2),
+        "valor_comision":        round(sum(f["valor_comision"]        for f in filas), 2),
+        "valor_comision_pagada": round(sum(f["valor_comision_pagada"] for f in filas), 2),
+        "comision_pendiente":    round(sum(f["comision_pendiente"]    for f in filas), 2),
+    }
+
+    return {"filas": filas, "totales": totales}
+
 @app.get("/api/reportes/pacientes-por-tratamiento")
 def reporte_pacientes_tratamiento(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     # Reporte Real: Pacientes Activos en Tratamiento
@@ -2147,7 +2220,10 @@ def reporte_resumen_financiero(
         },
         "gastos": {
             "total": total_gastos,
-            "sueldos": round(cat_map.get("NÓMINA", 0.0), 2),
+            "sueldo_fijo": round(cat_map.get("SUELDO FIJO", 0.0), 2),
+            "comisiones": round(cat_map.get("COMISIONES", 0.0), 2),
+            # NÓMINA kept for records entered manually or migrated from older data
+            "nomina_legacy": round(cat_map.get("NÓMINA", 0.0), 2),
             "insumos": round(cat_map.get("INSUMOS", 0.0), 2),
             "servicios_basicos": round(cat_map.get("SERVICIOS BÁSICOS", 0.0), 2),
             "por_categoria": gastos_por_categoria
@@ -2700,47 +2776,43 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
             
         session.add(d)
     
-    # Create Gasto dynamically based on amounts
-    desc_base = f"Liquidación de Nómina: {empleado_nombre} (Base: ${data.sueldo_base}, Comisiones: ${data.comisiones})"
-    
-    if efectivo_val > 0:
-        gasto_efectivo = Gasto(
-            fecha=now,
-            descripcion=desc_base,
-            monto=efectivo_val,
-            metodo_pago="EFECTIVO",
-            categoria="NÓMINA",
-            responsable=data.responsable or user.username,
-            sucursal_id=user.sucursal_id,
-            usuario_id=user.id
-        )
-        session.add(gasto_efectivo)
-        
-    if transferencia_val > 0:
-        gasto_transf = Gasto(
-            fecha=now,
-            descripcion=desc_base,
-            monto=transferencia_val,
-            metodo_pago="TRANSFERENCIA",
-            categoria="NÓMINA",
-            responsable=data.responsable or user.username,
-            sucursal_id=user.sucursal_id,
-            usuario_id=user.id
-        )
-        session.add(gasto_transf)
-        
-    if tarjeta_val > 0:
-        gasto_tarjeta = Gasto(
-            fecha=now,
-            descripcion=desc_base,
-            monto=tarjeta_val,
-            metodo_pago="TARJETA",
-            categoria="NÓMINA",
-            responsable=data.responsable or user.username,
-            sucursal_id=user.sucursal_id,
-            usuario_id=user.id
-        )
-        session.add(gasto_tarjeta)
+    # Create Gasto records split by concept (SUELDO FIJO / COMISIONES) and payment method.
+    # Each payment method amount is split proportionally between both concepts.
+    total_a_pagar_f = float(total_a_pagar)
+    pct_sueldo = data.sueldo_base / total_a_pagar_f if total_a_pagar_f > 0 else 0.0
+    pct_com    = data.comisiones  / total_a_pagar_f if total_a_pagar_f > 0 else 0.0
+
+    desc_sueldo    = f"Sueldo Fijo: {empleado_nombre}"
+    desc_comision  = f"Comisiones: {empleado_nombre}"
+
+    def _registrar_split(metodo: str, monto_metodo: Decimal):
+        if monto_metodo <= 0:
+            return
+        monto_f = float(monto_metodo)
+        if data.sueldo_base > 0:
+            monto_s = round(monto_f * pct_sueldo, 2)
+            if monto_s > 0:
+                session.add(Gasto(
+                    fecha=now, descripcion=desc_sueldo,
+                    monto=Decimal(str(monto_s)), metodo_pago=metodo,
+                    categoria="SUELDO FIJO",
+                    responsable=data.responsable or user.username,
+                    sucursal_id=user.sucursal_id, usuario_id=user.id
+                ))
+        if data.comisiones > 0:
+            monto_c = round(monto_f * pct_com, 2)
+            if monto_c > 0:
+                session.add(Gasto(
+                    fecha=now, descripcion=desc_comision,
+                    monto=Decimal(str(monto_c)), metodo_pago=metodo,
+                    categoria="COMISIONES",
+                    responsable=data.responsable or user.username,
+                    sucursal_id=user.sucursal_id, usuario_id=user.id
+                ))
+
+    _registrar_split("EFECTIVO",      efectivo_val)
+    _registrar_split("TRANSFERENCIA", transferencia_val)
+    _registrar_split("TARJETA",       tarjeta_val)
         
     session.commit()
     
