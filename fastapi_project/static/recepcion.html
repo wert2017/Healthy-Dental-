@@ -260,6 +260,70 @@
                 </div>
             </div>
 
+            <!-- GESTIONAR TRATAMIENTOS MODAL -->
+            <div v-if="showTratamientoModal"
+                class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+                    <!-- Header -->
+                    <div class="bg-blue-600 px-6 py-4 flex justify-between items-center">
+                        <div>
+                            <h3 class="text-base font-bold text-white">Tratamientos en Curso</h3>
+                            <p class="text-blue-200 text-xs mt-0.5">{{ selectedPaciente?.nombres }} {{ selectedPaciente?.apellidos }}</p>
+                        </div>
+                        <button @click="closeTratamientoModal" class="text-white/80 hover:text-white text-xl leading-none">✕</button>
+                    </div>
+
+                    <div class="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+
+                        <!-- Tratamientos activos del paciente -->
+                        <div>
+                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Actualmente en tratamiento</p>
+                            <div v-if="activeTreatments.length === 0"
+                                class="text-sm text-gray-400 text-center py-4 border border-dashed border-gray-200 rounded-xl">
+                                Sin tratamientos activos
+                            </div>
+                            <ul v-else class="space-y-2">
+                                <li v-for="t in activeTreatments" :key="t.id"
+                                    class="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+                                    <div>
+                                        <p class="font-semibold text-gray-800 text-sm">{{ t.nombre }}</p>
+                                        <p class="text-xs text-gray-400 mt-0.5">Iniciado: {{ t.fecha_inicio ? new Date(t.fecha_inicio).toLocaleDateString() : '—' }}</p>
+                                    </div>
+                                    <button @click="finishTreatment(t)"
+                                        class="text-xs font-bold bg-white border border-red-200 text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg transition">
+                                        Finalizar
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Iniciar nuevo tratamiento -->
+                        <div class="border-t border-gray-100 pt-4">
+                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Iniciar nuevo tratamiento</p>
+                            <div class="flex gap-2">
+                                <select v-model="selectedTratamientoId"
+                                    class="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="">— Seleccionar tratamiento —</option>
+                                    <option v-for="t in availableTreatments" :key="t.id" :value="t.id">{{ t.nombre }}</option>
+                                </select>
+                                <button @click="iniciarTratamiento" :disabled="!selectedTratamientoId"
+                                    class="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-bold px-4 py-2 rounded-lg transition">
+                                    Iniciar
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="px-6 pb-5">
+                        <button @click="closeTratamientoModal"
+                            class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-xl text-sm transition">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Dashboard Today -->
             <div>
                 <div class="flex justify-between items-center mb-4">
