@@ -263,6 +263,15 @@ class Receta(SQLModel, table=True):
     tratamiento: Optional[Tratamiento] = Relationship(back_populates="insumos_requeridos")
     insumo: Optional[Insumo] = Relationship(back_populates="recetas")
 
+class CategoriaGasto(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nombre: str = Field(index=True, unique=True)
+    activo: bool = True
+
+    def __str__(self):
+        return self.nombre
+
+
 class Gasto(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     fecha: datetime = Field(default_factory=datetime.now)

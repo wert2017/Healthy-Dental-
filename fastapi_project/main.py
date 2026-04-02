@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, status, Request, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import engine, create_db_and_tables, get_session
-from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono
+from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto
 from sqlmodel import Field, Session, SQLModel, select, create_engine, Relationship
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -453,6 +453,16 @@ class InventarioDoctorAdmin(ModelView, model=InventarioDoctor):
     column_list = ["doctor", "insumo", "stock_actual"]
     icon = "fa-solid fa-user-doctor"
 
+class CategoriaGastoAdmin(ModelView, model=CategoriaGasto):
+    name = "Categoría de Gasto"
+    name_plural = "Categorías de Gasto"
+    column_list = [CategoriaGasto.nombre, CategoriaGasto.activo]
+    form_columns = [CategoriaGasto.nombre, CategoriaGasto.activo]
+    icon = "fa-solid fa-tags"
+
+    def is_accessible(self, request):
+        return request.cookies.get("user_role") == "admin"
+
 class MovimientosLink(BaseView):
     name = "Movimientos de Inventario"
     icon = "fa-solid fa-truck-ramp-box"
@@ -512,6 +522,22 @@ def seed_data(session: Session):
             session.add(p)
         print("SEED: Pacientes agregados.")
     
+    # Seed expense categories
+    if not session.exec(select(CategoriaGasto)).first():
+        categorias_default = [
+            CategoriaGasto(nombre="GENERAL"),
+            CategoriaGasto(nombre="NÓMINA"),
+            CategoriaGasto(nombre="INSUMOS"),
+            CategoriaGasto(nombre="MANTENIMIENTO"),
+            CategoriaGasto(nombre="RETIRO SOCIOS"),
+            CategoriaGasto(nombre="SERVICIOS BÁSICOS"),
+            CategoriaGasto(nombre="OTROS"),
+        ]
+        for c in categorias_default:
+            session.add(c)
+        session.commit()
+        print("SEED: Categorías de gasto agregadas.")
+
     session.commit()
 
 @app.on_event("startup")
@@ -539,6 +565,15 @@ admin.add_view(InventarioDoctorAdmin)
 admin.add_view(UserAdmin)
 admin.add_view(MovimientosLink)
 admin.add_view(RecetaAdmin)
+admin.add_view(CategoriaGastoAdmin)
+
+# --- CATEGORÍAS DE GASTO ---
+@app.get("/api/categorias-gasto")
+def list_categorias_gasto(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    cats = session.exec(
+        select(CategoriaGasto).where(CategoriaGasto.activo == True).order_by(CategoriaGasto.nombre)
+    ).all()
+    return [{"id": c.id, "nombre": c.nombre} for c in cats]
 
 # --- USER LIST FOR DROPDOWNS ---
 @app.get("/api/usuarios")
