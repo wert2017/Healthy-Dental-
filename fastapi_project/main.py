@@ -695,8 +695,10 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
         # Read the headers from the first row
         headers = {str(cell.value).strip(): idx for idx, cell in enumerate(sheet[1]) if cell.value is not None}
         
-        existing_count = session.exec(select(Paciente)).all()
-        hc_counter = len(existing_count) + 1
+        suc = session.get(Sucursal, user.sucursal_id)
+        prefix = suc.nombre[:3].upper() if suc and len(suc.nombre) >= 3 else "GEN"
+        last_patient = session.exec(select(Paciente).order_by(Paciente.id.desc())).first()
+        hc_counter = (last_patient.id + 1) if last_patient else 1
         prov_counter = 1
         inserted = 0
         skipped = 0
@@ -752,12 +754,8 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
                 
             ciudad = clean_str(get_col('CIUDAD'))
             
-            ficha_val = clean_str(get_col('FICHA'))
-            if ficha_val:
-                historia_clinica = ficha_val
-            else:
-                historia_clinica = f"HC-{hc_counter:05d}"
-                hc_counter += 1
+            historia_clinica = f"HC-{prefix}-{hc_counter:04d}"
+            hc_counter += 1
             
             nuevo_paciente = Paciente(
                 tipo_identificacion="CED" if not cedula.startswith("PROV") else "PROV",
