@@ -37,5 +37,4 @@ compile_test*.js
 test_vue_script.js
 landing_page/node_modules/
 # Note: We want to push the built dist folder for Railway to serve it
-# landing_page/dist/ is NO LONGER ignored
-landing_page/node_modules/
+!landing_page/dist/

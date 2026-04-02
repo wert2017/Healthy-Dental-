@@ -292,6 +292,9 @@ class PacienteAdmin(ModelView, model=Paciente):
     form_overrides = {
         "tipo_identificacion": SelectField
     }
+    form_widget_args = {
+        "historia_clinica": {"readonly": True, "placeholder": "Generado automáticamente"}
+    }
     form_args = {
         "tipo_identificacion": {
             "choices": [("CEDULA", "CEDULA"), ("RUC", "RUC")],
@@ -300,6 +303,30 @@ class PacienteAdmin(ModelView, model=Paciente):
     }
 
     # We explicitly exclude 'atenciones' and 'fecha_creacion' from the form
+
+    async def on_model_change(self, data, model, is_created, request: Request):
+        from sqlmodel import Session, select
+        
+        # 1. Ensure the patient belongs to the current admin's branch
+        # (Assuming the receptionist creating them belongs to a branch)
+        admin_sucursal_id = int(request.cookies.get("sucursal_id", "1"))
+        if is_created and not model.sucursal_id:
+            model.sucursal_id = admin_sucursal_id
+        
+        # 2. Auto-generate Clinical History Number if missing
+        if not model.historia_clinica:
+            with Session(request.app.state.engine) as session:
+                # Find the Sucursal to get prefix
+                from models import Sucursal
+                suc = session.get(Sucursal, model.sucursal_id)
+                prefix = suc.nombre[:3].upper() if suc and len(suc.nombre) >= 3 else "GEN"
+                
+                # Get the latest number
+                statement = select(Paciente).where(Paciente.sucursal_id == model.sucursal_id).order_by(Paciente.id.desc())
+                last_patient = session.exec(statement).first()
+                new_number = (last_patient.id + 1) if last_patient else 1
+                
+                model.historia_clinica = f"HC-{prefix}-{new_number:04d}"
 
 class DoctorAdmin(ModelView, model=Doctor):
     column_list = [Doctor.apellidos, Doctor.nombres, Doctor.cedula, Doctor.sucursal, Doctor.activo]
@@ -567,18 +594,19 @@ def process_stock_deduction(atencion: Atencion, session: Session, sucursal_id: i
 # --- API ROUTES ---
 
 @app.get("/api/pacientes")
-def search_pacientes(q: str = "", session: Session = Depends(get_session)):
+def search_pacientes(q: str = "", session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     if not q:
         return []
     
     terms = q.strip().split()
-    statement = select(Paciente)
+    statement = select(Paciente).where(Paciente.sucursal_id == user.sucursal_id)
     
     for term in terms:
         statement = statement.where(
             (Paciente.nombres.contains(term)) | 
             (Paciente.apellidos.contains(term)) | 
-            (Paciente.numero_identificacion.contains(term))
+            (Paciente.numero_identificacion.contains(term)) |
+            (Paciente.historia_clinica.contains(term))
         )
         
     statement = statement.limit(10)

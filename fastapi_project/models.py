@@ -44,6 +44,9 @@ class Paciente(SQLModel, table=True):
     activo: bool = True
     fecha_creacion: datetime = Field(default_factory=datetime.now)
     
+    sucursal_id: Optional[int] = Field(default=None, foreign_key="sucursal.id")
+    sucursal: Optional["Sucursal"] = Relationship()
+    
     # Billetera Virtual
     saldo_favor: Decimal = Field(default=0, max_digits=10, decimal_places=2)
 
