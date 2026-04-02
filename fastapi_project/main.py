@@ -148,9 +148,9 @@ def on_startup():
             session.rollback()
             print(f"Skipping admin creation error: {e}")
     
-    # Disable auto-seeding of test data for production
-    # with Session(engine) as session:
-    #     seed_data(session)
+    # Re-enable safe auto-seeding of clinics if database is empty
+    with Session(engine) as session:
+        seed_data(session)
 
 @app.get("/api/public/sucursales")
 def list_public_sucursales(session: Session = Depends(get_session)):
@@ -472,7 +472,7 @@ def seed_data(session: Session):
     # Seed Sucursales (Clinics) - CRITICAL for first login
     if not session.exec(select(Sucursal)).first():
         sucursales = [
-            Sucursal(nombre="Clínica Central", direccion="Av. Principal 123"),
+            Sucursal(nombre="HEALTHY DENTAL LA MAGDALENA", direccion="Sur"),
             Sucursal(nombre="Sucursal Norte", direccion="Calle Norte 456"),
         ]
         for s in sucursales:
