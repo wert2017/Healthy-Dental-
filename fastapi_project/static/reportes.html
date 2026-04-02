@@ -131,6 +131,7 @@
         <div class="tabs">
             <button class="tab-btn" :class="{ active: tab === 'doctores' }" @click="tab = 'doctores'">Doctores</button>
             <button class="tab-btn" :class="{ active: tab === 'resultados' }" @click="tab = 'resultados'">Resultados</button>
+            <button class="tab-btn" :class="{ active: tab === 'tratamientos' }" @click="tab = 'tratamientos'">Tratamientos en Curso</button>
         </div>
 
         <!-- ===== TAB DOCTORES ===== -->
@@ -335,6 +336,149 @@
 
         </div>
 
+        <!-- ===== TAB TRATAMIENTOS ===== -->
+        <div v-show="tab === 'tratamientos'">
+
+            <div class="section-desc" style="margin-bottom:12px; color:#6b7280;">
+                Pacientes que iniciaron un tratamiento en el período seleccionado y pacientes actualmente en tratamiento.
+            </div>
+
+            <!-- Filtros -->
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>Fecha inicio</label>
+                    <input type="date" v-model="tratStartDate">
+                </div>
+                <div class="filter-group">
+                    <label>Fecha fin</label>
+                    <input type="date" v-model="tratEndDate">
+                </div>
+                <div class="filter-group">
+                    <label>Tratamiento</label>
+                    <select v-model="tratTratamientoId" style="min-width:180px;">
+                        <option :value="null">Todos los tratamientos</option>
+                        <option v-for="t in tratamientosList" :key="t.id" :value="t.id">{{ t.nombre }}</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" @click="loadTratReport" :disabled="isLoadingTrat">
+                    <div v-if="isLoadingTrat" class="spin"></div>
+                    {{ isLoadingTrat ? 'Cargando...' : 'Generar' }}
+                </button>
+            </div>
+
+            <!-- Resumen rápido -->
+            <div class="summary-bar" v-if="tratData.total_nuevos !== undefined">
+                <div class="sc">
+                    <div class="sc-label">Nuevos en el período</div>
+                    <div class="sc-value">{{ tratData.total_nuevos }}</div>
+                    <div class="sc-sub">{{ tratStartDate || '...' }} — {{ tratEndDate || '...' }}</div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Activos actualmente</div>
+                    <div class="sc-value">{{ tratData.total_activos }}</div>
+                    <div class="sc-sub">En tratamiento hoy</div>
+                </div>
+            </div>
+
+            <!-- Nuevos iniciados en el período -->
+            <div class="section">
+                <div class="section-head">
+                    <span class="section-title">Pacientes que iniciaron en el período</span>
+                    <span class="section-desc">{{ tratData.nuevos?.length || 0 }} registros</span>
+                </div>
+                <div class="section-body" style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha Inicio</th>
+                                <th>Paciente</th>
+                                <th>Historia Clínica</th>
+                                <th>Tratamiento</th>
+                                <th class="c">Estado</th>
+                                <th>Fecha Fin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="r in tratData.nuevos || []" :key="r.id">
+                                <td style="white-space:nowrap; color:#6b7280;">{{ r.fecha_inicio }}</td>
+                                <td style="font-weight:500;">{{ r.paciente }}</td>
+                                <td style="color:#6b7280;">{{ r.historia_clinica }}</td>
+                                <td>{{ r.tratamiento }}</td>
+                                <td class="c">
+                                    <span :class="r.activo ? 'badge badge-ok' : 'badge'">
+                                        {{ r.activo ? 'En curso' : 'Finalizado' }}
+                                    </span>
+                                </td>
+                                <td style="color:#9ca3af;">{{ r.fecha_fin || '—' }}</td>
+                            </tr>
+                            <tr v-if="!tratData.nuevos?.length">
+                                <td colspan="6" class="empty">Sin registros — ajusta las fechas y presiona Generar</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Activos actualmente -->
+            <div class="section">
+                <div class="section-head">
+                    <span class="section-title">Pacientes actualmente en tratamiento</span>
+                    <span class="section-desc">{{ tratData.total_activos || 0 }} pacientes</span>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0;">
+                    <!-- Tabla detalle -->
+                    <div style="padding:4px 18px 16px; border-right:1px solid #e5e7eb; overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Paciente</th>
+                                    <th>Tratamiento</th>
+                                    <th>Desde</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="r in tratData.activos || []" :key="r.id">
+                                    <td style="font-weight:500;">{{ r.paciente }}</td>
+                                    <td>{{ r.tratamiento }}</td>
+                                    <td style="color:#9ca3af; white-space:nowrap;">{{ r.fecha_inicio }}</td>
+                                </tr>
+                                <tr v-if="!tratData.activos?.length">
+                                    <td colspan="3" class="empty">Sin tratamientos activos</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Resumen por tratamiento -->
+                    <div style="padding:4px 18px 16px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tratamiento</th>
+                                    <th class="r">Pacientes activos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="r in tratData.resumen_activos || []" :key="r.tratamiento">
+                                    <td style="font-weight:500;">{{ r.tratamiento }}</td>
+                                    <td class="r"><span class="badge">{{ r.total }}</span></td>
+                                </tr>
+                                <tr v-if="!tratData.resumen_activos?.length">
+                                    <td colspan="2" class="empty">—</td>
+                                </tr>
+                            </tbody>
+                            <tfoot v-if="tratData.resumen_activos?.length">
+                                <tr>
+                                    <td style="font-weight:700;">Total</td>
+                                    <td class="r">{{ tratData.total_activos }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
     </div>
 </div>
 
@@ -367,6 +511,13 @@
             const resEndDate    = ref('')
             const resumen       = ref({ ingresos: null, gastos: null, balance: 0 })
             const isLoadingRes  = ref(false)
+
+            // Tratamientos report
+            const tratStartDate     = ref('')
+            const tratEndDate       = ref('')
+            const tratTratamientoId = ref(null)
+            const tratData          = ref({})
+            const isLoadingTrat     = ref(false)
 
             // Export/import
             const isExporting = ref(false)
@@ -404,6 +555,22 @@
                     console.error(err)
                 } finally {
                     isLoadingRes.value = false
+                }
+            }
+
+            const loadTratReport = async () => {
+                isLoadingTrat.value = true
+                try {
+                    const params = {}
+                    if (tratStartDate.value)     params.start_date     = tratStartDate.value
+                    if (tratEndDate.value)       params.end_date       = tratEndDate.value
+                    if (tratTratamientoId.value) params.tratamiento_id = tratTratamientoId.value
+                    const res = await axios.get('/api/reportes/tratamientos-en-curso', { params })
+                    tratData.value = res.data
+                } catch (err) {
+                    console.error(err)
+                } finally {
+                    isLoadingTrat.value = false
                 }
             }
 
@@ -476,6 +643,7 @@
                 loadCatalogs()
                 loadDocReport()
                 loadResumen()
+                loadTratReport()
             })
 
             return {
@@ -484,7 +652,8 @@
                 docData, isLoadingDoc, doctoresList, tratamientosList,
                 resStartDate, resEndDate, resumen, isLoadingRes,
                 isExporting, isImporting,
-                fmt, loadDocReport, loadResumen,
+                fmt, loadDocReport, loadResumen, loadTratReport,
+                tratStartDate, tratEndDate, tratTratamientoId, tratData, isLoadingTrat,
                 exportMasterReport, importExcel
             }
         }
