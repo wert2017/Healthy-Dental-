@@ -125,7 +125,11 @@ def on_startup():
             session.execute(text("ALTER TABLE paciente ADD COLUMN ciudad VARCHAR;"))
         except Exception:
             pass
-        session.commit()
+        try:
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Skipping user creation error: {e}")
     # Create or Reset Default Admin User
     with Session(engine) as session:
         user = session.exec(select(User).where(User.username == "admin")).first()
@@ -676,7 +680,7 @@ def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Dep
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/pacientes/importar-excel")
-async def importar_pacientes_excel(file: UploadFile = File(...), session: Session = Depends(get_session)):
+async def importar_pacientes_excel(file: UploadFile = File(...), session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     import openpyxl
     import io
     
@@ -766,7 +770,8 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
                 sexo=sexo,
                 edad=edad,
                 ciudad=ciudad,
-                activo=True
+                activo=True,
+                sucursal_id=user.sucursal_id
             )
             session.add(nuevo_paciente)
             inserted += 1
