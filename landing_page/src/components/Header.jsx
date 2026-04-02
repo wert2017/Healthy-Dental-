@@ -36,7 +36,7 @@ const Header = () => {
                 {/* PORTAL BUTTON */}
                 <div className="hidden md:block">
                     <a
-                        href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/login`}
+                        href="/login"
                         className="flex items-center space-x-2 bg-dentist-blue hover:bg-dentist-dark text-white px-5 py-2.5 rounded-full font-semibold transition-all shadow-lg shadow-dentist-blue/20 hover:scale-105"
                     >
                         <LogIn className="w-4 h-4" />
@@ -58,7 +58,7 @@ const Header = () => {
                         <a href="#servicios" onClick={() => setIsMenuOpen(false)} className="text-lg font-medium text-gray-800">Servicios</a>
                         <a href="#contacto" onClick={() => setIsMenuOpen(false)} className="text-lg font-medium text-gray-800">Contacto</a>
                         <a
-                            href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/login`}
+                            href="/login"
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center justify-center space-x-2 bg-dentist-blue text-white p-3 rounded-xl font-bold"
                         >
