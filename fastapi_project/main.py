@@ -754,8 +754,17 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
                 
             ciudad = clean_str(get_col('CIUDAD'))
             
-            historia_clinica = f"HC-{prefix}-{hc_counter:04d}"
-            hc_counter += 1
+            ficha_val = clean_str(get_col('FICHA'))
+            if ficha_val:
+                try:
+                    num_ficha = int(float(ficha_val))
+                    historia_clinica = f"HC-{prefix}-{num_ficha:04d}"
+                except (ValueError, TypeError):
+                    # Si tiene letras u otros caracteres raros
+                    historia_clinica = f"HC-{prefix}-{ficha_val}"
+            else:
+                historia_clinica = f"HC-{prefix}-{hc_counter:04d}"
+                hc_counter += 1
             
             nuevo_paciente = Paciente(
                 tipo_identificacion="CED" if not cedula.startswith("PROV") else "PROV",
