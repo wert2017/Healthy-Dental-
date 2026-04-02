@@ -666,11 +666,12 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
     statement = select(Paciente).where(Paciente.sucursal_id == user.sucursal_id)
     
     for term in terms:
+        t = f"%{term}%"
         statement = statement.where(
-            (Paciente.nombres.contains(term)) | 
-            (Paciente.apellidos.contains(term)) | 
-            (Paciente.numero_identificacion.contains(term)) |
-            (Paciente.historia_clinica.contains(term))
+            (Paciente.nombres.ilike(t)) |
+            (Paciente.apellidos.ilike(t)) |
+            (Paciente.numero_identificacion.ilike(t)) |
+            (Paciente.historia_clinica.ilike(t))
         )
         
     statement = statement.limit(10)
