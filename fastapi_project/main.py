@@ -308,24 +308,26 @@ class PacienteAdmin(ModelView, model=Paciente):
         from sqlmodel import Session, select
         
         # 1. Ensure the patient belongs to the current admin's branch
-        # (Assuming the receptionist creating them belongs to a branch)
         admin_sucursal_id = int(request.cookies.get("sucursal_id", "1"))
         if is_created and not model.sucursal_id:
             model.sucursal_id = admin_sucursal_id
         
-        # 2. Auto-generate Clinical History Number if missing
-        if not model.historia_clinica:
+        # 2. Auto-generate Clinical History Number if missing OR if creating a new one (Force override)
+        if is_created or not model.historia_clinica:
             with Session(request.app.state.engine) as session:
                 # Find the Sucursal to get prefix
                 from models import Sucursal
                 suc = session.get(Sucursal, model.sucursal_id)
                 prefix = suc.nombre[:3].upper() if suc and len(suc.nombre) >= 3 else "GEN"
                 
-                # Get the latest number
-                statement = select(Paciente).where(Paciente.sucursal_id == model.sucursal_id).order_by(Paciente.id.desc())
+                # We use the global `id` value logic: Since ID is auto-assigned after insert, 
+                # we query the absolute highest ID across the entire patient table to guarantee no collisions.
+                # SQLite auto-increment increases universally.
+                statement = select(Paciente).order_by(Paciente.id.desc())
                 last_patient = session.exec(statement).first()
                 new_number = (last_patient.id + 1) if last_patient else 1
                 
+                # FORCE override of whatever came from the browser
                 model.historia_clinica = f"HC-{prefix}-{new_number:04d}"
 
 class DoctorAdmin(ModelView, model=Doctor):
