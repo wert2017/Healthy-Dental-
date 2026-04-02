@@ -302,6 +302,22 @@ class PacienteAdmin(ModelView, model=Paciente):
         }
     }
 
+    def list_query(self, request: Request):
+        stmt = super().list_query(request)
+        user_role = request.cookies.get("user_role")
+        if user_role != "master":
+            sucursal_id = int(request.cookies.get("sucursal_id", "1"))
+            stmt = stmt.where(Paciente.sucursal_id == sucursal_id)
+        return stmt
+
+    def count_query(self, request: Request):
+        stmt = super().count_query(request)
+        user_role = request.cookies.get("user_role")
+        if user_role != "master":
+            sucursal_id = int(request.cookies.get("sucursal_id", "1"))
+            stmt = stmt.where(Paciente.sucursal_id == sucursal_id)
+        return stmt
+
     # We explicitly exclude 'atenciones' and 'fecha_creacion' from the form
 
     async def on_model_change(self, data, model, is_created, request: Request):
