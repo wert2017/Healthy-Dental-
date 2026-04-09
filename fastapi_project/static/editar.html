@@ -43,7 +43,7 @@
                 <div class="flex-shrink-0 flex items-center gap-4">
                     <img src="/static/logo.png" alt="Logo Clínica HD" class="h-10 w-auto">
                     <h1
-                        class="text-2xl font-bold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
+                        class="text-sm font-semibold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
                         {{ sucursalNombre }}
                     </h1>
                 </div>
@@ -796,8 +796,23 @@
                     return window.location.pathname === path;
                 };
 
-                onMounted(() => {
+                onMounted(async () => {
                     loadData();
+                    if (!localStorage.getItem('sucursal_nombre')) {
+                        try {
+                            const tkn = localStorage.getItem('token')
+                            if (tkn) {
+                                const b64 = tkn.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+                                const payload = JSON.parse(atob(b64))
+                                const sid = payload.sucursal_id
+                                if (sid) {
+                                    const res = await axios.get('/api/public/sucursales')
+                                    const suc = res.data.find(s => String(s.id) === String(sid))
+                                    if (suc) { localStorage.setItem('sucursal_nombre', suc.nombre); sucursalNombre.value = suc.nombre }
+                                }
+                            }
+                        } catch (e) {}
+                    }
                 });
 
                 return {
