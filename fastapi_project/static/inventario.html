@@ -45,7 +45,7 @@
                     <img src="/static/logo.png" alt="Logo Clínica HD" class="h-10 w-auto">
                     <h1
                         class="text-2xl font-bold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
-                        Clínica HD
+                        {{ sucursalNombre }}
                     </h1>
                 </div>
 
@@ -138,13 +138,14 @@
             setup() {
                 const token = localStorage.getItem('token')
                 const role = ref(localStorage.getItem('role'))
+                const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD')
                 const isActive = (path) => window.location.pathname === path
                 if (!token) window.location.href = '/login'
                 const logout = () => {
                     localStorage.clear()
                     window.location.href = '/login'
                 }
-                return { role, isActive, logout }
+                return { role, sucursalNombre, isActive, logout }
             }
         }).mount('#app')
     </script>

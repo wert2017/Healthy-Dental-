@@ -43,7 +43,7 @@
                     <img src="/static/logo.png" alt="Logo Clínica HD" class="h-10 w-auto">
                     <h1
                         class="text-2xl font-bold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
-                        Clínica HD
+                        {{ sucursalNombre }}
                     </h1>
                 </div>
 
@@ -231,6 +231,7 @@
                 const filterQuery = ref('');
                 const currentPage = ref(1);
                 const role = ref(localStorage.getItem('role'));
+                const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD');
                 const isActive = (path) => window.location.pathname === path;
 
                 const loadHistorial = async () => {
@@ -290,7 +291,7 @@
                 return {
                     historial,
                     filterQuery,
-                    role,
+                    role, sucursalNombre,
                     filteredHistorial,
                     currentPage,
                     changePage,

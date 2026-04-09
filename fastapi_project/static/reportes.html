@@ -11,12 +11,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background: #f3f4f6; color: #111827; font-size: 13px; }
+        body { font-family: 'Inter', sans-serif; background: #f3f4f6; color: #111827; font-size: 13px; line-height: 1.5; }
 
         /* NAV */
         .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 30; height: 52px; display: flex; align-items: center; padding: 0 24px; gap: 16px; }
-        .topbar-brand { font-size: 16px; font-weight: 700; color: #1e40af; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-        .topbar-brand img { height: 32px; }
+        .topbar-brand { font-size: 15px; font-weight: 700; color: #1e40af; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .topbar-brand img { height: 30px; }
         .nav { display: flex; gap: 2px; align-items: center; overflow-x: auto; }
         .nav a { padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: 500; color: #6b7280; text-decoration: none; white-space: nowrap; }
         .nav a:hover { background: #f3f4f6; color: #111827; }
@@ -27,69 +27,73 @@
         .page { max-width: 1300px; margin: 0 auto; padding: 20px 24px 48px; }
 
         /* TABS */
-        .tabs { display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
-        .tab-btn { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #6b7280; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; }
+        .tabs { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
+        .tab-btn { padding: 9px 18px; font-size: 13px; font-weight: 600; color: #6b7280; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; font-family: inherit; white-space: nowrap; }
         .tab-btn.active { color: #4f46e5; border-bottom-color: #4f46e5; }
 
         /* SECTION */
         .section { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 16px; }
-        .section-head { padding: 12px 18px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+        .section-head { padding: 11px 18px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; min-height: 42px; }
         .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #374151; }
         .section-desc { font-size: 11px; color: #9ca3af; }
-        .section-body { padding: 4px 18px 16px; }
+        .section-body { padding: 0 18px 14px; }
 
         /* FILTER BAR */
         .filter-bar { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 18px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
         .filter-group label { display: block; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
-        input[type=date], select { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 9px; font-size: 12px; outline: none; background: #fff; color: #374151; font-family: inherit; }
+        input[type=date], select { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 9px; font-size: 12px; outline: none; background: #fff; color: #374151; font-family: inherit; height: 32px; }
         input[type=date]:focus, select:focus { border-color: #6366f1; }
 
         /* BUTTONS */
-        .btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #d1d5db; background: #fff; color: #374151; font-family: inherit; transition: background .12s; }
+        .btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 14px; height: 32px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #d1d5db; background: #fff; color: #374151; font-family: inherit; transition: background .12s; white-space: nowrap; }
         .btn:hover { background: #f9fafb; }
         .btn-primary { background: #4f46e5; color: #fff; border-color: #4f46e5; }
         .btn-primary:hover { background: #4338ca; }
         .btn-primary:disabled { opacity: .5; cursor: default; }
 
         /* SUMMARY BAR */
-        .summary-bar { display: flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
-        .sc { flex: 1; padding: 14px 18px; border-right: 1px solid #e5e7eb; }
+        .summary-bar { display: flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 16px; background: #fff; }
+        .sc { flex: 1; padding: 14px 20px; border-right: 1px solid #e5e7eb; }
         .sc:last-child { border-right: none; }
-        .sc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; margin-bottom: 3px; }
-        .sc-value { font-size: 20px; font-weight: 800; color: #111827; }
-        .sc-sub { font-size: 10px; color: #d1d5db; margin-top: 2px; }
+        .sc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; margin-bottom: 4px; }
+        .sc-value { font-size: 22px; font-weight: 800; color: #111827; line-height: 1.2; }
+        .sc-sub { font-size: 11px; color: #d1d5db; margin-top: 3px; }
         .pos { color: #059669; }
         .neg { color: #dc2626; }
 
-        /* TABLE */
-        table { width: 100%; border-collapse: collapse; }
-        th { padding: 9px 6px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
-        th:first-child { padding-left: 0; }
-        th:last-child { padding-right: 0; }
-        th.r, td.r { text-align: right; }
-        th.c, td.c { text-align: center; }
-        td { padding: 8px 6px; border-bottom: 1px solid #f3f4f6; color: #374151; }
-        td:first-child { padding-left: 0; }
-        td:last-child { padding-right: 0; }
-        tr:last-child td { border-bottom: none; }
-        tfoot td { padding-top: 10px; border-top: 2px solid #e5e7eb; border-bottom: none; font-weight: 700; color: #111827; background: #fafafa; }
-        .badge { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 10px; font-weight: 700; background: #f3f4f6; color: #374151; }
-        .badge-ok { background: #d1fae5; color: #065f46; }
-        .badge-warn { background: #fef3c7; color: #92400e; }
-        .empty { padding: 28px 0; text-align: center; color: #9ca3af; }
+        /* DATA TABLE — used inside .section-body */
+        .dt { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .dt th { padding: 10px 8px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+        .dt th:first-child { padding-left: 0; }
+        .dt th:last-child { padding-right: 0; }
+        .dt th.r, .dt td.r { text-align: right; }
+        .dt th.c, .dt td.c { text-align: center; }
+        .dt td { padding: 9px 8px; border-bottom: 1px solid #f3f4f6; color: #374151; font-size: 13px; }
+        .dt td:first-child { padding-left: 0; }
+        .dt td:last-child { padding-right: 0; }
+        .dt tbody tr:last-child td { border-bottom: none; }
+        .dt tfoot td { padding: 10px 8px 8px; border-top: 2px solid #e5e7eb; border-bottom: none; font-weight: 700; color: #111827; font-size: 13px; }
+        .dt tfoot td:first-child { padding-left: 0; }
+        .dt tfoot td:last-child { padding-right: 0; }
 
-        /* RESULTS TABLE */
-        .res-table { width: 100%; border-collapse: collapse; }
-        .res-table td { padding: 7px 0; border-bottom: 1px solid #f3f4f6; }
-        .res-table tr:last-child td { border-bottom: none; }
-        .res-section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; padding-top: 14px !important; }
-        .res-indent { padding-left: 20px !important; color: #374151; }
-        .res-total { font-weight: 700; color: #111827; border-top: 2px solid #e5e7eb !important; padding-top: 8px !important; }
-        .res-result-pos { font-weight: 800; font-size: 15px; color: #059669; border-top: 2px solid #111827 !important; padding-top: 8px !important; }
-        .res-result-neg { font-weight: 800; font-size: 15px; color: #dc2626; border-top: 2px solid #111827 !important; padding-top: 8px !important; }
+        /* RESULT TABLE — used in Resultados tab */
+        .rt { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .rt td { padding: 7px 0; border-bottom: 1px solid #f3f4f6; color: #374151; }
+        .rt tbody tr:last-child td { border-bottom: none; }
+        .rt td.r { text-align: right; }
+        .rt .lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; padding-top: 16px; }
+        .rt .ind { padding-left: 18px; }
+        .rt .sub { font-weight: 700; color: #111827; border-top: 1px solid #e5e7eb; padding-top: 9px; }
+        .rt .result-pos { font-size: 14px; font-weight: 800; color: #059669; border-top: 2px solid #111827; padding-top: 10px; }
+        .rt .result-neg { font-size: 14px; font-weight: 800; color: #dc2626; border-top: 2px solid #111827; padding-top: 10px; }
+
+        .badge { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; background: #f3f4f6; color: #374151; }
+        .badge-ok  { background: #d1fae5; color: #065f46; }
+        .badge-warn { background: #fef3c7; color: #92400e; }
+        .empty { padding: 28px 0; text-align: center; color: #9ca3af; font-size: 13px; }
 
         @keyframes spin { to { transform: rotate(360deg); } }
-        .spin { width: 13px; height: 13px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+        .spin { width: 13px; height: 13px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
     </style>
 </head>
 <body>
@@ -99,7 +103,7 @@
     <header class="topbar">
         <div class="topbar-brand">
             <img src="/static/logo.png" alt="Clínica HD">
-            Clínica HD
+            {{ sucursalNombre }}
         </div>
         <nav class="nav">
             <a href="/recepcion">Recepción</a>
@@ -179,7 +183,7 @@
                     <span class="section-desc">{{ docData.filas?.length || 0 }} registros</span>
                 </div>
                 <div class="section-body" style="overflow-x:auto;">
-                    <table>
+                    <table class="dt">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
@@ -257,44 +261,44 @@
                     <span v-if="resStartDate || resEndDate" class="section-desc">{{ resStartDate || '...' }} — {{ resEndDate || '...' }}</span>
                 </div>
                 <div class="section-body" style="max-width:560px;">
-                    <table class="res-table">
+                    <table class="rt">
                         <tbody>
                             <!-- INGRESOS -->
                             <tr>
-                                <td class="res-section-label">Ingresos</td>
+                                <td class="lbl">Ingresos</td>
                                 <td></td>
                             </tr>
                             <tr>
-                                <td class="res-indent">Total de tratamientos cancelados</td>
+                                <td class="ind">Total de tratamientos cancelados</td>
                                 <td class="r" style="font-weight:600;">${{ fmt(resumen.ingresos?.total_cobrado) }}</td>
                             </tr>
 
                             <!-- GASTOS -->
                             <tr>
-                                <td class="res-section-label" style="padding-top:18px !important;">Total de costos y gastos</td>
+                                <td class="lbl">Total de costos y gastos</td>
                                 <td></td>
                             </tr>
                             <tr v-for="cat in resumen.gastos?.por_categoria || []" :key="cat.categoria">
-                                <td class="res-indent">{{ cat.categoria }}</td>
+                                <td class="ind">{{ cat.categoria }}</td>
                                 <td class="r">${{ fmt(cat.total) }}</td>
                             </tr>
                             <tr v-if="!resumen.gastos?.por_categoria?.length">
-                                <td class="res-indent" style="color:#9ca3af;">Sin gastos registrados</td>
+                                <td class="ind" style="color:#9ca3af;">Sin gastos registrados</td>
                                 <td class="r">$0.00</td>
                             </tr>
 
                             <!-- SUBTOTAL GASTOS -->
                             <tr>
-                                <td class="res-total">Total de costos y gastos</td>
-                                <td class="r res-total">${{ fmt(resumen.gastos?.total) }}</td>
+                                <td class="sub">Total de costos y gastos</td>
+                                <td class="r sub">${{ fmt(resumen.gastos?.total) }}</td>
                             </tr>
 
                             <!-- RESULTADO -->
                             <tr>
-                                <td :class="(resumen.balance || 0) >= 0 ? 'res-result-pos' : 'res-result-neg'">
+                                <td :class="(resumen.balance || 0) >= 0 ? 'result-pos' : 'result-neg'">
                                     Resultado
                                 </td>
-                                <td class="r" :class="(resumen.balance || 0) >= 0 ? 'res-result-pos' : 'res-result-neg'">
+                                <td class="r" :class="(resumen.balance || 0) >= 0 ? 'result-pos' : 'result-neg'">
                                     ${{ fmt(resumen.balance) }}
                                 </td>
                             </tr>
@@ -309,23 +313,23 @@
                     <span class="section-title">Desglose de Nómina</span>
                 </div>
                 <div class="section-body" style="max-width:400px;">
-                    <table class="res-table">
+                    <table class="rt">
                         <tbody>
                             <tr>
-                                <td class="res-indent">Sueldos fijos</td>
+                                <td class="ind">Sueldos fijos</td>
                                 <td class="r">${{ fmt(resumen.gastos.sueldo_fijo) }}</td>
                             </tr>
                             <tr>
-                                <td class="res-indent">Comisiones pagadas</td>
+                                <td class="ind">Comisiones pagadas</td>
                                 <td class="r">${{ fmt(resumen.gastos.comisiones) }}</td>
                             </tr>
                             <tr v-if="(resumen.gastos.nomina_legacy || 0) > 0">
-                                <td class="res-indent" style="color:#9ca3af;">Nómina (registros anteriores)</td>
+                                <td class="ind" style="color:#9ca3af;">Nómina (registros anteriores)</td>
                                 <td class="r" style="color:#9ca3af;">${{ fmt(resumen.gastos.nomina_legacy) }}</td>
                             </tr>
                             <tr>
-                                <td class="res-total">Total nómina</td>
-                                <td class="r res-total">
+                                <td class="sub">Total nómina</td>
+                                <td class="r sub">
                                     ${{ fmt((resumen.gastos.sueldo_fijo || 0) + (resumen.gastos.comisiones || 0) + (resumen.gastos.nomina_legacy || 0)) }}
                                 </td>
                             </tr>
@@ -387,7 +391,7 @@
                     <span class="section-desc">{{ tratData.nuevos?.length || 0 }} registros</span>
                 </div>
                 <div class="section-body" style="overflow-x:auto;">
-                    <table>
+                    <table class="dt">
                         <thead>
                             <tr>
                                 <th>Fecha Inicio</th>
@@ -428,7 +432,7 @@
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0;">
                     <!-- Tabla detalle -->
                     <div style="padding:4px 18px 16px; border-right:1px solid #e5e7eb; overflow-x:auto;">
-                        <table>
+                        <table class="dt">
                             <thead>
                                 <tr>
                                     <th>Paciente</th>
@@ -450,7 +454,7 @@
                     </div>
                     <!-- Resumen por tratamiento -->
                     <div style="padding:4px 18px 16px;">
-                        <table>
+                        <table class="dt">
                             <thead>
                                 <tr>
                                     <th>Tratamiento</th>
@@ -492,6 +496,7 @@
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
             const role = ref(localStorage.getItem('role') || 'admin')
+            const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD')
             const logout = () => { localStorage.clear(); window.location.href = '/login' }
 
             const tab = ref('doctores')
@@ -647,7 +652,7 @@
             })
 
             return {
-                role, logout, tab,
+                role, sucursalNombre, logout, tab,
                 docStartDate, docEndDate, docDoctorId, docTratamientoId,
                 docData, isLoadingDoc, doctoresList, tratamientosList,
                 resStartDate, resEndDate, resumen, isLoadingRes,

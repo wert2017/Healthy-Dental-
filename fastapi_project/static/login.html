@@ -109,6 +109,9 @@
                 if (full_name) localStorage.setItem('full_name', full_name);
                 if (doctor_id) localStorage.setItem('doctor_id', doctor_id);
                 if (sid) localStorage.setItem('sucursal_id', sid);
+                const sucursalSelect = document.getElementById('sucursal_id');
+                const sucursalNombre = sucursalSelect.options[sucursalSelect.selectedIndex].text;
+                localStorage.setItem('sucursal_nombre', sucursalNombre);
 
                 // Redirect based on role
                 if (role === 'doctor') {
