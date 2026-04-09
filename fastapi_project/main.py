@@ -209,12 +209,19 @@ async def login_for_access_token(
         if doc:
             full_name = f"{doc.nombres} {doc.apellidos}"
 
+    sucursal_nombre = None
+    if final_sucursal_id:
+        suc = session.get(Sucursal, final_sucursal_id)
+        if suc:
+            sucursal_nombre = suc.nombre
+
     return {
-        "access_token": access_token, 
+        "access_token": access_token,
         "token_type": "bearer",
         "role": user.role,
         "doctor_id": user.doctor_id,
         "sucursal_id": final_sucursal_id,
+        "sucursal_nombre": sucursal_nombre,
         "username": user.username,
         "full_name": full_name
     }
