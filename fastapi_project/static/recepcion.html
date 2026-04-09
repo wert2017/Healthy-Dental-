@@ -681,19 +681,23 @@
 
                 onMounted(async () => {
                     loadDashboard()
-                    // Si no hay nombre guardado, cargarlo desde la API
                     if (!localStorage.getItem('sucursal_nombre')) {
-                        const sid = localStorage.getItem('sucursal_id')
-                        if (sid) {
-                            try {
-                                const res = await axios.get('/api/public/sucursales')
-                                const suc = res.data.find(s => String(s.id) === String(sid))
-                                if (suc) {
-                                    localStorage.setItem('sucursal_nombre', suc.nombre)
-                                    sucursalNombre.value = suc.nombre
+                        try {
+                            const tkn = localStorage.getItem('token')
+                            if (tkn) {
+                                const b64 = tkn.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+                                const payload = JSON.parse(atob(b64))
+                                const sid = payload.sucursal_id
+                                if (sid) {
+                                    const res = await axios.get('/api/public/sucursales')
+                                    const suc = res.data.find(s => String(s.id) === String(sid))
+                                    if (suc) {
+                                        localStorage.setItem('sucursal_nombre', suc.nombre)
+                                        sucursalNombre.value = suc.nombre
+                                    }
                                 }
-                            } catch (e) { /* silencioso */ }
-                        }
+                            }
+                        } catch (e) { /* silencioso */ }
                     }
                 })
 
