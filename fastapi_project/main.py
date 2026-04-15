@@ -342,13 +342,23 @@ class PacienteAdmin(ModelView, model=Paciente):
                 suc = session.get(Sucursal, model.sucursal_id)
                 prefix = suc.nombre[:3].upper() if suc and len(suc.nombre) >= 3 else "GEN"
                 
-                # We use the global `id` value logic: Since ID is auto-assigned after insert, 
-                # we query the absolute highest ID across the entire patient table to guarantee no collisions.
-                # SQLite auto-increment increases universally.
-                statement = select(Paciente).order_by(Paciente.id.desc())
-                last_patient = session.exec(statement).first()
-                new_number = (last_patient.id + 1) if last_patient else 1
-                
+                # Find the highest HC number already used for THIS branch specifically
+                # to avoid jumping to a global ID that belongs to other branches.
+                existing_hcs = session.exec(
+                    select(Paciente.historia_clinica)
+                    .where(Paciente.sucursal_id == model.sucursal_id)
+                    .where(Paciente.historia_clinica.ilike(f"HC-{prefix}-%"))
+                ).all()
+                max_num = 0
+                for hc in existing_hcs:
+                    try:
+                        num = int(hc.split("-")[-1])
+                        if num > max_num:
+                            max_num = num
+                    except (ValueError, IndexError):
+                        pass
+                new_number = max_num + 1
+
                 # FORCE override of whatever came from the browser
                 model.historia_clinica = f"HC-{prefix}-{new_number:04d}"
 
@@ -2755,6 +2765,7 @@ def get_nomina_pendientes(start_date: str = None, end_date: str = None, session:
         if d.doctor_id and d.doctor_id in doctores_pendientes:
             doctores_pendientes[d.doctor_id]["comisiones_acumuladas"] += com_pen
             doctores_pendientes[d.doctor_id]["detalles"].append({
+                "detalle_id": d.id,
                 "tratamiento": d.tratamiento.nombre if d.tratamiento else "Desconocido",
                 "valor_tratamiento": float(d.total_calculado),
                 "porcentaje": float(d.porcentaje_comision),
@@ -2776,6 +2787,7 @@ def get_nomina_pendientes(start_date: str = None, end_date: str = None, session:
                 }
             vendedores_pendientes[d.vendedor_id]["comisiones_acumuladas"] += com_pen
             vendedores_pendientes[d.vendedor_id]["detalles"].append({
+                "detalle_id": d.id,
                 "tratamiento": d.tratamiento.nombre if d.tratamiento else "Venta",
                 "valor_tratamiento": float(d.total_calculado),
                 "porcentaje": float(d.porcentaje_comision),
@@ -2916,6 +2928,97 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
     session.commit()
     
     return {"message": f"Nómina pagada exitosamente a {empleado_nombre}", "total_pagado": float(total_entregado)}
+
+class DetalleSeleccionItem(BaseModel):
+    detalle_id: int
+    comision: float
+
+class PagoNominaSeleccionSchema(BaseModel):
+    empleado_id: int
+    tipo_empleado: str  # 'Doctor' or 'Secretaria'
+    detalles: List[DetalleSeleccionItem]
+    efectivo: float = 0.0
+    transferencia: float = 0.0
+    tarjeta: float = 0.0
+    responsable: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+@app.post("/api/nomina/pagar-seleccion")
+def pagar_nomina_seleccion(data: PagoNominaSeleccionSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if not user.sucursal_id:
+        raise HTTPException(status_code=400, detail="El usuario no tiene una sucursal asignada")
+    if not data.detalles:
+        raise HTTPException(status_code=400, detail="No se seleccionaron tratamientos")
+
+    efectivo_val = Decimal(str(data.efectivo))
+    transferencia_val = Decimal(str(data.transferencia))
+    tarjeta_val = Decimal(str(data.tarjeta))
+    total_entregado = efectivo_val + transferencia_val + tarjeta_val
+    total_seleccion = Decimal(str(round(sum(item.comision for item in data.detalles), 2)))
+
+    if total_seleccion <= 0:
+        raise HTTPException(status_code=400, detail="El total a pagar debe ser mayor a 0")
+    if abs(total_entregado - total_seleccion) > Decimal("0.05"):
+        raise HTTPException(status_code=400, detail=f"La suma de métodos (${total_entregado}) no coincide con el total seleccionado (${total_seleccion})")
+
+    balances = get_gastos_balances(session=session, user=user)
+    if Decimal(str(balances["efectivo"])) < efectivo_val:
+        raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Efectivo. Disponible: ${balances['efectivo']}")
+    if Decimal(str(balances["transferencia"])) < transferencia_val:
+        raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Bancos. Disponible: ${balances['transferencia']}")
+    if Decimal(str(balances["tarjeta"])) < tarjeta_val:
+        raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Tarjeta. Disponible: ${balances['tarjeta']}")
+
+    now = datetime.now()
+    empleado_nombre = "Empleado"
+    if data.tipo_empleado == 'Doctor':
+        doctor = session.get(Doctor, data.empleado_id)
+        if doctor: empleado_nombre = f"Dr(a). {doctor.nombres} {doctor.apellidos}"
+    elif data.tipo_empleado == 'Secretaria':
+        sec = session.get(User, data.empleado_id)
+        if sec: empleado_nombre = f"Sec. {sec.username}"
+
+    # Fetch cascada to get current state (porcentaje_pago_paciente, comision_pendiente per detalle)
+    cascada_results = get_cascada_pendientes_global(
+        session=session,
+        sucursal_id=user.sucursal_id,
+        empleado_id=data.empleado_id,
+        tipo_empleado=data.tipo_empleado
+    )
+    cascada_by_id = {res["detalle"].id: res for res in cascada_results}
+
+    for item in data.detalles:
+        if item.detalle_id not in cascada_by_id:
+            raise HTTPException(status_code=400, detail=f"El tratamiento ID {item.detalle_id} no está pendiente o no existe")
+        res = cascada_by_id[item.detalle_id]
+        d = res["detalle"]
+        com_pen = res["comision_pendiente"]
+        pct_pago = res["porcentaje_pago_paciente"]
+
+        pago = min(item.comision, com_pen)
+        d.comision_pagada_monto = float(getattr(d, 'comision_pagada_monto', 0.0) or 0.0) + pago
+        d.fecha_pago_comision = now
+        if pct_pago >= 0.99 and abs(float(d.comision_pagada_monto) - float(d.comision_valor)) < 0.02:
+            d.comision_pagada = True
+        session.add(d)
+
+    desc_comision = f"Comisiones: {empleado_nombre}"
+    def _reg(metodo: str, monto: Decimal):
+        if monto > 0:
+            session.add(Gasto(
+                fecha=now, descripcion=desc_comision,
+                monto=monto, metodo_pago=metodo,
+                categoria="COMISIONES",
+                responsable=data.responsable or user.username,
+                sucursal_id=user.sucursal_id, usuario_id=user.id
+            ))
+    _reg("EFECTIVO", efectivo_val)
+    _reg("TRANSFERENCIA", transferencia_val)
+    _reg("TARJETA", tarjeta_val)
+
+    session.commit()
+    return {"message": f"{len(data.detalles)} tratamiento(s) pagado(s) a {empleado_nombre}", "total_pagado": float(total_entregado)}
 
 class RetiroSociosSchema(BaseModel):
     monto: float

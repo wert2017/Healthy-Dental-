@@ -416,6 +416,22 @@
                             </select>
                         </div>
 
+                        <!-- Liquidar Todos Doctores -->
+                        <div v-if="pendientesNomina.doctores.filter(d => selectedNominaDoctorId === 'all' || selectedNominaDoctorId == d.id).length > 0"
+                            class="flex justify-between items-center bg-amber-50 border border-amber-200 rounded-xl px-5 py-3">
+                            <div>
+                                <p class="text-sm font-bold text-amber-800">
+                                    Total acumulado ({{ pendientesNomina.doctores.filter(d => selectedNominaDoctorId === 'all' || selectedNominaDoctorId == d.id).length }} doctores):
+                                    <span class="text-emerald-600">${{ pendientesNomina.doctores.filter(d => selectedNominaDoctorId === 'all' || selectedNominaDoctorId == d.id).reduce((s,d) => s + d.comisiones_acumuladas, 0).toFixed(2) }}</span>
+                                </p>
+                                <p class="text-xs text-amber-600 mt-0.5">Paga a todos los doctores visibles en una sola acción</p>
+                            </div>
+                            <button @click="procesarNominaAll('Doctor')"
+                                class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-5 rounded-xl shadow-md transition transform active:scale-95 text-sm whitespace-nowrap ml-4">
+                                Liquidar a Todos 💸
+                            </button>
+                        </div>
+
                         <div v-if="pendientesNomina.doctores.filter(d => selectedNominaDoctorId === 'all' || selectedNominaDoctorId == d.id).length === 0"
                             class="text-center py-8 text-slate-500 bg-white rounded-xl border border-slate-200 border-dashed">
                             No hay comisiones de doctores pendientes por pagar bajo estos filtros.
@@ -430,29 +446,55 @@
                                             class="text-emerald-600 font-bold">${{ doc.comisiones_acumuladas.toFixed(2)
                                             }}</span></p>
                                 </div>
-                                <button @click="procesarNomina(doc, 'Doctor')"
-                                    class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-xl shadow-md transition transform active:scale-95 text-sm">
-                                    Liquidar y Pagar 💸
-                                </button>
+                                <div class="flex gap-2 flex-wrap justify-end">
+                                    <button v-if="getSelectedCountForDoc(doc.id) > 0"
+                                        @click="pagarSeleccionados(doc, 'Doctor')"
+                                        class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-5 rounded-xl shadow-md transition transform active:scale-95 text-sm">
+                                        Pagar Selección ({{ getSelectedCountForDoc(doc.id) }}) ✓
+                                    </button>
+                                    <button @click="procesarNomina(doc, 'Doctor')"
+                                        class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-5 rounded-xl shadow-md transition transform active:scale-95 text-sm">
+                                        Liquidar Todo 💸
+                                    </button>
+                                </div>
                             </div>
                             <div class="mt-3 bg-slate-50 rounded-lg p-3 border border-slate-100">
-                                <h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detalle de
-                                    atenciones pendientes:</h5>
-                                <div class="max-h-32 overflow-y-auto space-y-2">
-                                    <div v-for="(det, i) in doc.detalles" :key="i"
-                                        class="text-sm flex justify-between bg-white px-3 py-2 rounded shadow-sm border border-slate-100">
-                                        <div class="truncate mr-4 flex-1">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Detalle de
+                                        atenciones pendientes:</h5>
+                                    <label class="flex items-center gap-1 text-xs text-slate-500 cursor-pointer select-none">
+                                        <input type="checkbox"
+                                            :checked="getSelectedCountForDoc(doc.id) === doc.detalles.length && doc.detalles.length > 0"
+                                            :indeterminate="getSelectedCountForDoc(doc.id) > 0 && getSelectedCountForDoc(doc.id) < doc.detalles.length"
+                                            @change="toggleAllDetalles(doc.id, doc.detalles)"
+                                            class="w-3.5 h-3.5 rounded accent-blue-500">
+                                        Seleccionar todos
+                                    </label>
+                                </div>
+                                <div class="max-h-40 overflow-y-auto space-y-2">
+                                    <label v-for="(det, i) in doc.detalles" :key="det.detalle_id"
+                                        class="text-sm flex items-center gap-2 bg-white px-3 py-2 rounded shadow-sm border cursor-pointer transition"
+                                        :class="isDetalleSelected(doc.id, det.detalle_id) ? 'border-blue-300 bg-blue-50' : 'border-slate-100'">
+                                        <input type="checkbox"
+                                            :checked="isDetalleSelected(doc.id, det.detalle_id)"
+                                            @change="toggleDetalle(doc.id, det.detalle_id)"
+                                            class="w-4 h-4 rounded accent-blue-500 flex-shrink-0">
+                                        <div class="truncate flex-1">
                                             <span class="font-medium text-slate-700">{{ det.tratamiento }}</span>
                                             <span class="text-xs text-slate-400 ml-2">{{ formatDate(det.fecha) }}</span>
                                         </div>
-                                        <div class="text-right whitespace-nowrap">
+                                        <div class="text-right whitespace-nowrap flex-shrink-0">
                                             <span v-if="det.porcentaje_pago_real < 0.99" class="text-[10px] bg-orange-100 text-orange-700 px-1 py-0.5 rounded font-bold mr-2 uppercase">Parcial ({{ Math.round(det.porcentaje_pago_real * 100) }}%)</span>
                                             <span class="text-slate-500 text-xs">Total: ${{
-                                                det.valor_tratamiento.toFixed(2) }} | {{ det.porcentaje }}% -></span>
-                                            <span class="font-bold text-emerald-600 ml-2">+${{ det.comision.toFixed(2)
-                                                }}</span>
+                                                det.valor_tratamiento.toFixed(2) }} | {{ det.porcentaje }}% →</span>
+                                            <span class="font-bold text-emerald-600 ml-1">+${{ det.comision.toFixed(2) }}</span>
                                         </div>
-                                    </div>
+                                    </label>
+                                </div>
+                                <div v-if="getSelectedCountForDoc(doc.id) > 0"
+                                    class="mt-2 pt-2 border-t border-slate-200 flex justify-between items-center">
+                                    <span class="text-xs text-blue-600 font-medium">{{ getSelectedCountForDoc(doc.id) }} tratamiento(s) seleccionado(s)</span>
+                                    <span class="text-sm font-bold text-blue-700">Total: ${{ getSelectedTotalForDoc(doc.id, doc.detalles).toFixed(2) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -472,6 +514,22 @@
                             </select>
                         </div>
 
+                        <!-- Liquidar Todos Secretarias -->
+                        <div v-if="pendientesNomina.vendedores.filter(v => selectedNominaSecretariaId === 'all' || selectedNominaSecretariaId == v.id).length > 0"
+                            class="flex justify-between items-center bg-amber-50 border border-amber-200 rounded-xl px-5 py-3">
+                            <div>
+                                <p class="text-sm font-bold text-amber-800">
+                                    Total acumulado ({{ pendientesNomina.vendedores.filter(v => selectedNominaSecretariaId === 'all' || selectedNominaSecretariaId == v.id).length }} empleados):
+                                    <span class="text-emerald-600">${{ pendientesNomina.vendedores.filter(v => selectedNominaSecretariaId === 'all' || selectedNominaSecretariaId == v.id).reduce((s,v) => s + v.comisiones_acumuladas, 0).toFixed(2) }}</span>
+                                </p>
+                                <p class="text-xs text-amber-600 mt-0.5">Paga a todo el personal visible en una sola acción</p>
+                            </div>
+                            <button @click="procesarNominaAll('Secretaria')"
+                                class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-5 rounded-xl shadow-md transition transform active:scale-95 text-sm whitespace-nowrap ml-4">
+                                Liquidar a Todos 💸
+                            </button>
+                        </div>
+
                         <div v-if="pendientesNomina.vendedores.filter(v => selectedNominaSecretariaId === 'all' || selectedNominaSecretariaId == v.id).length === 0"
                             class="text-center py-8 text-slate-500 bg-white rounded-xl border border-slate-200 border-dashed">
                             No hay comisiones de ventas pendientes por pagar bajo estos filtros.
@@ -489,29 +547,55 @@
                                             vend.comisiones_acumuladas.toFixed(2) }}</span>
                                     </p>
                                 </div>
-                                <button @click="procesarNomina(vend, 'Secretaria')"
-                                    class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-xl shadow-md transition transform active:scale-95 text-sm">
-                                    Liquidar y Pagar 💸
-                                </button>
+                                <div class="flex gap-2 flex-wrap justify-end">
+                                    <button v-if="getSelectedCountForDoc(vend.id) > 0"
+                                        @click="pagarSeleccionados(vend, 'Secretaria')"
+                                        class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-5 rounded-xl shadow-md transition transform active:scale-95 text-sm">
+                                        Pagar Selección ({{ getSelectedCountForDoc(vend.id) }}) ✓
+                                    </button>
+                                    <button @click="procesarNomina(vend, 'Secretaria')"
+                                        class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-5 rounded-xl shadow-md transition transform active:scale-95 text-sm">
+                                        Liquidar Todo 💸
+                                    </button>
+                                </div>
                             </div>
                             <div class="mt-3 bg-slate-50 rounded-lg p-3 border border-slate-100">
-                                <h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detalle de
-                                    ventas pendientes:</h5>
-                                <div class="max-h-32 overflow-y-auto space-y-2">
-                                    <div v-for="(det, i) in vend.detalles" :key="i"
-                                        class="text-sm flex justify-between bg-white px-3 py-2 rounded shadow-sm border border-slate-100">
-                                        <div class="truncate mr-4 flex-1">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Detalle de
+                                        ventas pendientes:</h5>
+                                    <label class="flex items-center gap-1 text-xs text-slate-500 cursor-pointer select-none">
+                                        <input type="checkbox"
+                                            :checked="getSelectedCountForDoc(vend.id) === vend.detalles.length && vend.detalles.length > 0"
+                                            :indeterminate="getSelectedCountForDoc(vend.id) > 0 && getSelectedCountForDoc(vend.id) < vend.detalles.length"
+                                            @change="toggleAllDetalles(vend.id, vend.detalles)"
+                                            class="w-3.5 h-3.5 rounded accent-blue-500">
+                                        Seleccionar todos
+                                    </label>
+                                </div>
+                                <div class="max-h-40 overflow-y-auto space-y-2">
+                                    <label v-for="(det, i) in vend.detalles" :key="det.detalle_id"
+                                        class="text-sm flex items-center gap-2 bg-white px-3 py-2 rounded shadow-sm border cursor-pointer transition"
+                                        :class="isDetalleSelected(vend.id, det.detalle_id) ? 'border-blue-300 bg-blue-50' : 'border-slate-100'">
+                                        <input type="checkbox"
+                                            :checked="isDetalleSelected(vend.id, det.detalle_id)"
+                                            @change="toggleDetalle(vend.id, det.detalle_id)"
+                                            class="w-4 h-4 rounded accent-blue-500 flex-shrink-0">
+                                        <div class="truncate flex-1">
                                             <span class="font-medium text-slate-700">{{ det.tratamiento }}</span>
                                             <span class="text-xs text-slate-400 ml-2">{{ formatDate(det.fecha) }}</span>
                                         </div>
-                                        <div class="text-right whitespace-nowrap">
+                                        <div class="text-right whitespace-nowrap flex-shrink-0">
                                             <span v-if="det.porcentaje_pago_real < 0.99" class="text-[10px] bg-orange-100 text-orange-700 px-1 py-0.5 rounded font-bold mr-2 uppercase">Parcial ({{ Math.round(det.porcentaje_pago_real * 100) }}%)</span>
-                                            <span class="text-slate-500 text-xs">Total Vendido: ${{
-                                                det.valor_tratamiento.toFixed(2) }} | {{ det.porcentaje }}% -></span>
-                                            <span class="font-bold text-emerald-600 ml-2">+${{ det.comision.toFixed(2)
-                                                }}</span>
+                                            <span class="text-slate-500 text-xs">Total: ${{
+                                                det.valor_tratamiento.toFixed(2) }} | {{ det.porcentaje }}% →</span>
+                                            <span class="font-bold text-emerald-600 ml-1">+${{ det.comision.toFixed(2) }}</span>
                                         </div>
-                                    </div>
+                                    </label>
+                                </div>
+                                <div v-if="getSelectedCountForDoc(vend.id) > 0"
+                                    class="mt-2 pt-2 border-t border-slate-200 flex justify-between items-center">
+                                    <span class="text-xs text-blue-600 font-medium">{{ getSelectedCountForDoc(vend.id) }} tratamiento(s) seleccionado(s)</span>
+                                    <span class="text-sm font-bold text-blue-700">Total: ${{ getSelectedTotalForDoc(vend.id, vend.detalles).toFixed(2) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -687,6 +771,7 @@
                 const filterNominaEndDate = ref('')
                 const selectedNominaDoctorId = ref('all')
                 const selectedNominaSecretariaId = ref('all')
+                const selectedDetalles = ref({}) // { empId: [detalleId, ...] }
 
                 const showTransferModal = ref(false)
                 const searchQuery = ref('')
@@ -950,6 +1035,278 @@
                     }
                 }
 
+                // Selection helpers
+                const isDetalleSelected = (empId, detalleId) => (selectedDetalles.value[empId] || []).includes(detalleId)
+                const getSelectedCountForDoc = (empId) => (selectedDetalles.value[empId] || []).length
+                const getSelectedTotalForDoc = (empId, detalles) => {
+                    const sel = selectedDetalles.value[empId] || []
+                    return detalles.filter(d => sel.includes(d.detalle_id)).reduce((s, d) => s + d.comision, 0)
+                }
+                const toggleDetalle = (empId, detalleId) => {
+                    const current = selectedDetalles.value[empId] || []
+                    selectedDetalles.value = {
+                        ...selectedDetalles.value,
+                        [empId]: current.includes(detalleId)
+                            ? current.filter(id => id !== detalleId)
+                            : [...current, detalleId]
+                    }
+                }
+                const toggleAllDetalles = (empId, detalles) => {
+                    const allIds = detalles.map(d => d.detalle_id)
+                    const current = selectedDetalles.value[empId] || []
+                    selectedDetalles.value = {
+                        ...selectedDetalles.value,
+                        [empId]: current.length === allIds.length ? [] : allIds
+                    }
+                }
+
+                const pagarSeleccionados = async (empleado, tipo) => {
+                    const selIds = selectedDetalles.value[empleado.id] || []
+                    if (selIds.length === 0) return
+                    const selDetalles = empleado.detalles.filter(d => selIds.includes(d.detalle_id))
+                    const totalSel = selDetalles.reduce((s, d) => s + d.comision, 0)
+                    const currentUser = localStorage.getItem('username') || 'Usuario actual'
+
+                    const htmlContent = `
+                        <div class="text-left space-y-4 text-sm">
+                            <div class="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                                <p class="text-xs text-blue-600 font-bold uppercase tracking-wide mb-1">${selDetalles.length} tratamiento(s) seleccionado(s)</p>
+                                <p class="text-2xl font-black text-blue-700">$${totalSel.toFixed(2)}</p>
+                                <div class="mt-2 space-y-1 max-h-24 overflow-y-auto">
+                                    ${selDetalles.map(d => `<p class="text-xs text-slate-500">• ${d.tratamiento} <span class="font-bold text-emerald-600">+$${d.comision.toFixed(2)}</span></p>`).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block font-medium text-gray-700 mb-1">Responsable</label>
+                                <select id="swal-sel-responsable" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white">
+                                    <option value="">Seleccione un responsable...</option>
+                                    ${usuarios.value.map(u => `<option value="${u.username}" ${u.username === currentUser ? 'selected' : ''}>${u.username}</option>`).join('')}
+                                </select>
+                            </div>
+                            <hr class="border-gray-200">
+                            <h4 class="font-bold text-gray-700 uppercase tracking-wide text-xs">Abonar Vía:</h4>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                                    <label class="block font-bold text-emerald-700 mb-1">Efectivo ($)</label>
+                                    <input id="swal-sel-efectivo" type="number" step="0.01" value="${totalSel.toFixed(2)}" class="block w-full px-3 py-2 border border-emerald-300 rounded-md font-bold text-emerald-800">
+                                </div>
+                                <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <label class="block font-bold text-blue-700 mb-1">Transfer. ($)</label>
+                                    <input id="swal-sel-transferencia" type="number" step="0.01" value="0.00" class="block w-full px-3 py-2 border border-blue-300 rounded-md font-bold text-blue-800">
+                                </div>
+                                <div class="bg-purple-50 p-3 rounded-lg border border-purple-100">
+                                    <label class="block font-bold text-purple-700 mb-1">Tarjeta ($)</label>
+                                    <input id="swal-sel-tarjeta" type="number" step="0.01" value="0.00" class="block w-full px-3 py-2 border border-purple-300 rounded-md font-bold text-purple-800">
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 text-center">La suma debe igualar $${totalSel.toFixed(2)}</p>
+                        </div>
+                    `
+
+                    const { value: formValues } = await Swal.fire({
+                        title: `Pagar Selección — ${empleado.nombre}`,
+                        html: htmlContent,
+                        focusConfirm: false,
+                        showCancelButton: true,
+                        confirmButtonColor: '#3b82f6',
+                        confirmButtonText: `✓ Confirmar Pago ($${totalSel.toFixed(2)})`,
+                        cancelButtonText: 'Cancelar',
+                        width: '32em',
+                        preConfirm: () => {
+                            const responsable = document.getElementById('swal-sel-responsable').value
+                            const efectivo = parseFloat(document.getElementById('swal-sel-efectivo').value) || 0
+                            const transferencia = parseFloat(document.getElementById('swal-sel-transferencia').value) || 0
+                            const tarjeta = parseFloat(document.getElementById('swal-sel-tarjeta').value) || 0
+                            const total = efectivo + transferencia + tarjeta
+                            if (!responsable) { Swal.showValidationMessage('Seleccione un responsable'); return false }
+                            if (Math.abs(total - totalSel) > 0.05) {
+                                Swal.showValidationMessage(`La suma ($${total.toFixed(2)}) no coincide con el total ($${totalSel.toFixed(2)})`)
+                                return false
+                            }
+                            const maxEfectivo = balances.value.efectivo || 0
+                            const maxTrans = balances.value.transferencia || 0
+                            const maxTarjeta = balances.value.tarjeta || 0
+                            if (efectivo > maxEfectivo + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Efectivo. Disponible: $${maxEfectivo.toFixed(2)}`); return false }
+                            if (transferencia > maxTrans + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Banco. Disponible: $${maxTrans.toFixed(2)}`); return false }
+                            if (tarjeta > maxTarjeta + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Tarjeta. Disponible: $${maxTarjeta.toFixed(2)}`); return false }
+                            return { responsable, efectivo, transferencia, tarjeta }
+                        }
+                    })
+
+                    if (!formValues) return
+
+                    try {
+                        await axios.post('/api/nomina/pagar-seleccion', {
+                            empleado_id: empleado.id,
+                            tipo_empleado: tipo,
+                            detalles: selDetalles.map(d => ({ detalle_id: d.detalle_id, comision: d.comision })),
+                            efectivo: formValues.efectivo,
+                            transferencia: formValues.transferencia,
+                            tarjeta: formValues.tarjeta,
+                            responsable: formValues.responsable,
+                            start_date: filterNominaStartDate.value || null,
+                            end_date: filterNominaEndDate.value || null
+                        })
+                        // Clear selection for this employee
+                        selectedDetalles.value = { ...selectedDetalles.value, [empleado.id]: [] }
+                        Swal.fire('¡Pagado!', `${selDetalles.length} tratamiento(s) liquidado(s) exitosamente.`, 'success')
+                        fetchNominaPendientes()
+                        fetchBalances()
+                    } catch (e) {
+                        Swal.fire('Error', e.response?.data?.detail || e.message, 'error')
+                    }
+                }
+
+                const procesarNominaAll = async (tipo) => {
+                    const empleados = (tipo === 'Doctor'
+                        ? pendientesNomina.value.doctores.filter(d => selectedNominaDoctorId.value === 'all' || selectedNominaDoctorId.value == d.id)
+                        : pendientesNomina.value.vendedores.filter(v => selectedNominaSecretariaId.value === 'all' || selectedNominaSecretariaId.value == v.id)
+                    ).filter(e => e.comisiones_acumuladas > 0);
+
+                    if (empleados.length === 0) return Swal.fire('Sin pendientes', 'No hay comisiones pendientes de pago.', 'info');
+
+                    const totalComisiones = empleados.reduce((s, e) => s + e.comisiones_acumuladas, 0);
+                    const currentUser = localStorage.getItem('username') || 'Usuario actual';
+                    const label = tipo === 'Doctor' ? 'Doctores' : 'Empleados';
+                    const prefijo = tipo === 'Doctor' ? 'Dr(a).' : '';
+
+                    const htmlContent = `
+                        <div class="text-left space-y-4 text-sm">
+                            <div class="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                                <p class="text-xs text-emerald-600 font-bold uppercase tracking-wide mb-1">Total a Pagar (${empleados.length} ${label})</p>
+                                <p class="text-2xl font-black text-emerald-700">$${totalComisiones.toFixed(2)}</p>
+                                <div class="mt-2 space-y-1 max-h-28 overflow-y-auto">
+                                    ${empleados.map(e => `<p class="text-xs text-slate-500">• ${prefijo} ${e.nombre}: <span class="font-bold text-emerald-600">$${e.comisiones_acumuladas.toFixed(2)}</span></p>`).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block font-medium text-gray-700 mb-1">Responsable</label>
+                                <select id="swal-all-responsable" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white">
+                                    <option value="">Seleccione un responsable...</option>
+                                    ${usuarios.value.map(u => `<option value="${u.username}" ${u.username === currentUser ? 'selected' : ''}>${u.username}</option>`).join('')}
+                                </select>
+                            </div>
+                            <hr class="border-gray-200">
+                            <h4 class="font-bold text-gray-700 uppercase tracking-wide text-xs">Abonar Vía:</h4>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                                    <label class="block font-bold text-emerald-700 mb-1">Efectivo ($)</label>
+                                    <input id="swal-all-efectivo" type="number" step="0.01" value="${totalComisiones.toFixed(2)}" class="block w-full px-3 py-2 border border-emerald-300 rounded-md font-bold text-emerald-800">
+                                </div>
+                                <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <label class="block font-bold text-blue-700 mb-1">Transfer. ($)</label>
+                                    <input id="swal-all-transferencia" type="number" step="0.01" value="0.00" class="block w-full px-3 py-2 border border-blue-300 rounded-md font-bold text-blue-800">
+                                </div>
+                                <div class="bg-purple-50 p-3 rounded-lg border border-purple-100">
+                                    <label class="block font-bold text-purple-700 mb-1">Tarjeta ($)</label>
+                                    <input id="swal-all-tarjeta" type="number" step="0.01" value="0.00" class="block w-full px-3 py-2 border border-purple-300 rounded-md font-bold text-purple-800">
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 text-center">La suma de los métodos debe igualar $${totalComisiones.toFixed(2)}</p>
+                        </div>
+                    `;
+
+                    const { value: formValues } = await Swal.fire({
+                        title: `Liquidar a Todos los ${label}`,
+                        html: htmlContent,
+                        focusConfirm: false,
+                        showCancelButton: true,
+                        confirmButtonColor: '#f59e0b',
+                        confirmButtonText: `💸 Pagar a los ${empleados.length} ${label}`,
+                        cancelButtonText: 'Cancelar',
+                        width: '34em',
+                        preConfirm: () => {
+                            const responsable = document.getElementById('swal-all-responsable').value;
+                            const efectivo = parseFloat(document.getElementById('swal-all-efectivo').value) || 0;
+                            const transferencia = parseFloat(document.getElementById('swal-all-transferencia').value) || 0;
+                            const tarjeta = parseFloat(document.getElementById('swal-all-tarjeta').value) || 0;
+                            const total = efectivo + transferencia + tarjeta;
+
+                            if (!responsable) { Swal.showValidationMessage('Seleccione un responsable'); return false; }
+                            if (Math.abs(total - totalComisiones) > 0.05) {
+                                Swal.showValidationMessage(`La suma ($${total.toFixed(2)}) no coincide con el Total ($${totalComisiones.toFixed(2)})`);
+                                return false;
+                            }
+                            const maxEfectivo = balances.value.efectivo || 0;
+                            const maxTrans = balances.value.transferencia || 0;
+                            const maxTarjeta = balances.value.tarjeta || 0;
+                            if (efectivo > maxEfectivo + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Efectivo. Disponible: $${maxEfectivo.toFixed(2)}`); return false; }
+                            if (transferencia > maxTrans + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Banco. Disponible: $${maxTrans.toFixed(2)}`); return false; }
+                            if (tarjeta > maxTarjeta + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Tarjeta. Disponible: $${maxTarjeta.toFixed(2)}`); return false; }
+                            return { responsable, efectivo, transferencia, tarjeta };
+                        }
+                    });
+
+                    if (!formValues) return;
+
+                    Swal.fire({
+                        title: 'Procesando pagos...',
+                        html: `<p class="text-sm text-slate-500">Liquidando ${empleados.length} ${label.toLowerCase()}...</p>`,
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    const errors = [];
+                    let successCount = 0;
+
+                    for (let i = 0; i < empleados.length; i++) {
+                        const emp = empleados[i];
+                        const share = totalComisiones > 0 ? (emp.comisiones_acumuladas / totalComisiones) : 0;
+                        // Last employee absorbs rounding so totals stay exact
+                        let ef, tr, ta;
+                        if (i < empleados.length - 1) {
+                            ef = Math.round(formValues.efectivo * share * 100) / 100;
+                            tr = Math.round(formValues.transferencia * share * 100) / 100;
+                            ta = Math.round(formValues.tarjeta * share * 100) / 100;
+                        } else {
+                            const paidEf = empleados.slice(0, i).reduce((s, _, j) => {
+                                const sh = totalComisiones > 0 ? (empleados[j].comisiones_acumuladas / totalComisiones) : 0;
+                                return s + Math.round(formValues.efectivo * sh * 100) / 100;
+                            }, 0);
+                            const paidTr = empleados.slice(0, i).reduce((s, _, j) => {
+                                const sh = totalComisiones > 0 ? (empleados[j].comisiones_acumuladas / totalComisiones) : 0;
+                                return s + Math.round(formValues.transferencia * sh * 100) / 100;
+                            }, 0);
+                            const paidTa = empleados.slice(0, i).reduce((s, _, j) => {
+                                const sh = totalComisiones > 0 ? (empleados[j].comisiones_acumuladas / totalComisiones) : 0;
+                                return s + Math.round(formValues.tarjeta * sh * 100) / 100;
+                            }, 0);
+                            ef = Math.round((formValues.efectivo - paidEf) * 100) / 100;
+                            tr = Math.round((formValues.transferencia - paidTr) * 100) / 100;
+                            ta = Math.round((formValues.tarjeta - paidTa) * 100) / 100;
+                        }
+
+                        try {
+                            await axios.post('/api/nomina/pagar', {
+                                empleado_id: emp.id,
+                                tipo_empleado: tipo,
+                                sueldo_base: 0,
+                                comisiones: emp.comisiones_acumuladas,
+                                efectivo: ef,
+                                transferencia: tr,
+                                tarjeta: ta,
+                                responsable: formValues.responsable,
+                                start_date: filterNominaStartDate.value || null,
+                                end_date: filterNominaEndDate.value || null
+                            });
+                            successCount++;
+                        } catch (e) {
+                            errors.push(`${emp.nombre}: ${e.response?.data?.detail || e.message}`);
+                        }
+                    }
+
+                    await fetchNominaPendientes();
+                    fetchBalances();
+
+                    if (errors.length === 0) {
+                        Swal.fire('¡Pagado!', `Se liquidaron ${successCount} ${label.toLowerCase()} exitosamente.`, 'success');
+                    } else {
+                        Swal.fire('Completado con errores',
+                            `${successCount} pago(s) exitoso(s).<br><br><b>Errores:</b><br>${errors.map(e => `• ${e}`).join('<br>')}`,
+                            'warning');
+                    }
+                }
+
                 const procesarRetiro = async () => {
                     if (retiroForm.value.monto <= 0) {
                         return Swal.fire('Atención', 'El monto a retirar debe ser mayor a 0', 'warning')
@@ -1052,9 +1409,10 @@
                     role, sucursalId, sucursalNombre, showModal, gastos, balances, startDate, endDate, form, usuarios,
                     showNominaModal, nominaTab, pendientesNomina, retiroForm,
                     filterNominaStartDate, filterNominaEndDate, selectedNominaDoctorId, selectedNominaSecretariaId,
+                    selectedDetalles, isDetalleSelected, getSelectedCountForDoc, getSelectedTotalForDoc, toggleDetalle, toggleAllDetalles,
                     fetchGastos, saveGasto, logout, formatDate, isActive, fetchNominaPendientes,
                     currentPage, changePage,
-                    openNominaModal, procesarNomina, procesarRetiro,
+                    openNominaModal, procesarNomina, pagarSeleccionados, procesarNominaAll, procesarRetiro,
                     showTransferModal, transferForm, procesarTransferencia,
                     searchQuery, debounceFetch, filterCategoria, filterMetodo, filterUsuarioId,
                     categoriasGasto
