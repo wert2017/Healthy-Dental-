@@ -73,8 +73,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const badge = document.createElement("span");
                     badge.className = "badge bg-blue text-white ms-2";
                     badge.style.cssText = "padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.65em; vertical-align: middle;";
-                    badge.innerHTML = `<i class="fa-solid fa-file-medical me-1"></i> Ficha Asignada: ${data.proxima_ficha}`;
+                    badge.innerHTML = `<i class="fa-solid fa-file-medical me-1"></i> Próxima Ficha: ${data.proxima_ficha}`;
                     titleTarget.appendChild(badge);
+                }
+                
+                const hcInput = document.querySelector("input[name='historia_clinica']");
+                if (hcInput && !hcInput.value) {
+                    hcInput.value = data.proxima_ficha;
                 }
             }
         } catch (e) {

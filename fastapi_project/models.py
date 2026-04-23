@@ -30,13 +30,13 @@ class Doctor(SQLModel, table=True):
 
 class Paciente(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    tipo_identificacion: str  # CED or RUC
-    numero_identificacion: str = Field(unique=True)
+    tipo_identificacion: Optional[str] = Field(default="S/N")
+    numero_identificacion: Optional[str] = Field(default=None, unique=True)
     nombres: str
-    apellidos: str
+    apellidos: Optional[str] = Field(default="")
     razon_social: Optional[str] = None
     historia_clinica: str = Field(unique=True)
-    telefono: str
+    telefono: Optional[str] = Field(default="")
     email: Optional[str] = None
     sexo: Optional[str] = None
     edad: Optional[int] = None

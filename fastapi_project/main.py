@@ -22,6 +22,7 @@ import secrets
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 from wtforms import SelectField
+import wtforms
 
 import locale
 try:
@@ -290,10 +291,11 @@ class PacienteAdmin(ModelView, model=Paciente):
     
     # Form Configuration (Create/Edit)
     form_columns = [
-        Paciente.tipo_identificacion,
-        Paciente.numero_identificacion,
+        Paciente.historia_clinica,
         Paciente.nombres,
         Paciente.apellidos,
+        Paciente.tipo_identificacion,
+        Paciente.numero_identificacion,
         Paciente.razon_social,
         Paciente.telefono,
         Paciente.email
@@ -306,8 +308,21 @@ class PacienteAdmin(ModelView, model=Paciente):
     form_widget_args = {}
     form_args = {
         "tipo_identificacion": {
-            "choices": [("CEDULA", "CEDULA"), ("RUC", "RUC")],
+            "choices": [("CEDULA", "CEDULA"), ("RUC", "RUC"), ("S/N", "S/N")],
             "label": "Tipo Identificacion"
+        },
+        "historia_clinica": {
+            "label": "Historia Clínica / Ficha",
+            "validators": [wtforms.validators.Optional()]
+        },
+        "apellidos": {
+            "validators": [wtforms.validators.Optional()]
+        },
+        "numero_identificacion": {
+            "validators": [wtforms.validators.Optional()]
+        },
+        "telefono": {
+            "validators": [wtforms.validators.Optional()]
         }
     }
 
@@ -327,14 +342,25 @@ class PacienteAdmin(ModelView, model=Paciente):
 
     async def on_model_change(self, data, model, is_created, request: Request):
         from sqlmodel import Session, select
+        import uuid
         
         # 1. Ensure the patient belongs to the current admin's branch
         admin_sucursal_id = int(request.cookies.get("sucursal_id", "1"))
         if is_created and not model.sucursal_id:
             model.sucursal_id = admin_sucursal_id
         
-        # 2. Auto-generate Clinical History Number if missing OR if creating a new one (Force override)
-        if is_created or not model.historia_clinica:
+        # Default missing values to bypass DB constraints safely
+        if not model.tipo_identificacion:
+            model.tipo_identificacion = "S/N"
+        if not model.numero_identificacion:
+            model.numero_identificacion = f"SD-{str(uuid.uuid4())[:8]}"
+        if not model.apellidos:
+            model.apellidos = ""
+        if not model.telefono:
+            model.telefono = ""
+        
+        # 2. Auto-generate Clinical History Number if missing (supports manual override)
+        if not model.historia_clinica or str(model.historia_clinica).strip() == "":
             from database import engine as db_engine
             with Session(db_engine) as session:
                 # Find the Sucursal to get prefix
@@ -359,7 +385,6 @@ class PacienteAdmin(ModelView, model=Paciente):
                         pass
                 new_number = max_num + 1
 
-                # FORCE override of whatever came from the browser
                 model.historia_clinica = f"HC-{prefix}-{new_number:04d}"
 
 class DoctorAdmin(ModelView, model=Doctor):
