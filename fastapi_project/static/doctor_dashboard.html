@@ -61,6 +61,11 @@
                         class="py-4 px-4 sm:px-6 border-b-2 font-medium text-sm focus:outline-none transition-colors whitespace-nowrap">
                         Mi Agenda
                     </button>
+                    <button @click="activeTab = 'pacientes'"
+                        :class="activeTab === 'pacientes' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                        class="py-4 px-4 sm:px-6 border-b-2 font-medium text-sm focus:outline-none transition-colors whitespace-nowrap">
+                        Pacientes
+                    </button>
                     <button @click="activeTab = 'historial'"
                         :class="activeTab === 'historial' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
                         class="py-4 px-4 sm:px-6 border-b-2 font-medium text-sm focus:outline-none transition-colors whitespace-nowrap">
@@ -70,11 +75,6 @@
                         :class="activeTab === 'inventario' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
                         class="py-4 px-4 sm:px-6 border-b-2 font-medium text-sm focus:outline-none transition-colors whitespace-nowrap">
                         Próximamente (En desarrollo)
-                    </button>
-                    <button @click="activeTab = 'pacientes'"
-                        :class="activeTab === 'pacientes' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
-                        class="py-4 px-4 sm:px-6 border-b-2 font-medium text-sm focus:outline-none transition-colors whitespace-nowrap">
-                        Pacientes
                     </button>
                 </div>
             </div>
@@ -246,28 +246,53 @@
             <!-- TAB: HISTORIAL -->
             <div v-show="activeTab === 'historial'" class="animate-fade-in space-y-6">
                 <!-- Search & Filters -->
-                <div
-                    class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-4 items-center justify-between">
-                    <div class="relative w-full lg:w-96">
-                        <input type="text" v-model="searchQueryHistorial" @input="debounceSearchHistorial"
-                            class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
-                            placeholder="Buscar paciente...">
-                        <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                    <!-- Fila 1: búsqueda + ordenar -->
+                    <div class="flex flex-col sm:flex-row gap-3 items-center">
+                        <div class="relative flex-1 w-full">
+                            <input type="text" v-model="searchQueryHistorial" @input="debounceSearchHistorial"
+                                class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition text-sm"
+                                placeholder="Buscar paciente...">
+                            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <span class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap">Orden:</span>
+                            <select v-model="sortBy"
+                                class="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2">
+                                <option value="fecha_desc">Fecha (Nuevas)</option>
+                                <option value="fecha_asc">Fecha (Antiguas)</option>
+                                <option value="paciente_az">Paciente (A-Z)</option>
+                                <option value="paciente_za">Paciente (Z-A)</option>
+                            </select>
+                        </div>
                     </div>
-
-                    <div class="flex items-center gap-3 w-full lg:w-auto">
-                        <span class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap">Order:</span>
-                        <select v-model="sortBy"
-                            class="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
-                            <option value="fecha_desc">Fecha (Nuevas)</option>
-                            <option value="fecha_asc">Fecha (Antiguas)</option>
-                            <option value="paciente_az">Paciente (A-Z)</option>
-                            <option value="paciente_za">Paciente (Z-A)</option>
-                        </select>
+                    <!-- Fila 2: rango de fechas + tratamiento -->
+                    <div class="flex flex-col sm:flex-row gap-3 items-center">
+                        <div class="flex items-center gap-2 flex-1">
+                            <span class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap">Desde:</span>
+                            <input type="date" v-model="historialStartDate" @change="resetAndLoadHistorial"
+                                class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-gray-50">
+                        </div>
+                        <div class="flex items-center gap-2 flex-1">
+                            <span class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap">Hasta:</span>
+                            <input type="date" v-model="historialEndDate" @change="resetAndLoadHistorial"
+                                class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-gray-50">
+                        </div>
+                        <div class="flex items-center gap-2 flex-1">
+                            <span class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap">Tratamiento:</span>
+                            <select v-model="historialTratamientoId" @change="resetAndLoadHistorial"
+                                class="flex-1 bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2">
+                                <option value="">Todos</option>
+                                <option v-for="t in tratamientosList" :key="t.id" :value="t.id">{{ t.nombre }}</option>
+                            </select>
+                        </div>
+                        <button v-if="historialStartDate || historialEndDate || historialTratamientoId"
+                            @click="limpiarFiltrosHistorial"
+                            class="text-xs text-red-500 hover:text-red-700 whitespace-nowrap underline">
+                            Limpiar filtros
+                        </button>
                     </div>
                 </div>
 
@@ -425,6 +450,10 @@
                 const searchQueryHistorial = ref("")
                 const sortBy = ref("fecha_desc")
                 const currentPageHistorial = ref(1)
+                const historialStartDate = ref("")
+                const historialEndDate = ref("")
+                const historialTratamientoId = ref("")
+                const tratamientosList = ref([])
                 let timeoutHistorial = null
 
                 // Pestaña Pacientes
@@ -481,22 +510,44 @@
                 const loadHistorial = async () => {
                     loadingHistorial.value = true
                     try {
-                        const res = await axios.get(`/api/atenciones/historial`, {
-                            params: {
-                                q: searchQueryHistorial.value,
-                                page: currentPageHistorial.value,
-                                size: 50
-                            }
-                        })
+                        const params = {
+                            q: searchQueryHistorial.value || undefined,
+                            page: currentPageHistorial.value,
+                            size: 50,
+                            start_date: historialStartDate.value || undefined,
+                            end_date: historialEndDate.value || undefined,
+                            tratamiento_id: historialTratamientoId.value || undefined,
+                        }
+                        const res = await axios.get('/api/atenciones/historial', { params })
                         historialAtenciones.value = res.data
                         if (res.data.length === 0 && currentPageHistorial.value > 1) {
                             currentPageHistorial.value--
                         }
                     } catch (error) {
-                        Swal.fire('Error', 'No se pudo liquidar la atención', 'error')
+                        console.error(error)
                     } finally {
                         loadingHistorial.value = false
                     }
+                }
+
+                const resetAndLoadHistorial = () => {
+                    currentPageHistorial.value = 1
+                    loadHistorial()
+                }
+
+                const limpiarFiltrosHistorial = () => {
+                    historialStartDate.value = ""
+                    historialEndDate.value = ""
+                    historialTratamientoId.value = ""
+                    currentPageHistorial.value = 1
+                    loadHistorial()
+                }
+
+                const loadTratamientos = async () => {
+                    try {
+                        const res = await axios.get('/api/tratamientos')
+                        tratamientosList.value = res.data
+                    } catch (e) { console.error(e) }
                 }
 
                 const solicitarRevision = async (item) => {
@@ -631,13 +682,14 @@
                     timeoutPacientes = setTimeout(buscarPacientes, 350)
                 }
 
-                // Load inventory when tab switches
+                // Load data when tab switches
                 watch(activeTab, (newTab) => {
                     if (newTab === 'inventario' && inventario.value.length === 0) {
                         loadInventory()
                     }
-                    if (newTab === 'historial' && historialAtenciones.value.length === 0) {
-                        loadHistorial()
+                    if (newTab === 'historial') {
+                        if (tratamientosList.value.length === 0) loadTratamientos()
+                        if (historialAtenciones.value.length === 0) loadHistorial()
                     }
                 })
 
@@ -676,6 +728,12 @@
                     pacientesResultados,
                     loadingPacientes,
                     debounceBuscarPacientes,
+                    historialStartDate,
+                    historialEndDate,
+                    historialTratamientoId,
+                    tratamientosList,
+                    resetAndLoadHistorial,
+                    limpiarFiltrosHistorial,
                 }
             }
         }).mount('#app')

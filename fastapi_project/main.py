@@ -1274,10 +1274,13 @@ def get_dashboard_atenciones(fecha: str = None, session: Session = Depends(get_s
         raise HTTPException(status_code=500, detail=str(e))
 @app.get("/api/atenciones/historial")
 def get_historial_atenciones(
-    q: Optional[str] = None, 
+    q: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    tratamiento_id: Optional[int] = None,
     page: int = 1,
     size: int = 50,
-    session: Session = Depends(get_session), 
+    session: Session = Depends(get_session),
     user: User = Depends(get_current_user)
 ):
     try:
@@ -1292,18 +1295,32 @@ def get_historial_atenciones(
                 selectinload(Atencion.pagos)
             )
         )
-        
+
         # 1. Filter by Doctor if applicable
         if user.role == "doctor" and user.doctor_id:
             query = query.join(Atencion.detalles, isouter=True).where(
-                (Atencion.doctor_id == user.doctor_id) | 
+                (Atencion.doctor_id == user.doctor_id) |
                 (AtencionDetalle.doctor_id == user.doctor_id)
             ).distinct()
-            
+
         # 2. Search by Patient Name
         if q:
             query = query.join(Atencion.paciente).where(
                 (Paciente.nombres.contains(q)) | (Paciente.apellidos.contains(q))
+            )
+
+        # 3. Date range filter
+        if start_date:
+            query = query.where(Atencion.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
+        if end_date:
+            query = query.where(Atencion.fecha < datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1))
+
+        # 4. Treatment filter (subquery to avoid join conflicts)
+        if tratamiento_id:
+            query = query.where(
+                Atencion.id.in_(
+                    select(AtencionDetalle.atencion_id).where(AtencionDetalle.tratamiento_id == tratamiento_id)
+                )
             )
             
         # 3. Execution (With Pagination)
