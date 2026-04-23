@@ -294,6 +294,8 @@ class PacienteAdmin(ModelView, model=Paciente):
         Paciente.historia_clinica,
         Paciente.nombres,
         Paciente.apellidos,
+        Paciente.edad,
+        Paciente.sexo,
         Paciente.tipo_identificacion,
         Paciente.numero_identificacion,
         Paciente.razon_social,
@@ -301,15 +303,25 @@ class PacienteAdmin(ModelView, model=Paciente):
         Paciente.email
     ]
 
-    # Restrict choices for Tipo Identificacion using WTForms SelectField
+    # Restrict choices for Dropdowns
     form_overrides = {
-        "tipo_identificacion": SelectField
+        "tipo_identificacion": SelectField,
+        "sexo": SelectField
     }
     form_widget_args = {}
     form_args = {
         "tipo_identificacion": {
             "choices": [("CEDULA", "CEDULA"), ("RUC", "RUC"), ("S/N", "S/N")],
             "label": "Tipo Identificacion"
+        },
+        "sexo": {
+            "choices": [("", "-- Seleccionar --"), ("Masculino", "Masculino"), ("Femenino", "Femenino"), ("Otro", "Otro")],
+            "label": "Sexo / Género",
+            "validators": [wtforms.validators.Optional()]
+        },
+        "edad": {
+            "label": "Edad",
+            "validators": [wtforms.validators.Optional()]
         },
         "historia_clinica": {
             "label": "Historia Clínica / Ficha",
@@ -935,7 +947,7 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
                 skipped += 1
                 continue
                 
-            apellidos = apellidos or "Desconocido"
+            apellidos = apellidos or ""
             nombres = nombres or ""
             sexo = clean_str(get_col('SEXO'))
             
