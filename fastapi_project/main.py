@@ -677,6 +677,31 @@ def process_stock_deduction(atencion: Atencion, session: Session, sucursal_id: i
 
 # --- API ROUTES ---
 
+@app.get("/api/admin/proxima-ficha")
+def get_proxima_ficha(request: Request, session: Session = Depends(get_session)):
+    sucursal_id_cookie = request.cookies.get("sucursal_id")
+    sucursal_id = int(sucursal_id_cookie) if sucursal_id_cookie else 1
+    
+    suc = session.get(Sucursal, sucursal_id)
+    prefix = suc.nombre[:3].upper() if suc and len(suc.nombre) >= 3 else "GEN"
+    
+    existing_hcs = session.exec(
+        select(Paciente.historia_clinica)
+        .where(Paciente.sucursal_id == sucursal_id)
+        .where(Paciente.historia_clinica.ilike(f"HC-{prefix}-%"))
+    ).all()
+    max_num = 0
+    for hc in existing_hcs:
+        try:
+            num = int(hc.split("-")[-1])
+            if num > max_num:
+                max_num = num
+        except (ValueError, IndexError):
+            pass
+    new_number = max_num + 1
+    
+    return {"proxima_ficha": f"HC-{prefix}-{new_number:04d}"}
+
 @app.get("/api/pacientes/buscar-doctor")
 def buscar_pacientes_doctor(q: str = "", session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     """Búsqueda de pacientes para el doctor: devuelve solo HC, género y edad."""

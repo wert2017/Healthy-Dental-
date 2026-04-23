@@ -61,4 +61,26 @@
         </div>
     </div>
 </div>
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+    if (window.location.pathname.includes("/admin/paciente/create")) {
+        try {
+            const res = await fetch("/api/admin/proxima-ficha");
+            if(res.ok) {
+                const data = await res.json();
+                const titleTarget = document.querySelector(".page-title");
+                if (titleTarget) {
+                    const badge = document.createElement("span");
+                    badge.className = "badge bg-blue text-white ms-2";
+                    badge.style.cssText = "padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.65em; vertical-align: middle;";
+                    badge.innerHTML = `<i class="fa-solid fa-file-medical me-1"></i> Ficha Asignada: ${data.proxima_ficha}`;
+                    titleTarget.appendChild(badge);
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching next ficha", e);
+        }
+    }
+});
+</script>
 {% endblock %}
