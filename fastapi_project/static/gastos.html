@@ -805,6 +805,17 @@
                 if (!token) window.location.href = '/login'
                 axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
+                axios.interceptors.response.use(
+                    res => res,
+                    err => {
+                        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+                            localStorage.clear()
+                            window.location.href = '/login'
+                        }
+                        return Promise.reject(err)
+                    }
+                )
+
                 const fetchGastos = async () => {
                     try {
                         const res = await axios.get('/api/gastos', {

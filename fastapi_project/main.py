@@ -414,7 +414,10 @@ class TratamientoAdmin(ModelView, model=Tratamiento):
 
 class AtencionAdmin(ModelView, model=Atencion):
     column_list = [Atencion.id, Atencion.fecha, Atencion.paciente, Atencion.estado, Atencion.validado]
-    can_create = False # Attentions are created via Reception, not Admin typically
+    can_create = False
+
+    def is_accessible(self, request) -> bool:
+        return request.cookies.get("user_role") == "admin"
 
 class PagoAdmin(ModelView, model=Pago):
     column_list = [Pago.id, Pago.forma_pago, Pago.monto, Pago.atencion_id]
@@ -674,6 +677,31 @@ def process_stock_deduction(atencion: Atencion, session: Session, sucursal_id: i
 
 # --- API ROUTES ---
 
+@app.get("/api/pacientes/buscar-doctor")
+def buscar_pacientes_doctor(q: str = "", session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    """Búsqueda de pacientes para el doctor: devuelve solo HC, género y edad."""
+    if not q or len(q.strip()) < 2:
+        return []
+    terms = q.strip().split()
+    statement = select(Paciente).where(Paciente.sucursal_id == user.sucursal_id)
+    for term in terms:
+        t = f"%{term}%"
+        statement = statement.where(
+            (Paciente.nombres.ilike(t)) | (Paciente.apellidos.ilike(t))
+        )
+    pacientes = session.exec(statement.limit(20)).all()
+    return [
+        {
+            "historia_clinica": p.historia_clinica,
+            "nombres": p.nombres,
+            "apellidos": p.apellidos,
+            "sexo": p.sexo or "—",
+            "edad": p.edad,
+        }
+        for p in pacientes
+    ]
+
+
 @app.get("/api/pacientes")
 def search_pacientes(q: str = "", session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     if not q:
@@ -742,6 +770,74 @@ def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Dep
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/pacientes/validar-excel")
+async def validar_excel_pacientes(file: UploadFile = File(...), user: User = Depends(get_current_user)):
+    import openpyxl, io
+
+    if not file.filename.endswith('.xlsx'):
+        raise HTTPException(status_code=400, detail="El archivo debe ser un documento Excel (.xlsx)")
+
+    contents = await file.read()
+    wb = openpyxl.load_workbook(io.BytesIO(contents), data_only=True)
+    sheet = wb.active
+
+    headers = {str(cell.value).strip(): idx for idx, cell in enumerate(sheet[1]) if cell.value is not None}
+
+    def clean_str(val):
+        if val is None:
+            return None
+        s = str(val).strip()
+        return s if s else None
+
+    def get_col(row, col_name):
+        if col_name in headers:
+            idx = headers[col_name]
+            return row[idx] if idx < len(row) else None
+        return None
+
+    total = 0
+    validas = 0
+    sin_nombre = []      # filas sin apellido NI nombre
+    nombre_incompleto = []  # filas con solo uno de los dos
+
+    for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+        # Skip completely empty rows
+        if all(c is None for c in row):
+            continue
+        total += 1
+
+        apellidos = clean_str(get_col(row, 'APELLIDOS'))
+        nombres   = clean_str(get_col(row, 'NOMBRE'))
+        cedula    = clean_str(get_col(row, 'CEDULA'))
+        ficha     = clean_str(get_col(row, 'FICHA'))
+
+        entry = {
+            "fila": row_idx,
+            "ficha": ficha or "-",
+            "cedula": cedula or "-",
+            "apellidos": apellidos or "",
+            "nombres": nombres or "",
+        }
+
+        if not apellidos and not nombres:
+            sin_nombre.append(entry)
+        elif not apellidos or not nombres:
+            nombre_incompleto.append(entry)
+            validas += 1
+        else:
+            validas += 1
+
+    return {
+        "total": total,
+        "validas": validas,
+        "sin_nombre": len(sin_nombre),
+        "nombre_incompleto": len(nombre_incompleto),
+        "muestra_sin_nombre": sin_nombre[:20],       # primeras 20 para mostrar en UI
+        "muestra_incompleto": nombre_incompleto[:20],
+        "columnas_detectadas": list(headers.keys()),
+    }
+
 
 @app.post("/api/pacientes/importar-excel")
 async def importar_pacientes_excel(file: UploadFile = File(...), session: Session = Depends(get_session), user: User = Depends(get_current_user)):

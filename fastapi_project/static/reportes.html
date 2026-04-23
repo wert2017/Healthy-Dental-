@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -632,16 +633,112 @@
             const importExcel = async (event) => {
                 const file = event.target.files[0]
                 if (!file) return
+
+                const authHeaders = { Authorization: `Bearer ${token}` }
+
+                // --- Paso 1: Validar el archivo ---
                 isImporting.value = true
-                const formData = new FormData()
-                formData.append("file", file)
+                let validacion
                 try {
-                    const res = await axios.post("/api/pacientes/importar-excel", formData, {
-                        headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` }
+                    const fd = new FormData()
+                    fd.append("file", file)
+                    const res = await axios.post("/api/pacientes/validar-excel", fd, {
+                        headers: { "Content-Type": "multipart/form-data", ...authHeaders }
                     })
-                    alert(res.data.message)
-                } catch (e) { alert(e.response?.data?.detail || "Error al importar") }
-                finally { isImporting.value = false; event.target.value = '' }
+                    validacion = res.data
+                } catch (e) {
+                    Swal.fire('Error', e.response?.data?.detail || "Error al leer el archivo", 'error')
+                    isImporting.value = false
+                    event.target.value = ''
+                    return
+                } finally {
+                    isImporting.value = false
+                }
+
+                // --- Paso 2: Mostrar reporte y pedir confirmación ---
+                const tieneSinNombre = validacion.sin_nombre > 0
+                const tieneIncompleto = validacion.nombre_incompleto > 0
+
+                let htmlReporte = `
+                    <div class="text-left text-sm space-y-3">
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="bg-slate-50 rounded-lg p-2 border">
+                                <p class="text-2xl font-black text-slate-700">${validacion.total}</p>
+                                <p class="text-xs text-slate-500">Total filas</p>
+                            </div>
+                            <div class="bg-emerald-50 rounded-lg p-2 border border-emerald-200">
+                                <p class="text-2xl font-black text-emerald-600">${validacion.validas}</p>
+                                <p class="text-xs text-emerald-600">Se importarán</p>
+                            </div>
+                            <div class="bg-red-50 rounded-lg p-2 border border-red-200">
+                                <p class="text-2xl font-black text-red-600">${validacion.sin_nombre}</p>
+                                <p class="text-xs text-red-500">Sin nombre (omitidas)</p>
+                            </div>
+                        </div>`
+
+                if (tieneIncompleto) {
+                    htmlReporte += `<p class="text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-1.5 text-xs">
+                        ⚠ ${validacion.nombre_incompleto} fila(s) con solo apellido o solo nombre — se importarán con el dato disponible.
+                    </p>`
+                }
+
+                if (tieneSinNombre) {
+                    const filas = validacion.muestra_sin_nombre
+                    htmlReporte += `<div>
+                        <p class="font-semibold text-red-700 mb-1">Filas sin ningún nombre (se omitirán):</p>
+                        <div class="max-h-36 overflow-y-auto border rounded text-xs">
+                            <table class="w-full">
+                                <thead class="bg-gray-100 sticky top-0">
+                                    <tr><th class="px-2 py-1 text-left">Fila Excel</th><th class="px-2 py-1 text-left">Ficha</th><th class="px-2 py-1 text-left">Cédula</th></tr>
+                                </thead>
+                                <tbody>${filas.map(f => `<tr class="border-t"><td class="px-2 py-1">${f.fila}</td><td class="px-2 py-1">${f.ficha}</td><td class="px-2 py-1">${f.cedula}</td></tr>`).join('')}
+                                ${validacion.sin_nombre > 20 ? `<tr><td colspan="3" class="px-2 py-1 text-slate-400 italic">... y ${validacion.sin_nombre - 20} más</td></tr>` : ''}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>`
+                }
+
+                htmlReporte += `<p class="text-xs text-slate-500">Columnas detectadas: <span class="font-mono">${validacion.columnas_detectadas.join(', ')}</span></p></div>`
+
+                if (validacion.validas === 0) {
+                    Swal.fire('Sin datos válidos', 'El archivo no contiene ninguna fila con nombre o apellido. Revisa el archivo antes de intentar importar.', 'error')
+                    event.target.value = ''
+                    return
+                }
+
+                const { isConfirmed } = await Swal.fire({
+                    title: 'Resumen de validación',
+                    html: htmlReporte,
+                    icon: tieneSinNombre ? 'warning' : 'info',
+                    showCancelButton: true,
+                    confirmButtonColor: '#10b981',
+                    cancelButtonColor: '#6b7280',
+                    confirmButtonText: `Importar ${validacion.validas} paciente(s)`,
+                    cancelButtonText: 'Cancelar',
+                    width: '36em',
+                })
+
+                if (!isConfirmed) {
+                    event.target.value = ''
+                    return
+                }
+
+                // --- Paso 3: Importar ---
+                isImporting.value = true
+                try {
+                    const fd2 = new FormData()
+                    fd2.append("file", file)
+                    const res = await axios.post("/api/pacientes/importar-excel", fd2, {
+                        headers: { "Content-Type": "multipart/form-data", ...authHeaders }
+                    })
+                    Swal.fire('Importación exitosa', res.data.message, 'success')
+                } catch (e) {
+                    Swal.fire('Error', e.response?.data?.detail || "Error al importar", 'error')
+                } finally {
+                    isImporting.value = false
+                    event.target.value = ''
+                }
             }
 
             onMounted(() => {
