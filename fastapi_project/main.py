@@ -15,7 +15,7 @@ import uvicorn
 import os
 from typing import List, Optional
 from decimal import Decimal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 import secrets
@@ -1068,31 +1068,32 @@ def get_global_atenciones(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/atenciones/dashboard")
-def get_dashboard_atenciones(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+def get_dashboard_atenciones(fecha: str = None, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     try:
         today = datetime.now().date()
-        today_start = datetime.combine(today, datetime.min.time()) # Midnight today
-        
-        # 1. Lazy Auto-Validation: Validate everything strictly before today
-        # Using SQLModel select/exec/commit pattern
-        past_unvalidated = session.exec(select(Atencion).where(Atencion.fecha < today_start).where(Atencion.validado == False)).all()
-        for att in past_unvalidated:
-            att.validado = True
-            att.estado = "FINALIZADO"
-            
-            # --- INVENTORY DEDUCTION (Auto) ---
-            # Use attention's sucursal or fallback to current user's (who acts as trigger)
-            target_sucursal = att.sucursal_id if att.sucursal_id else user.sucursal_id
-            process_stock_deduction(att, session, target_sucursal)
-            
-            session.add(att)
-        if past_unvalidated:
-            session.commit()
-        
-        # 2. Filter Dashboard: Only return attentions from today onwards AND current branch
+        today_start = datetime.combine(today, datetime.min.time())
+
+        target_date = datetime.strptime(fecha, "%Y-%m-%d").date() if fecha else today
+        target_start = datetime.combine(target_date, datetime.min.time())
+        target_end = datetime.combine(target_date, time(23, 59, 59))
+
+        # Auto-validation only when loading today (past days are already conciliated)
+        if target_date == today:
+            past_unvalidated = session.exec(select(Atencion).where(Atencion.fecha < today_start).where(Atencion.validado == False)).all()
+            for att in past_unvalidated:
+                att.validado = True
+                att.estado = "FINALIZADO"
+                target_sucursal = att.sucursal_id if att.sucursal_id else user.sucursal_id
+                process_stock_deduction(att, session, target_sucursal)
+                session.add(att)
+            if past_unvalidated:
+                session.commit()
+
+        # Filter Dashboard: Only return attentions from the selected date AND current branch
         query = (
             select(Atencion)
-            .where(Atencion.fecha >= today_start)
+            .where(Atencion.fecha >= target_start)
+            .where(Atencion.fecha <= target_end)
             .where(Atencion.sucursal_id == user.sucursal_id) # REQUIRED for Multi-Clinic separation
             .order_by(Atencion.fecha.desc())
             .options(
