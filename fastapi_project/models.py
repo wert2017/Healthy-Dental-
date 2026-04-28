@@ -9,8 +9,11 @@ class Sucursal(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     nombre: str = Field(unique=True)
     direccion: Optional[str] = None
-    
+
     doctores: List["Doctor"] = Relationship(back_populates="sucursal")
+
+    def __str__(self):
+        return self.nombre
 
 
 class Doctor(SQLModel, table=True):
@@ -24,8 +27,11 @@ class Doctor(SQLModel, table=True):
     
     sucursal_id: Optional[int] = Field(default=None, foreign_key="sucursal.id")
     sucursal: Optional[Sucursal] = Relationship(back_populates="doctores")
-    
+
     atenciones: List["Atencion"] = Relationship(back_populates="doctor")
+
+    def __str__(self):
+        return f"Dr. {self.nombres} {self.apellidos}"
 
 
 class Paciente(SQLModel, table=True):
@@ -59,6 +65,9 @@ class Paciente(SQLModel, table=True):
         if self.tipo_identificacion == 'RUC' and self.razon_social:
             return self.razon_social
         return f"{self.nombres or ''} {self.apellidos or ''}".strip()
+
+    def __str__(self):
+        return self.nombre_mostrar
 
 
 class Tratamiento(SQLModel, table=True):
@@ -130,6 +139,10 @@ class Atencion(SQLModel, table=True):
     def saldo_pendiente(self) -> Decimal:
         return self.total_atencion_valor - self.total_pagado
 
+    def __str__(self):
+        paciente = self.paciente.nombre_mostrar if self.paciente else f"Paciente #{self.paciente_id}"
+        return f"Atención #{self.id} — {paciente}"
+
 class AtencionDetalle(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     atencion_id: int = Field(foreign_key="atencion.id")
@@ -161,6 +174,10 @@ class AtencionDetalle(SQLModel, table=True):
     def comision_valor(self) -> Decimal:
         return self.total_calculado * (self.porcentaje_comision / 100)
 
+    def __str__(self):
+        nombre = self.tratamiento.nombre if self.tratamiento else f"Tratamiento #{self.tratamiento_id}"
+        return f"{nombre} x{self.cantidad} — ${self.precio_unitario}"
+
 class Pago(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     atencion_id: int = Field(foreign_key="atencion.id")
@@ -169,8 +186,11 @@ class Pago(SQLModel, table=True):
     forma_pago: str # EFECTIVO, TRANSFERENCIA, TARJETA
     monto: Decimal = Field(max_digits=10, decimal_places=2)
     referencia: Optional[str] = None # Transaction ID for transfers
-    
+
     atencion: Optional[Atencion] = Relationship(back_populates="pagos")
+
+    def __str__(self):
+        return f"{self.forma_pago} — ${self.monto}"
 
 class AuditoriaAtencion(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

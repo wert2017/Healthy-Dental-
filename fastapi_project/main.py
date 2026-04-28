@@ -450,10 +450,46 @@ class TratamientoAdmin(ModelView, model=Tratamiento):
     form_columns = [Tratamiento.codigo, Tratamiento.nombre, Tratamiento.precio_base, Tratamiento.activo]
 
 class AtencionAdmin(ModelView, model=Atencion):
-    column_list = [Atencion.id, Atencion.fecha, Atencion.paciente, Atencion.estado, Atencion.validado]
-    can_create = False
+    name = "Atención"
+    name_plural = "Atenciones"
+    icon = "fa-solid fa-notes-medical"
+    column_list = [Atencion.id, Atencion.fecha, Atencion.paciente, Atencion.doctor, Atencion.estado, Atencion.validado]
+    column_details_list = [Atencion.id, Atencion.fecha, Atencion.paciente, Atencion.doctor, Atencion.estado, Atencion.validado, Atencion.observaciones, Atencion.detalles, Atencion.pagos]
+    can_create = True
+    form_columns = [Atencion.fecha, Atencion.paciente, Atencion.doctor, Atencion.observaciones, Atencion.estado]
+    form_args = {
+        "estado": {
+            "label": "Estado",
+            "choices": [("EN_PROCESO", "En Proceso"), ("REALIZADO", "Realizado"), ("FINALIZADO", "Finalizado")],
+        }
+    }
 
     def is_accessible(self, request) -> bool:
+        return request.cookies.get("user_role") == "admin"
+
+    def is_visible(self, request: Request) -> bool:
+        return request.cookies.get("user_role") == "admin"
+
+    async def on_model_change(self, data, model, is_created, request: Request):
+        if is_created:
+            sucursal_id = request.cookies.get("sucursal_id")
+            if sucursal_id:
+                data["sucursal_id"] = int(sucursal_id)
+
+class AtencionDetalleAdmin(ModelView, model=AtencionDetalle):
+    name = "Detalle de Atención"
+    name_plural = "Detalles de Atenciones"
+    icon = "fa-solid fa-list-check"
+    column_list = [AtencionDetalle.id, AtencionDetalle.atencion_id, AtencionDetalle.tratamiento, AtencionDetalle.doctor, AtencionDetalle.cantidad, AtencionDetalle.precio_unitario]
+    form_columns = [AtencionDetalle.atencion, AtencionDetalle.tratamiento, AtencionDetalle.doctor, AtencionDetalle.cantidad, AtencionDetalle.precio_unitario, AtencionDetalle.porcentaje_comision]
+    can_create = True
+    can_edit = True
+    can_delete = True
+
+    def is_accessible(self, request: Request) -> bool:
+        return request.cookies.get("user_role") == "admin"
+
+    def is_visible(self, request: Request) -> bool:
         return request.cookies.get("user_role") == "admin"
 
 class PagoAdmin(ModelView, model=Pago):
@@ -622,6 +658,7 @@ admin.add_view(PacienteAdmin)
 admin.add_view(DoctorAdmin)
 admin.add_view(TratamientoAdmin)
 admin.add_view(AtencionAdmin)
+admin.add_view(AtencionDetalleAdmin)
 admin.add_view(PagoAdmin)
 admin.add_view(SucursalAdmin) 
 admin.add_view(InsumoAdmin)
