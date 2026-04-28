@@ -456,13 +456,7 @@ class AtencionAdmin(ModelView, model=Atencion):
     column_list = [Atencion.id, Atencion.fecha, Atencion.paciente, Atencion.doctor, Atencion.estado, Atencion.validado]
     column_details_list = [Atencion.id, Atencion.fecha, Atencion.paciente, Atencion.doctor, Atencion.estado, Atencion.validado, Atencion.observaciones, Atencion.detalles, Atencion.pagos]
     can_create = True
-    form_columns = [Atencion.fecha, Atencion.paciente, Atencion.doctor, Atencion.observaciones, Atencion.estado]
-    form_args = {
-        "estado": {
-            "label": "Estado",
-            "choices": [("EN_PROCESO", "En Proceso"), ("REALIZADO", "Realizado"), ("FINALIZADO", "Finalizado")],
-        }
-    }
+    form_columns = [Atencion.fecha, Atencion.paciente, Atencion.doctor, Atencion.observaciones]
 
     def is_accessible(self, request) -> bool:
         return request.cookies.get("user_role") == "admin"

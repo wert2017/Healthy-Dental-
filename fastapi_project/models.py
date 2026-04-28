@@ -140,8 +140,7 @@ class Atencion(SQLModel, table=True):
         return self.total_atencion_valor - self.total_pagado
 
     def __str__(self):
-        paciente = self.paciente.nombre_mostrar if self.paciente else f"Paciente #{self.paciente_id}"
-        return f"Atención #{self.id} — {paciente}"
+        return f"Atención #{self.id}"
 
 class AtencionDetalle(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -175,8 +174,7 @@ class AtencionDetalle(SQLModel, table=True):
         return self.total_calculado * (self.porcentaje_comision / 100)
 
     def __str__(self):
-        nombre = self.tratamiento.nombre if self.tratamiento else f"Tratamiento #{self.tratamiento_id}"
-        return f"{nombre} x{self.cantidad} — ${self.precio_unitario}"
+        return f"Detalle #{self.id} (Atención #{self.atencion_id})"
 
 class Pago(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
