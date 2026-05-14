@@ -852,24 +852,6 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
     return results_data
 
 
-@app.delete("/api/admin/limpiar-abonos-domenica")
-def limpiar_abonos_domenica(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Solo admin")
-    paciente = session.exec(
-        select(Paciente).where(Paciente.nombres.ilike("%Domenica%")).where(Paciente.apellidos.ilike("%Cuenca%"))
-    ).first()
-    if not paciente:
-        return {"message": "Paciente no encontrado"}
-    abonos = session.exec(select(HistorialAbono).where(HistorialAbono.paciente_id == paciente.id)).all()
-    eliminados = []
-    for a in abonos:
-        paciente.saldo_favor -= a.monto
-        session.delete(a)
-        eliminados.append(f"id={a.id} ${a.monto} {a.fecha}")
-    session.add(paciente)
-    session.commit()
-    return {"paciente": f"{paciente.nombres} {paciente.apellidos}", "eliminados": eliminados, "nuevo_saldo": float(paciente.saldo_favor)}
 
 @app.delete("/api/admin/nuke-pacientes")
 def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
