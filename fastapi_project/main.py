@@ -2912,24 +2912,46 @@ def get_cuadre_diario(
     ).all()
 
     abonos_lista = []
-    abonos_por_metodo: dict = {}
+    abonos_normalizados = {"efectivo": 0.0, "transferencia": 0.0, "tarjeta": 0.0}
     for h in abonos_gen:
-        metodo = h.metodo_pago or "Desconocido"
-        monto  = float(h.monto)
+        metodo_raw = (h.metodo_pago or "").lower()
+        monto = float(h.monto)
+        if any(x in metodo_raw for x in ["efectivo", "ef", "cash"]):
+            abonos_normalizados["efectivo"] += monto
+        elif any(x in metodo_raw for x in ["transfer", "tr"]):
+            abonos_normalizados["transferencia"] += monto
+        elif any(x in metodo_raw for x in ["tarjeta", "tc", "card", "credito", "debito"]):
+            abonos_normalizados["tarjeta"] += monto
+        else:
+            abonos_normalizados["efectivo"] += monto  # default desconocido → efectivo
         abonos_lista.append({
-            "fecha":   h.fecha.strftime("%Y-%m-%d %H:%M"),
+            "fecha":    h.fecha.strftime("%Y-%m-%d %H:%M"),
             "paciente": f"{h.paciente.nombres} {h.paciente.apellidos}".strip() if h.paciente else "N/A",
-            "metodo":  metodo,
-            "monto":   round(monto, 2),
+            "metodo":   h.metodo_pago or "Desconocido",
+            "monto":    round(monto, 2),
         })
-        abonos_por_metodo[metodo] = round(abonos_por_metodo.get(metodo, 0) + monto, 2)
+
+    abonos_normalizados = {k: round(v, 2) for k, v in abonos_normalizados.items()}
+
+    # Tabla "Total Real de Caja": pago_tratamiento + abono_realizado por método
+    real_caja = {
+        "efectivo":      {"tratamiento": totales["efectivo"],      "abono": abonos_normalizados["efectivo"],      "total": round(totales["efectivo"]      + abonos_normalizados["efectivo"],      2)},
+        "transferencia": {"tratamiento": totales["transferencia"],  "abono": abonos_normalizados["transferencia"], "total": round(totales["transferencia"]  + abonos_normalizados["transferencia"], 2)},
+        "tarjeta":       {"tratamiento": totales["tarjeta"],        "abono": abonos_normalizados["tarjeta"],       "total": round(totales["tarjeta"]        + abonos_normalizados["tarjeta"],       2)},
+    }
+    real_caja["gran_total"] = {
+        "tratamiento": round(totales["efectivo"] + totales["transferencia"] + totales["tarjeta"], 2),
+        "abono":       round(sum(abonos_normalizados.values()), 2),
+        "total":       round(totales["efectivo"] + totales["transferencia"] + totales["tarjeta"] + sum(abonos_normalizados.values()), 2),
+    }
 
     return {
         "filas": filas,
         "totales": totales,
         "abonos_generados": abonos_lista,
-        "abonos_por_metodo": abonos_por_metodo,
+        "abonos_normalizados": abonos_normalizados,
         "total_abonos_generados": round(sum(float(h.monto) for h in abonos_gen), 2),
+        "real_caja": real_caja,
     }
 
 

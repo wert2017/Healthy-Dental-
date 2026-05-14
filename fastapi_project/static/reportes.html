@@ -161,6 +161,10 @@
                     <div v-if="isLoadingCuadre" class="spin"></div>
                     {{ isLoadingCuadre ? 'Cargando...' : 'Generar' }}
                 </button>
+                <button v-if="cuadreData.real_caja" class="btn" @click="verTotalRealCaja"
+                    style="background:#1e40af; color:#fff; border-color:#1e40af;">
+                    📊 Total Real de Caja
+                </button>
             </div>
 
             <!-- Tarjetas resumen -->
@@ -707,6 +711,60 @@
                 }
             }
 
+            const verTotalRealCaja = () => {
+                const rc = cuadreData.value.real_caja
+                if (!rc) return
+                const periodo = cuadreStartDate.value === cuadreEndDate.value
+                    ? cuadreStartDate.value
+                    : `${cuadreStartDate.value} al ${cuadreEndDate.value}`
+
+                const row = (label, d, bold) => `
+                    <tr style="${bold ? 'font-weight:700; border-top:2px solid #374151;' : ''}">
+                        <td style="padding:8px 12px; text-align:left;">${label}</td>
+                        <td style="padding:8px 12px; text-align:right; color:#059669;">$${fmt(d.tratamiento)}</td>
+                        <td style="padding:8px 12px; text-align:right; color:#d97706;">$${fmt(d.abono)}</td>
+                        <td style="padding:8px 12px; text-align:right; font-weight:700;">$${fmt(d.total)}</td>
+                    </tr>`
+
+                const ef = rc.efectivo, tr = rc.transferencia, tc = rc.tarjeta, gt = rc.gran_total
+
+                const html = `
+                    <p style="font-size:12px; color:#6b7280; margin-bottom:12px;">Período: <strong>${periodo}</strong></p>
+                    <table style="width:100%; border-collapse:collapse; font-size:13px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
+                        <thead style="background:#f3f4f6;">
+                            <tr>
+                                <th style="padding:8px 12px; text-align:left; font-size:11px; text-transform:uppercase; color:#6b7280;">Método</th>
+                                <th style="padding:8px 12px; text-align:right; font-size:11px; text-transform:uppercase; color:#059669;">Pago Tratamiento</th>
+                                <th style="padding:8px 12px; text-align:right; font-size:11px; text-transform:uppercase; color:#d97706;">Abono Realizado</th>
+                                <th style="padding:8px 12px; text-align:right; font-size:11px; text-transform:uppercase; color:#374151;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${row('Efectivo', ef, false)}
+                            ${row('Transferencia', tr, false)}
+                            ${row('Tarjeta / TC', tc, false)}
+                            ${row('TOTAL', gt, true)}
+                        </tbody>
+                    </table>
+                    <div style="margin-top:14px; font-size:12px; color:#374151; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; padding:10px 14px; text-align:left; line-height:1.8;">
+                        <strong>Efectivo:</strong> $${fmt(gt.total > 0 ? ef.total : 0)} en total —
+                            $${fmt(ef.tratamiento)} de tratamientos y $${fmt(ef.abono)} destinados a billetera.<br>
+                        <strong>Transferencia:</strong> $${fmt(tr.total)} en total —
+                            $${fmt(tr.tratamiento)} de tratamientos y $${fmt(tr.abono)} destinados a billetera.<br>
+                        <strong>Tarjeta / TC:</strong> $${fmt(tc.total)} en total —
+                            $${fmt(tc.tratamiento)} de tratamientos y $${fmt(tc.abono)} destinados a billetera.
+                    </div>`
+
+                Swal.fire({
+                    title: '📊 Total Real de Caja',
+                    html,
+                    width: '600px',
+                    confirmButtonText: 'Cerrar',
+                    confirmButtonColor: '#1e40af',
+                    showClass: { popup: '' },
+                })
+            }
+
             // Export/import
             const isExporting = ref(false)
             const isImporting = ref(false)
@@ -933,7 +991,7 @@
 
             return {
                 role, sucursalNombre, logout, tab,
-                cuadreStartDate, cuadreEndDate, cuadreData, isLoadingCuadre, loadCuadre,
+                cuadreStartDate, cuadreEndDate, cuadreData, isLoadingCuadre, loadCuadre, verTotalRealCaja,
                 docStartDate, docEndDate, docDoctorId, docTratamientoId,
                 docData, isLoadingDoc, doctoresList, tratamientosList,
                 resStartDate, resEndDate, resumen, isLoadingRes,
