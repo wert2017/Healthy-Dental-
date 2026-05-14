@@ -853,15 +853,15 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
 
 @app.get("/api/admin/ver-abonos-test")
 def ver_abonos_test(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Temporal: lista abonos de Tatiana y Domenica para verificar"""
+    """Temporal: lista abonos de Chasiluisa y Cuenca para verificar"""
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Solo admin")
-    nombres = ["Tatiana", "Domenica"]
+    apellidos = ["Chasiluisa", "Cuenca"]
     resultado = []
-    for nombre in nombres:
-        paciente = session.exec(select(Paciente).where(Paciente.nombres.ilike(f"%{nombre}%"))).first()
+    for apellido in apellidos:
+        paciente = session.exec(select(Paciente).where(Paciente.apellidos.ilike(f"%{apellido}%"))).first()
         if not paciente:
-            resultado.append({"nombre": nombre, "encontrado": False})
+            resultado.append({"apellido": apellido, "encontrado": False})
             continue
         abonos = session.exec(
             select(HistorialAbono).where(HistorialAbono.paciente_id == paciente.id)
@@ -875,13 +875,13 @@ def ver_abonos_test(session: Session = Depends(get_session), user: User = Depend
 
 @app.delete("/api/admin/limpiar-abonos-test")
 def limpiar_abonos_test(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Temporal: elimina todos los abonos de Tatiana y Domenica"""
+    """Temporal: elimina todos los abonos de Chasiluisa y Cuenca"""
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Solo admin")
-    nombres = ["Tatiana", "Domenica"]
+    apellidos = ["Chasiluisa", "Cuenca"]
     eliminados = []
-    for nombre in nombres:
-        paciente = session.exec(select(Paciente).where(Paciente.nombres.ilike(f"%{nombre}%"))).first()
+    for apellido in apellidos:
+        paciente = session.exec(select(Paciente).where(Paciente.apellidos.ilike(f"%{apellido}%"))).first()
         if not paciente:
             continue
         abonos = session.exec(
@@ -890,7 +890,7 @@ def limpiar_abonos_test(session: Session = Depends(get_session), user: User = De
         for a in abonos:
             paciente.saldo_favor -= a.monto
             session.delete(a)
-            eliminados.append(f"{paciente.nombres} - ${a.monto}")
+            eliminados.append(f"{paciente.nombres} {paciente.apellidos} - ${a.monto}")
         session.add(paciente)
     session.commit()
     return {"eliminados": eliminados}
