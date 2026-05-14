@@ -851,6 +851,33 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
         
     return results_data
 
+@app.delete("/api/admin/limpiar-abonos-test")
+def limpiar_abonos_test(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    """Temporal: elimina los abonos de prueba del 14-05-2026 de Tatiana y Domenica"""
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo admin")
+    from datetime import date
+    nombres = ["Tatiana", "Domenica"]
+    dia = date(2026, 5, 14)
+    eliminados = []
+    for nombre in nombres:
+        paciente = session.exec(select(Paciente).where(Paciente.nombres.ilike(f"%{nombre}%"))).first()
+        if not paciente:
+            continue
+        abonos = session.exec(
+            select(HistorialAbono)
+            .where(HistorialAbono.paciente_id == paciente.id)
+            .where(HistorialAbono.fecha >= datetime.combine(dia, datetime.min.time()))
+            .where(HistorialAbono.fecha <= datetime.combine(dia, datetime.max.time()))
+        ).all()
+        for a in abonos:
+            paciente.saldo_favor -= a.monto
+            session.delete(a)
+            eliminados.append(f"{paciente.nombres} - ${a.monto}")
+        session.add(paciente)
+    session.commit()
+    return {"eliminados": eliminados}
+
 @app.delete("/api/admin/nuke-pacientes")
 def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     if user.role != "admin" or user.username != "admin":
