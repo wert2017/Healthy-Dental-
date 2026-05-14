@@ -860,14 +860,15 @@ def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Dep
     from sqlalchemy import text
     try:
         session.exec(text("DELETE FROM auditoriaatencion"))
+        session.exec(text("DELETE FROM historialabono"))
         session.exec(text("DELETE FROM pago"))
         session.exec(text("DELETE FROM atenciondetalle"))
         session.exec(text("DELETE FROM atencion"))
         session.exec(text("DELETE FROM tratamientoencurso"))
-        session.exec(text("DELETE FROM historialabono"))
+        session.exec(text("DELETE FROM gasto"))
         session.exec(text("DELETE FROM paciente"))
         session.commit()
-        return {"status": "success", "message": "Todos los pacientes y registros vinculados han sido eliminados de la base de datos de pruebas."}
+        return {"status": "success", "message": "Base de datos limpia. Se conservaron sucursales, doctores, tratamientos y usuarios."}
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
