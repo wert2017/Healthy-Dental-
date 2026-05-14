@@ -112,29 +112,21 @@ from sqlalchemy import text
 def on_startup():
     create_db_and_tables()
     
-    # Auto-migration for new Paciente columns (Safe for both SQLite and Postgres)
-    with Session(engine) as session:
+    # Auto-migration: cada columna en su propia transaccion para evitar que un fallo
+    # en PostgreSQL deje la transaccion en estado abortado e impida las migraciones siguientes
+    migrations = [
+        "ALTER TABLE paciente ADD COLUMN sexo VARCHAR;",
+        "ALTER TABLE paciente ADD COLUMN edad INTEGER;",
+        "ALTER TABLE paciente ADD COLUMN ciudad VARCHAR;",
+        "ALTER TABLE historialabono ADD COLUMN atencion_id INTEGER REFERENCES atencion(id);",
+    ]
+    for sql in migrations:
         try:
-            session.execute(text("ALTER TABLE paciente ADD COLUMN sexo VARCHAR;"))
+            with Session(engine) as session:
+                session.execute(text(sql))
+                session.commit()
         except Exception:
             pass
-        try:
-            session.execute(text("ALTER TABLE paciente ADD COLUMN edad INTEGER;"))
-        except Exception:
-            pass
-        try:
-            session.execute(text("ALTER TABLE paciente ADD COLUMN ciudad VARCHAR;"))
-        except Exception:
-            pass
-        try:
-            session.execute(text("ALTER TABLE historialabono ADD COLUMN atencion_id INTEGER REFERENCES atencion(id);"))
-        except Exception:
-            pass
-        try:
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            print(f"Skipping migration commit error: {e}")
             
     # Create Default Admin User (If it doesn't exist)
     with Session(engine) as session:
