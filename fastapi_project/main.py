@@ -127,6 +127,10 @@ def on_startup():
         except Exception:
             pass
         try:
+            session.execute(text("ALTER TABLE historialabono ADD COLUMN atencion_id INTEGER REFERENCES atencion(id);"))
+        except Exception:
+            pass
+        try:
             session.commit()
         except Exception as e:
             session.rollback()
