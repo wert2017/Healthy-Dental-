@@ -817,7 +817,8 @@
                         doctores.value = resDoctores.data;
                         vendedores.value = resVendedores.data;
                         if (resAtencion.data.fecha) {
-                            fechaEditable.value = resAtencion.data.fecha.split('T')[0];
+                            // Handle both "2026-05-01T00:00:00" and "2026-05-01 00:00:00" formats
+                            fechaEditable.value = resAtencion.data.fecha.replace(' ', 'T').split('T')[0];
                         }
 
                         if (atencion.value.pagos) {
