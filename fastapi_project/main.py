@@ -851,24 +851,41 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
         
     return results_data
 
-@app.delete("/api/admin/limpiar-abonos-test")
-def limpiar_abonos_test(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Temporal: elimina los abonos de prueba del 14-05-2026 de Tatiana y Domenica"""
+@app.get("/api/admin/ver-abonos-test")
+def ver_abonos_test(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    """Temporal: lista abonos de Tatiana y Domenica para verificar"""
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Solo admin")
-    from datetime import date
     nombres = ["Tatiana", "Domenica"]
-    dia = date(2026, 5, 14)
+    resultado = []
+    for nombre in nombres:
+        paciente = session.exec(select(Paciente).where(Paciente.nombres.ilike(f"%{nombre}%"))).first()
+        if not paciente:
+            resultado.append({"nombre": nombre, "encontrado": False})
+            continue
+        abonos = session.exec(
+            select(HistorialAbono).where(HistorialAbono.paciente_id == paciente.id)
+        ).all()
+        resultado.append({
+            "paciente": f"{paciente.nombres} {paciente.apellidos}",
+            "saldo_favor": float(paciente.saldo_favor),
+            "abonos": [{"id": a.id, "fecha": str(a.fecha), "monto": float(a.monto), "metodo": a.metodo_pago} for a in abonos]
+        })
+    return resultado
+
+@app.delete("/api/admin/limpiar-abonos-test")
+def limpiar_abonos_test(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    """Temporal: elimina todos los abonos de Tatiana y Domenica"""
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo admin")
+    nombres = ["Tatiana", "Domenica"]
     eliminados = []
     for nombre in nombres:
         paciente = session.exec(select(Paciente).where(Paciente.nombres.ilike(f"%{nombre}%"))).first()
         if not paciente:
             continue
         abonos = session.exec(
-            select(HistorialAbono)
-            .where(HistorialAbono.paciente_id == paciente.id)
-            .where(HistorialAbono.fecha >= datetime.combine(dia, datetime.min.time()))
-            .where(HistorialAbono.fecha <= datetime.combine(dia, datetime.max.time()))
+            select(HistorialAbono).where(HistorialAbono.paciente_id == paciente.id)
         ).all()
         for a in abonos:
             paciente.saldo_favor -= a.monto
