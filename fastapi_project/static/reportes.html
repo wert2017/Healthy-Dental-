@@ -134,9 +134,168 @@
 
         <!-- TABS -->
         <div class="tabs">
+            <button class="tab-btn" :class="{ active: tab === 'cuadre' }" @click="tab = 'cuadre'">Cuadre Diario</button>
             <button class="tab-btn" :class="{ active: tab === 'doctores' }" @click="tab = 'doctores'">Doctores</button>
             <button class="tab-btn" :class="{ active: tab === 'resultados' }" @click="tab = 'resultados'">Resultados</button>
             <button class="tab-btn" :class="{ active: tab === 'tratamientos' }" @click="tab = 'tratamientos'">Tratamientos en Curso</button>
+        </div>
+
+        <!-- ===== TAB CUADRE DIARIO ===== -->
+        <div v-show="tab === 'cuadre'">
+
+            <div class="section-desc" style="margin-bottom:12px; color:#6b7280;">
+                Detalle de cobros por hoja de cargo. EF + TR + TC = dinero físico recibido. AB = saldo de billetera usado (recibido en días anteriores).
+            </div>
+
+            <!-- Filtros -->
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>Fecha inicio</label>
+                    <input type="date" v-model="cuadreStartDate">
+                </div>
+                <div class="filter-group">
+                    <label>Fecha fin</label>
+                    <input type="date" v-model="cuadreEndDate">
+                </div>
+                <button class="btn btn-primary" @click="loadCuadre" :disabled="isLoadingCuadre">
+                    <div v-if="isLoadingCuadre" class="spin"></div>
+                    {{ isLoadingCuadre ? 'Cargando...' : 'Generar' }}
+                </button>
+            </div>
+
+            <!-- Tarjetas resumen -->
+            <div v-if="cuadreData.totales" class="summary-bar" style="margin-bottom:16px;">
+                <div class="sc">
+                    <div class="sc-label">Efectivo</div>
+                    <div class="sc-value" style="color:#059669;">${{ fmt(cuadreData.totales.efectivo) }}</div>
+                    <div class="sc-sub">Dinero físico</div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Transferencia</div>
+                    <div class="sc-value" style="color:#2563eb;">${{ fmt(cuadreData.totales.transferencia) }}</div>
+                    <div class="sc-sub">Dinero físico</div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Tarjeta</div>
+                    <div class="sc-value" style="color:#7c3aed;">${{ fmt(cuadreData.totales.tarjeta) }}</div>
+                    <div class="sc-sub">Dinero físico</div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Abono Usado</div>
+                    <div class="sc-value" style="color:#d97706;">${{ fmt(cuadreData.totales.abono_usado) }}</div>
+                    <div class="sc-sub">De billetera</div>
+                </div>
+                <div class="sc" style="background:#f0fdf4;">
+                    <div class="sc-label" style="color:#059669;">Total Físico</div>
+                    <div class="sc-value" style="color:#059669; font-size:26px;">${{ fmt(cuadreData.totales.total_fisico) }}</div>
+                    <div class="sc-sub">EF + TR + TC</div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Total Cobrado</div>
+                    <div class="sc-value">${{ fmt(cuadreData.totales.total_cobrado) }}</div>
+                    <div class="sc-sub">Incl. abono</div>
+                </div>
+            </div>
+
+            <!-- Tabla de hojas de cargo -->
+            <div class="section">
+                <div class="section-head">
+                    <span class="section-title">Detalle por Hoja de Cargo</span>
+                    <span class="section-desc">{{ cuadreData.filas?.length || 0 }} atenciones</span>
+                </div>
+                <div class="section-body" style="overflow-x:auto;">
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Paciente</th>
+                                <th class="c">HC</th>
+                                <th class="r">Total Trat.</th>
+                                <th class="r" style="color:#059669;">Efectivo</th>
+                                <th class="r" style="color:#2563eb;">Transf.</th>
+                                <th class="r" style="color:#7c3aed;">Tarjeta</th>
+                                <th class="r" style="color:#d97706;">Abono</th>
+                                <th class="r">Total Cobrado</th>
+                                <th class="r">Pendiente</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="f in cuadreData.filas || []" :key="f.atencion_id">
+                                <td style="white-space:nowrap; color:#6b7280; font-size:12px;">{{ f.fecha }}</td>
+                                <td style="font-weight:500;">{{ f.paciente }}</td>
+                                <td class="c" style="color:#6b7280; font-size:12px;">{{ f.historia_clinica }}</td>
+                                <td class="r">${{ fmt(f.total_tratamiento) }}</td>
+                                <td class="r" style="color:#059669; font-weight:600;">${{ fmt(f.efectivo) }}</td>
+                                <td class="r" style="color:#2563eb; font-weight:600;">${{ fmt(f.transferencia) }}</td>
+                                <td class="r" style="color:#7c3aed; font-weight:600;">${{ fmt(f.tarjeta) }}</td>
+                                <td class="r" style="color:#d97706; font-weight:600;">${{ fmt(f.abono_usado) }}</td>
+                                <td class="r" style="font-weight:700;">${{ fmt(f.total_cobrado) }}</td>
+                                <td class="r">
+                                    <span :class="f.saldo_pendiente > 0.01 ? 'badge badge-warn' : 'badge badge-ok'">
+                                        ${{ fmt(f.saldo_pendiente) }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr v-if="!cuadreData.filas?.length">
+                                <td colspan="10" class="empty">Sin datos — selecciona una fecha y presiona Generar</td>
+                            </tr>
+                        </tbody>
+                        <tfoot v-if="cuadreData.filas?.length">
+                            <tr>
+                                <td colspan="3" style="font-weight:700; color:#374151;">TOTALES</td>
+                                <td class="r">${{ fmt(cuadreData.totales?.total_tratamiento) }}</td>
+                                <td class="r" style="color:#059669;">${{ fmt(cuadreData.totales?.efectivo) }}</td>
+                                <td class="r" style="color:#2563eb;">${{ fmt(cuadreData.totales?.transferencia) }}</td>
+                                <td class="r" style="color:#7c3aed;">${{ fmt(cuadreData.totales?.tarjeta) }}</td>
+                                <td class="r" style="color:#d97706;">${{ fmt(cuadreData.totales?.abono_usado) }}</td>
+                                <td class="r">${{ fmt(cuadreData.totales?.total_cobrado) }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Abonos generados (dinero nuevo que entró a billeteras) -->
+            <div class="section" v-if="cuadreData.abonos_generados?.length">
+                <div class="section-head">
+                    <span class="section-title">Abonos Generados (Nuevo dinero a Billeteras)</span>
+                    <span class="section-desc">Sobrepagos o recargas directas que acreditaron saldo a pacientes</span>
+                </div>
+                <div class="section-body" style="overflow-x:auto;">
+                    <!-- Resumen por método -->
+                    <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
+                        <div v-for="(monto, metodo) in cuadreData.abonos_por_metodo" :key="metodo"
+                            style="background:#fef9ec; border:1px solid #fde68a; border-radius:6px; padding:8px 16px; min-width:130px;">
+                            <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#92400e; margin-bottom:2px;">{{ metodo }}</div>
+                            <div style="font-size:18px; font-weight:800; color:#d97706;">${{ fmt(monto) }}</div>
+                        </div>
+                        <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:8px 16px; min-width:130px;">
+                            <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#c2410c; margin-bottom:2px;">Total Abonos</div>
+                            <div style="font-size:18px; font-weight:800; color:#ea580c;">${{ fmt(cuadreData.total_abonos_generados) }}</div>
+                        </div>
+                    </div>
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th>Fecha / Hora</th>
+                                <th>Paciente</th>
+                                <th>Método</th>
+                                <th class="r">Monto Acreditado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(ab, i) in cuadreData.abonos_generados" :key="i">
+                                <td style="color:#6b7280; font-size:12px; white-space:nowrap;">{{ ab.fecha }}</td>
+                                <td style="font-weight:500;">{{ ab.paciente }}</td>
+                                <td><span class="badge">{{ ab.metodo }}</span></td>
+                                <td class="r" style="font-weight:700; color:#d97706;">${{ fmt(ab.monto) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
         <!-- ===== TAB DOCTORES ===== -->
@@ -500,7 +659,7 @@
             const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD')
             const logout = () => { localStorage.clear(); window.location.href = '/login' }
 
-            const tab = ref('doctores')
+            const tab = ref('cuadre')
 
             // Doctor report
             const docStartDate    = ref('')
@@ -524,6 +683,29 @@
             const tratTratamientoId = ref(null)
             const tratData          = ref({})
             const isLoadingTrat     = ref(false)
+
+            // Cuadre Diario
+            const today = new Date().toISOString().split('T')[0]
+            const cuadreStartDate = ref(today)
+            const cuadreEndDate   = ref(today)
+            const cuadreData      = ref({ filas: [], totales: null, abonos_generados: [], abonos_por_metodo: {}, total_abonos_generados: 0 })
+            const isLoadingCuadre = ref(false)
+
+            const loadCuadre = async () => {
+                isLoadingCuadre.value = true
+                try {
+                    const params = {}
+                    if (cuadreStartDate.value) params.start_date = cuadreStartDate.value
+                    if (cuadreEndDate.value)   params.end_date   = cuadreEndDate.value
+                    const res = await axios.get('/api/reportes/cuadre-diario', { params })
+                    cuadreData.value = res.data
+                } catch (err) {
+                    console.error(err)
+                    if (err.response?.status === 401) window.location.href = '/login'
+                } finally {
+                    isLoadingCuadre.value = false
+                }
+            }
 
             // Export/import
             const isExporting = ref(false)
@@ -743,6 +925,7 @@
 
             onMounted(() => {
                 loadCatalogs()
+                loadCuadre()
                 loadDocReport()
                 loadResumen()
                 loadTratReport()
@@ -750,6 +933,7 @@
 
             return {
                 role, sucursalNombre, logout, tab,
+                cuadreStartDate, cuadreEndDate, cuadreData, isLoadingCuadre, loadCuadre,
                 docStartDate, docEndDate, docDoctorId, docTratamientoId,
                 docData, isLoadingDoc, doctoresList, tratamientosList,
                 resStartDate, resEndDate, resumen, isLoadingRes,

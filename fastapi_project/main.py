@@ -2820,6 +2820,119 @@ def get_daily_summary(session: Session = Depends(get_session), user: User = Depe
             
     return {"recargas_directas": total_directo}
 
+
+@app.get("/api/reportes/cuadre-diario")
+def get_cuadre_diario(
+    fecha: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if not user.sucursal_id:
+        raise HTTPException(status_code=400, detail="Usuario sin sucursal asignada")
+
+    today = datetime.now().date()
+
+    if start_date:
+        date_from = datetime.combine(datetime.strptime(start_date, "%Y-%m-%d").date(), datetime.min.time())
+    elif fecha:
+        date_from = datetime.combine(datetime.strptime(fecha, "%Y-%m-%d").date(), datetime.min.time())
+    else:
+        date_from = datetime.combine(today, datetime.min.time())
+
+    if end_date:
+        date_to = datetime.combine(datetime.strptime(end_date, "%Y-%m-%d").date(), datetime.max.time())
+    elif fecha:
+        date_to = datetime.combine(datetime.strptime(fecha, "%Y-%m-%d").date(), datetime.max.time())
+    else:
+        date_to = datetime.combine(today, datetime.max.time())
+
+    atenciones = session.exec(
+        select(Atencion)
+        .where(Atencion.sucursal_id == user.sucursal_id)
+        .where(Atencion.fecha >= date_from)
+        .where(Atencion.fecha <= date_to)
+        .options(
+            selectinload(Atencion.paciente),
+            selectinload(Atencion.pagos),
+            selectinload(Atencion.detalles)
+        )
+        .order_by(Atencion.fecha.asc())
+    ).all()
+
+    filas = []
+    totales = {"efectivo": 0.0, "transferencia": 0.0, "tarjeta": 0.0, "abono_usado": 0.0, "total_tratamiento": 0.0}
+
+    for a in atenciones:
+        ef  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "EF")
+        tr  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "TR")
+        tc  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "TC")
+        ab  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "AB")
+        total_cobrado = ef + tr + tc + ab
+        total_trat = sum(float(d.total_calculado) for d in a.detalles)
+        saldo_pend = max(0.0, total_trat - total_cobrado)
+
+        if total_trat == 0 and total_cobrado == 0:
+            continue
+
+        filas.append({
+            "atencion_id": a.id,
+            "fecha": a.fecha.strftime("%Y-%m-%d"),
+            "paciente": f"{a.paciente.nombres} {a.paciente.apellidos}".strip() if a.paciente else "N/A",
+            "historia_clinica": a.paciente.historia_clinica if a.paciente else "",
+            "total_tratamiento": round(total_trat, 2),
+            "efectivo":      round(ef, 2),
+            "transferencia": round(tr, 2),
+            "tarjeta":       round(tc, 2),
+            "abono_usado":   round(ab, 2),
+            "total_cobrado": round(total_cobrado, 2),
+            "saldo_pendiente": round(saldo_pend, 2),
+        })
+
+        totales["efectivo"]        += ef
+        totales["transferencia"]   += tr
+        totales["tarjeta"]         += tc
+        totales["abono_usado"]     += ab
+        totales["total_tratamiento"] += total_trat
+
+    totales["total_fisico"]  = totales["efectivo"] + totales["transferencia"] + totales["tarjeta"]
+    totales["total_cobrado"] = totales["total_fisico"] + totales["abono_usado"]
+    totales = {k: round(v, 2) for k, v in totales.items()}
+
+    # Abonos generados: nuevo dinero que entró a billeteras en este período
+    abonos_gen = session.exec(
+        select(HistorialAbono)
+        .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
+        .where(Paciente.sucursal_id == user.sucursal_id)
+        .where(HistorialAbono.fecha >= date_from)
+        .where(HistorialAbono.fecha <= date_to)
+        .options(selectinload(HistorialAbono.paciente))
+        .order_by(HistorialAbono.fecha.asc())
+    ).all()
+
+    abonos_lista = []
+    abonos_por_metodo: dict = {}
+    for h in abonos_gen:
+        metodo = h.metodo_pago or "Desconocido"
+        monto  = float(h.monto)
+        abonos_lista.append({
+            "fecha":   h.fecha.strftime("%Y-%m-%d %H:%M"),
+            "paciente": f"{h.paciente.nombres} {h.paciente.apellidos}".strip() if h.paciente else "N/A",
+            "metodo":  metodo,
+            "monto":   round(monto, 2),
+        })
+        abonos_por_metodo[metodo] = round(abonos_por_metodo.get(metodo, 0) + monto, 2)
+
+    return {
+        "filas": filas,
+        "totales": totales,
+        "abonos_generados": abonos_lista,
+        "abonos_por_metodo": abonos_por_metodo,
+        "total_abonos_generados": round(sum(float(h.monto) for h in abonos_gen), 2),
+    }
+
+
 # --- GESTIÓN DE GASTOS (Módulo 30) ---
 
 @app.post("/api/gastos")
