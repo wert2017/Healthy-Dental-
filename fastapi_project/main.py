@@ -853,23 +853,25 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
 
 @app.get("/api/admin/ver-abonos-test")
 def ver_abonos_test(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Temporal: lista abonos de Chasiluisa y Cuenca para verificar"""
+    """Temporal: lista todos los HistorialAbono recientes"""
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Solo admin")
-    apellidos = ["Chasiluisa", "Cuenca"]
+    abonos = session.exec(
+        select(HistorialAbono)
+        .order_by(HistorialAbono.fecha.desc())
+        .limit(20)
+    ).all()
     resultado = []
-    for apellido in apellidos:
-        paciente = session.exec(select(Paciente).where(Paciente.apellidos.ilike(f"%{apellido}%"))).first()
-        if not paciente:
-            resultado.append({"apellido": apellido, "encontrado": False})
-            continue
-        abonos = session.exec(
-            select(HistorialAbono).where(HistorialAbono.paciente_id == paciente.id)
-        ).all()
+    for a in abonos:
+        paciente = session.get(Paciente, a.paciente_id)
         resultado.append({
-            "paciente": f"{paciente.nombres} {paciente.apellidos}",
-            "saldo_favor": float(paciente.saldo_favor),
-            "abonos": [{"id": a.id, "fecha": str(a.fecha), "monto": float(a.monto), "metodo": a.metodo_pago} for a in abonos]
+            "id": a.id,
+            "paciente": f"{paciente.nombres} {paciente.apellidos}" if paciente else "?",
+            "saldo_favor_actual": float(paciente.saldo_favor) if paciente else 0,
+            "fecha": str(a.fecha),
+            "monto": float(a.monto),
+            "metodo": a.metodo_pago,
+            "atencion_id": a.atencion_id
         })
     return resultado
 
