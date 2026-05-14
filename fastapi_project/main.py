@@ -1800,23 +1800,32 @@ def sync_pagos(atencion_id: int, data: PaymentSync, session: Session = Depends(g
     new_efectivo = Decimal(str(data.efectivo))
     new_transferencia = Decimal(str(data.transferencia))
     new_tarjeta = Decimal(str(data.tarjeta))
-    
+
     total_received = new_efectivo + new_transferencia + new_tarjeta + new_abono
     total_due = atencion.total_atencion_valor
 
+    # Revert any previous auto-surplus for this atencion before recalculating
+    prev_historial = session.exec(
+        select(HistorialAbono)
+        .where(HistorialAbono.atencion_id == atencion_id)
+    ).all()
+    for ph in prev_historial:
+        atencion.paciente.saldo_favor -= ph.monto
+        session.delete(ph)
+    session.add(atencion.paciente)
+
     if total_received > total_due:
         surplus = total_received - total_due
-        
+
         # 1. Credit surplus to Wallet
         atencion.paciente.saldo_favor += surplus
         session.add(atencion.paciente)
 
-        # NEW: Create explicit HistorialAbono record with user-provided method
         metodo_final = data.metodo_excedente if data.metodo_excedente else "Desconocido"
-
         historial = HistorialAbono(
             paciente_id=atencion.paciente.id,
             usuario_id=user.id if user else None,
+            atencion_id=atencion_id,
             monto=surplus,
             metodo_pago=metodo_final,
             fecha=datetime.now()

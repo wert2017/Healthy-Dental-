@@ -205,10 +205,11 @@ class HistorialAbono(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     paciente_id: int = Field(foreign_key="paciente.id")
     usuario_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    atencion_id: Optional[int] = Field(default=None, foreign_key="atencion.id")
     fecha: datetime = Field(default_factory=datetime.now)
     monto: Decimal = Field(max_digits=10, decimal_places=2)
     metodo_pago: str # EFECTIVO, TRANSFERENCIA, TARJETA
-    
+
     paciente: Optional["Paciente"] = Relationship(back_populates="historial_abonos")
     usuario: Optional["User"] = Relationship()
 
