@@ -2066,11 +2066,26 @@ def delete_atencion(atencion_id: int, session: Session = Depends(get_session), u
         raise HTTPException(status_code=400, detail="No se puede eliminar una atención validada")
     check_recepcion_time_limit(atencion, user)
 
-    # Devolvemos el monto de billetera al saldo del paciente
-    total_abono = sum([p.monto for p in atencion.pagos if p.forma_pago == "AB"])
-    if total_abono > 0:
-        atencion.paciente.saldo_favor += total_abono
-        registrar_log(atencion_id, "Reembolso Billetera", f"Atención eliminada. Se devolvieron ${total_abono} a la billetera.", session)
+    paciente = session.exec(
+        select(Paciente)
+        .where(Paciente.id == atencion.paciente_id)
+    ).first()
+
+    if paciente:
+        # 1. Revertir sobrepagos que se acreditaron a la billetera desde esta atencion
+        historial_atencion = session.exec(
+            select(HistorialAbono).where(HistorialAbono.atencion_id == atencion_id)
+        ).all()
+        for h in historial_atencion:
+            paciente.saldo_favor -= h.monto
+            session.delete(h)
+
+        # 2. Devolver montos pagados con billetera (AB) al saldo del paciente
+        total_abono = sum([p.monto for p in atencion.pagos if p.forma_pago == "AB"])
+        if total_abono > 0:
+            paciente.saldo_favor += total_abono
+
+        session.add(paciente)
 
     session.delete(atencion)
     session.commit()
