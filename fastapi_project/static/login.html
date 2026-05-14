@@ -94,13 +94,15 @@
 
             errorMsg.classList.add('hidden');
 
-            const formData = new FormData();
-            formData.append('username', username);
+            const formData = new URLSearchParams();
+            formData.append('username', username.trim());
             formData.append('password', password);
-            formData.append('sucursal_id', sucursal_id);
+            if (sucursal_id) formData.append('sucursal_id', sucursal_id);
 
             try {
-                const response = await axios.post('/token', formData);
+                const response = await axios.post('/token', formData, {
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                });
                 const { access_token, role, doctor_id, sucursal_id: sid, sucursal_nombre, username, full_name } = response.data;
 
                 localStorage.setItem('token', access_token);

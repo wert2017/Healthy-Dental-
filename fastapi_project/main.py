@@ -286,7 +286,7 @@ class PacienteAdmin(ModelView, model=Paciente):
     icon = "fa-solid fa-user"
     
     # List View configuration
-    column_list = [Paciente.historia_clinica, Paciente.numero_identificacion, Paciente.nombres, Paciente.apellidos, Paciente.telefono]
+    column_list = [Paciente.historia_clinica, Paciente.numero_identificacion, Paciente.nombres, Paciente.apellidos, Paciente.telefono, Paciente.saldo_favor]
     column_searchable_list = [Paciente.nombres, Paciente.apellidos, Paciente.numero_identificacion]
     
     # Form Configuration (Create/Edit)
@@ -300,7 +300,8 @@ class PacienteAdmin(ModelView, model=Paciente):
         Paciente.numero_identificacion,
         Paciente.razon_social,
         Paciente.telefono,
-        Paciente.email
+        Paciente.email,
+        Paciente.saldo_favor
     ]
 
     # Restrict choices for Dropdowns
@@ -1047,8 +1048,20 @@ def list_doctores(session: Session = Depends(get_session), user: User = Depends(
     """List active doctors, filtered by the user's sucursal if they are not an admin."""
     query = select(Doctor).where(Doctor.activo == True)
     if user.role != "admin" and user.sucursal_id:
-        query = query.where(Doctor.sucursal_id == user.sucursal_id)
+        # Include doctors assigned to the user's sucursal AND doctors with no sucursal (global)
+        query = query.where(
+            (Doctor.sucursal_id == user.sucursal_id) | (Doctor.sucursal_id == None)
+        )
     return session.exec(query).all()
+
+@app.get("/api/vendedores")
+def list_vendedores(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    """Returns non-doctor staff users for the vendedor dropdown (recepcion, admin)."""
+    query = select(User).where(User.role != "doctor")
+    if user.role != "admin" and user.sucursal_id:
+        query = query.where(User.sucursal_id == user.sucursal_id)
+    usuarios = session.exec(query).all()
+    return [{"id": u.id, "username": u.username} for u in usuarios]
 
 @app.get("/api/tratamientos")
 def list_tratamientos(session: Session = Depends(get_session)):
@@ -1528,10 +1541,15 @@ def get_atencion_detail(atencion_id: int, session: Session = Depends(get_session
                 "id": d.id,
                 "tratamiento_id": d.tratamiento_id,
                 "doctor_id": d.doctor_id,
-                "tratamiento_nombre": d.tratamiento.nombre if d.tratamiento else "Desconocido", 
-                "get_doctor": f"{d.doctor.nombres} {d.doctor.apellidos}" if d.doctor else "Sin Doctor",
-                "doctor_nombre": f"{d.doctor.nombres} {d.doctor.apellidos}" if d.doctor else "Sin Doctor",
-                "nombre_tratamiento": d.tratamiento.nombre if d.tratamiento else "Desconocido", 
+                "vendedor_id": d.vendedor_id,
+                "tratamiento_nombre": d.tratamiento.nombre if d.tratamiento else "Desconocido",
+                "get_doctor": (
+                    f"Dr. {d.doctor.nombres} {d.doctor.apellidos}" if d.doctor
+                    else (f"Venta: {d.vendedor.username}" if d.vendedor else "Recepción")
+                ),
+                "doctor_nombre": f"{d.doctor.nombres} {d.doctor.apellidos}" if d.doctor else None,
+                "vendedor_nombre": d.vendedor.username if d.vendedor else None,
+                "nombre_tratamiento": d.tratamiento.nombre if d.tratamiento else "Desconocido",
                 "precio_unitario": d.precio_unitario,
                 "cantidad": d.cantidad,
                 "porcentaje_comision": d.porcentaje_comision,
@@ -1589,20 +1607,56 @@ def add_detalle(
     return {"message": "Detalle agregado"}
 
 @app.delete("/api/detalles/{detalle_id}")
-def delete_detalle(detalle_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Solo el administrador puede eliminar tratamientos")
+def delete_detalle(
+    detalle_id: int,
+    accion: str = "dejar_abono",
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role not in ("admin", "recepcion"):
+        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar tratamientos")
     detalle = session.get(AtencionDetalle, detalle_id)
-    if detalle:
-        atencion = session.get(Atencion, detalle.atencion_id)
-        if atencion and atencion.validado:
-            raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
-            
-        # LOG
-        registrar_log(detalle.atencion_id, "Tratamiento Eliminado", f"Se eliminó '{detalle.tratamiento.nombre}'", session)
-            
-        session.delete(detalle)
-        session.commit()
+    if not detalle:
+        return {"message": "Detalle no encontrado"}
+
+    atencion = session.get(Atencion, detalle.atencion_id)
+    if atencion and atencion.validado:
+        raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
+
+    monto_detalle = detalle.total_calculado
+    nuevo_total = atencion.total_atencion_valor - monto_detalle
+    exceso = atencion.total_pagado - nuevo_total
+
+    if exceso > 0:
+        if accion == "eliminar_pago":
+            pagos = sorted(atencion.pagos, key=lambda p: p.fecha, reverse=True)
+            por_reducir = Decimal(str(exceso))
+            for pago in pagos:
+                if por_reducir <= 0:
+                    break
+                if pago.monto <= por_reducir:
+                    por_reducir -= pago.monto
+                    session.delete(pago)
+                else:
+                    pago.monto -= por_reducir
+                    por_reducir = Decimal("0")
+                    session.add(pago)
+        else:  # dejar_abono
+            paciente = session.get(Paciente, atencion.paciente_id)
+            if paciente:
+                paciente.saldo_favor += Decimal(str(exceso))
+                session.add(paciente)
+                abono = HistorialAbono(
+                    paciente_id=paciente.id,
+                    usuario_id=user.id,
+                    monto=Decimal(str(exceso)),
+                    metodo_pago="ABONO"
+                )
+                session.add(abono)
+
+    registrar_log(detalle.atencion_id, "Tratamiento Eliminado", f"Se eliminó '{detalle.tratamiento.nombre}'", session)
+    session.delete(detalle)
+    session.commit()
     return {"message": "Detalle eliminado"}
 
 from pydantic import BaseModel
@@ -1673,6 +1727,7 @@ class PaymentSync(BaseModel):
     tarjeta: float
     abono: float
     metodo_excedente: Optional[str] = None
+    confirmar_abono: bool = False
 
 @app.post("/api/atenciones/{atencion_id}/pagos/sync")
 def sync_pagos(atencion_id: int, data: PaymentSync, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
@@ -1681,6 +1736,13 @@ def sync_pagos(atencion_id: int, data: PaymentSync, session: Session = Depends(g
         raise HTTPException(status_code=404, detail="Atención no encontrada")
     if atencion.validado:
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
+
+    pago_directo = Decimal(str(data.efectivo)) + Decimal(str(data.transferencia)) + Decimal(str(data.tarjeta))
+    if pago_directo > 0 and len(atencion.detalles) == 0 and not data.confirmar_abono:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "SIN_TRATAMIENTOS", "monto": float(pago_directo)}
+        )
 
     # --- WALLET ADJUSTMENT (Inmediata) ---
     # Calculamos la diferencia entre el abono anterior y el nuevo
@@ -1953,8 +2015,8 @@ def add_atencion_pago(atencion_id: int, data: dict, session: Session = Depends(g
 
 @app.delete("/api/atenciones/{atencion_id}")
 def delete_atencion(atencion_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Solo el administrador puede eliminar atenciones")
+    if user.role not in ("admin", "recepcion"):
+        raise HTTPException(status_code=403, detail="Solo admin o recepción pueden eliminar atenciones")
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")

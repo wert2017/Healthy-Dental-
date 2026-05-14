@@ -97,6 +97,15 @@
                         :class="isActive('/admin/insumo/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
                         Mantenimiento
                     </a>
+                    <!-- Usuario activo -->
+                    <div class="flex items-center gap-2 ml-3 pl-3 border-l border-gray-200">
+                        <div class="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700 whitespace-nowrap">{{ currentUser }}</span>
+                    </div>
                     <!-- Salir -->
                     <a href="/" @click.prevent="logout"
                         class="px-3 py-2 rounded-md text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors ml-2 whitespace-nowrap">
@@ -281,15 +290,23 @@
                                             </select>
                                         </div>
 
-                                        <!-- Doctor -->
+                                        <!-- Doctor / Vendedor -->
                                         <div class="md:col-span-6">
                                             <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Doctor /
                                                 Vendedor</label>
-                                            <select v-model="newDetail.doctor_id" :disabled="isDoctor"
+                                            <select v-model="newDetail.assignedTo" :disabled="isDoctor"
                                                 class="input-clean bg-white h-10 border-gray-200 w-full text-sm rounded-lg disabled:bg-gray-100 disabled:text-gray-500">
-                                                <option value="" v-if="!isDoctor">-- Venta de Recepción --</option>
-                                                <option v-for="d in doctores" :key="d.id" :value="d.id">👨‍⚕️ {{
-                                                    d.nombres }} {{ d.apellidos }}</option>
+                                                <option value="">-- Sin Asignar --</option>
+                                                <optgroup label="👨‍⚕️ Doctores">
+                                                    <option v-for="d in doctores" :key="'doc_'+d.id" :value="'doc_'+d.id">
+                                                        {{ d.nombres }} {{ d.apellidos }}
+                                                    </option>
+                                                </optgroup>
+                                                <optgroup label="👤 Vendedor / Recepción" v-if="vendedores.length > 0">
+                                                    <option v-for="v in vendedores" :key="'usr_'+v.id" :value="'usr_'+v.id">
+                                                        {{ v.username }}
+                                                    </option>
+                                                </optgroup>
                                             </select>
                                         </div>
 
@@ -368,6 +385,12 @@
                                                         class="text-blue-500 hover:text-blue-700 transition mr-2"
                                                         title="Editar">
                                                         ✎
+                                                    </button>
+                                                    <button v-if="!atencion.validado && !isDoctor"
+                                                        @click="deleteDetalle(d)"
+                                                        class="text-red-400 hover:text-red-600 transition"
+                                                        title="Eliminar tratamiento">
+                                                        🗑
                                                     </button>
                                                 </td>
                                             </tr>
@@ -494,7 +517,7 @@
                     <!-- Botones de Acción Finales -->
                     <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end gap-4 items-center"
                         v-if="atencion && !atencion.validado">
-                        <button v-if="!isDoctor" @click="eliminarAtencion"
+                        <button v-if="isAdmin" @click="eliminarAtencion"
                             class="bg-white border border-red-200 text-red-600 px-6 py-3 rounded-xl hover:bg-red-50 hover:border-red-300 font-bold transition shadow-sm">
                             Eliminar Atención
                         </button>
@@ -534,10 +557,11 @@
                 const atencion = ref(null);
                 const tratamientos = ref([]);
                 const doctores = ref([]);
+                const vendedores = ref([]);
                 const loading = ref(true);
                 const newDetail = ref({
                     tratamiento_id: '',
-                    doctor_id: '',
+                    assignedTo: '',
                     precio: 0,
                     comision: 0
                 });
@@ -553,9 +577,31 @@
 
                 const role = localStorage.getItem('role') || 'admin';
                 const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD');
+                const currentUser = ref(localStorage.getItem('full_name') || localStorage.getItem('username') || 'Usuario');
                 const isDoctor = computed(() => role === 'doctor');
+                const isAdmin = computed(() => role === 'admin');
                 const loggedInDoctorId = ref(localStorage.getItem('user_id'));
                 const savingNotes = ref(false);
+
+                const token = localStorage.getItem('token');
+                if (!token) window.location.href = '/login';
+                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+                axios.interceptors.response.use(
+                    response => response,
+                    error => {
+                        if (error.response?.status === 401) {
+                            localStorage.removeItem('token');
+                            Swal.fire({
+                                title: 'Sesión expirada',
+                                text: 'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+                                icon: 'warning',
+                                confirmButtonText: 'Ir al login'
+                            }).then(() => { window.location.href = '/login'; });
+                        }
+                        return Promise.reject(error);
+                    }
+                );
 
                 let syncTimeout = null;
 
@@ -578,7 +624,7 @@
                         };
 
                         const totalPaid = payload.efectivo + payload.transferencia + payload.tarjeta + payload.abono;
-                        const totalDue = atencion.value?.totales?.total_atencion || 0;
+                        const totalDue = Number(atencion.value?.totales?.total_atencion) || 0;
 
                         if (totalPaid > totalDue + 0.01 && totalDue > 0) {
                             const surplus = totalPaid - totalDue;
@@ -624,10 +670,40 @@
 
                         await loadData();
                     } catch (error) {
+                        if (error.response?.status === 409) {
+                            const monto = (payload.efectivo + payload.transferencia + payload.tarjeta).toFixed(2);
+                            const res = await Swal.fire({
+                                title: 'No hay tratamientos en la hoja de cargo',
+                                html: `<p class="mb-2">El pago de <strong>$${monto}</strong> no tiene un tratamiento asociado.</p>
+                                       <p class="text-sm text-gray-500">¿Qué deseas hacer?</p>`,
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: '💳 Registrar como abono',
+                                cancelButtonText: '↩ Agregar tratamiento primero',
+                                confirmButtonColor: '#3b82f6',
+                                cancelButtonColor: '#6b7280',
+                            });
+
+                            payments.value.efectivo = 0;
+                            payments.value.transferencia = 0;
+                            payments.value.tarjeta = 0;
+
+                            if (res.isConfirmed) {
+                                try {
+                                    payload.confirmar_abono = true;
+                                    await axios.post(`/api/atenciones/${atencionId}/pagos/sync`, payload);
+                                    Swal.fire({ title: 'Registrado como abono', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+                                } catch (e) {
+                                    Swal.fire({ title: 'Error al registrar abono', text: e.response?.data?.detail || 'Intenta de nuevo', icon: 'error', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                                }
+                            }
+                            await loadData();
+                            return;
+                        }
                         console.error('Error auto-guardando pagos', error);
                         Swal.fire({
                             title: 'Error de Pago',
-                            text: 'El monto excede el saldo o hay un error de conexión.',
+                            text: error.response?.data?.detail || 'El monto excede el saldo o hay un error de conexión.',
                             icon: 'error',
                             toast: true,
                             position: 'top-end',
@@ -652,20 +728,18 @@
                 };
 
                 const loadData = async () => {
-                    const token = localStorage.getItem('token');
-                    if (!token) window.location.href = '/login';
-                    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
                     try {
-                        const [resAtencion, resTratamientos, resDoctores] = await Promise.all([
+                        const [resAtencion, resTratamientos, resDoctores, resVendedores] = await Promise.all([
                             axios.get(`/api/atenciones/${atencionId}`),
                             axios.get('/api/tratamientos'),
-                            axios.get('/api/doctores')
+                            axios.get('/api/doctores'),
+                            axios.get('/api/vendedores')
                         ]);
 
                         atencion.value = resAtencion.data;
                         tratamientos.value = resTratamientos.data;
                         doctores.value = resDoctores.data;
+                        vendedores.value = resVendedores.data;
 
                         if (atencion.value.pagos) {
                             payments.value.efectivo = atencion.value.pagos.find(p => p.forma_pago === 'EF')?.monto || 0;
@@ -687,9 +761,12 @@
                 const startEditing = (detail) => {
                     editingDetailId.value = detail.id;
                     const t = tratamientos.value.find(x => x.nombre_tratamiento === detail.nombre_tratamiento || x.id === detail.tratamiento_id);
+                    let assignedTo = '';
+                    if (detail.doctor_id) assignedTo = `doc_${detail.doctor_id}`;
+                    else if (detail.vendedor_id) assignedTo = `usr_${detail.vendedor_id}`;
                     newDetail.value = {
                         tratamiento_id: t ? t.id : detail.tratamiento_id,
-                        doctor_id: detail.doctor_id || '',
+                        assignedTo,
                         precio: parseFloat(detail.total || detail.precio_final || detail.precio_base || 0),
                         comision: detail.porcentaje_comision || 0
                     };
@@ -697,7 +774,7 @@
 
                 const cancelEditing = () => {
                     editingDetailId.value = null;
-                    newDetail.value = { tratamiento_id: '', doctor_id: '', precio: 0, comision: 0 };
+                    newDetail.value = { tratamiento_id: '', assignedTo: '', precio: 0, comision: 0 };
                 };
 
                 const updatePrice = () => {
@@ -715,21 +792,60 @@
                         return;
                     }
 
-                    const docId = newDetail.value.doctor_id || null;
+                    const assigned = newDetail.value.assignedTo || '';
+                    let docId = null, vendorId = null;
+                    if (assigned.startsWith('doc_')) docId = parseInt(assigned.split('_')[1]);
+                    else if (assigned.startsWith('usr_')) vendorId = parseInt(assigned.split('_')[1]);
+
                     const precio = parseFloat(newDetail.value.precio) || 0;
                     const comision = parseFloat(newDetail.value.comision) || 0;
+                    const doctorParam = docId ? `&doctor_id=${docId}` : '';
+                    const vendedorParam = vendorId ? `&vendedor_id=${vendorId}` : '';
 
                     try {
                         if (editingDetailId.value) {
-                            await axios.put(`/api/atenciones/${atencionId}/detalles/${editingDetailId.value}?tratamiento_id=${newDetail.value.tratamiento_id}&doctor_id=${docId || ''}&precio=${precio}&comision=${comision}`);
+                            await axios.put(`/api/detalles/${editingDetailId.value}`, {
+                                tratamiento_id: newDetail.value.tratamiento_id,
+                                doctor_id: docId,
+                                vendedor_id: vendorId,
+                                precio,
+                                comision
+                            });
                             Swal.fire('Éxito', 'Detalle editado correctamente', 'success');
                         } else {
-                            await axios.post(`/api/atenciones/${atencionId}/detalles?tratamiento_id=${newDetail.value.tratamiento_id}&doctor_id=${docId || ''}&precio=${precio}&comision=${comision}`);
+                            await axios.post(`/api/atenciones/${atencionId}/detalles?tratamiento_id=${newDetail.value.tratamiento_id}${doctorParam}${vendedorParam}&precio=${precio}&comision=${comision}`);
                         }
                         await loadData();
                         cancelEditing();
                     } catch (error) {
-                        Swal.fire('Error', 'Error al guardar el tratamiento', 'error');
+                        const msg = error.response?.data?.detail || error.message || 'Error al guardar el tratamiento';
+                        Swal.fire('Error', typeof msg === 'object' ? JSON.stringify(msg) : msg, 'error');
+                    }
+                };
+
+                const deleteDetalle = async (detalle) => {
+                    const { isConfirmed } = await Swal.fire({
+                        title: '¿Eliminar tratamiento?',
+                        html: `<p>¿Confirmas eliminar <b>${detalle.nombre_tratamiento}</b>?</p>
+                               <p class="text-sm text-gray-500 mt-1">Si hay pagos asociados quedarán como abono en la billetera del paciente.</p>`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#ef4444',
+                    });
+                    if (!isConfirmed) return;
+
+                    try {
+                        await axios.delete(`/api/detalles/${detalle.id}?accion=dejar_abono`);
+                        await loadData();
+                        Swal.fire({ title: 'Listo', text: 'Tratamiento eliminado', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 2500 });
+                    } catch (error) {
+                        if (error.response?.status !== 401) {
+                            const status = error.response?.status ?? 'sin respuesta';
+                            const detail = error.response?.data?.detail ?? error.message ?? 'Error desconocido';
+                            Swal.fire('Error ' + status, detail, 'error');
+                        }
                     }
                 };
 
@@ -801,10 +917,10 @@
                 });
 
                 return {
-                    atencion, tratamientos, doctores, loading,
-                    newDetail, payments, role, sucursalNombre, isDoctor,
+                    atencion, tratamientos, doctores, vendedores, loading,
+                    newDetail, payments, role, sucursalNombre, currentUser, isDoctor, isAdmin,
                     savingNotes, editingDetailId,
-                    startEditing, cancelEditing, updatePrice, addDetail,
+                    startEditing, cancelEditing, updatePrice, addDetail, deleteDetalle,
                     eliminarAtencion, debouncedSync, debouncedNoteSave,
                     terminarConsulta, guardarYSalir,
                     totalPagado, porPagar, remainingWalletBalance, currentPatientBalance,
