@@ -851,45 +851,6 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
         
     return results_data
 
-@app.get("/api/admin/ver-abonos-test")
-def ver_abonos_test(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Temporal: lista todos los HistorialAbono recientes"""
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Solo admin")
-    abonos = session.exec(
-        select(HistorialAbono)
-        .order_by(HistorialAbono.fecha.desc())
-        .limit(20)
-    ).all()
-    resultado = []
-    for a in abonos:
-        paciente = session.get(Paciente, a.paciente_id)
-        resultado.append({
-            "id": a.id,
-            "paciente": f"{paciente.nombres} {paciente.apellidos}" if paciente else "?",
-            "saldo_favor_actual": float(paciente.saldo_favor) if paciente else 0,
-            "fecha": str(a.fecha),
-            "monto": float(a.monto),
-            "metodo": a.metodo_pago,
-            "atencion_id": a.atencion_id
-        })
-    return resultado
-
-@app.delete("/api/admin/limpiar-abonos-test")
-def limpiar_abonos_test(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Temporal: elimina abono id=27 de Tatiana Chasiluisa y ajusta saldo"""
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Solo admin")
-    abono = session.get(HistorialAbono, 27)
-    if not abono:
-        return {"message": "Abono id=27 no encontrado"}
-    paciente = session.get(Paciente, abono.paciente_id)
-    if paciente:
-        paciente.saldo_favor -= abono.monto
-        session.add(paciente)
-    session.delete(abono)
-    session.commit()
-    return {"eliminado": f"{paciente.nombres if paciente else '?'} - ${abono.monto}", "nuevo_saldo": float(paciente.saldo_favor) if paciente else 0}
 
 @app.delete("/api/admin/nuke-pacientes")
 def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
