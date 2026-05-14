@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuadre Diario - Clínica HD</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #c8d3dc; color: #111827; font-size: 13px; line-height: 1.5; }
+
+        .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 30; height: 52px; display: flex; align-items: center; padding: 0 24px; gap: 16px; }
+        .topbar-brand { font-size: 15px; font-weight: 700; color: #1e40af; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .topbar-brand img { height: 30px; }
+        .nav { display: flex; gap: 2px; align-items: center; overflow-x: auto; }
+        .nav a { padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: 500; color: #6b7280; text-decoration: none; white-space: nowrap; }
+        .nav a:hover { background: #f3f4f6; color: #111827; }
+        .nav a.active { background: #eff6ff; color: #1d4ed8; }
+        .nav a.exit { color: #dc2626; margin-left: 6px; }
+        .nav-user { display: flex; align-items: center; gap: 6px; margin-left: auto; padding-left: 12px; border-left: 1px solid #e5e7eb; flex-shrink: 0; }
+        .nav-user span { font-size: 12px; font-weight: 500; color: #374151; white-space: nowrap; }
+
+        .page { max-width: 1300px; margin: 0 auto; padding: 20px 24px 48px; }
+
+        .section { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 16px; }
+        .section-head { padding: 11px 18px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; min-height: 42px; }
+        .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #374151; }
+        .section-desc { font-size: 11px; color: #9ca3af; }
+        .section-body { padding: 0 18px 14px; }
+
+        .filter-bar { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 18px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+        .filter-group label { display: block; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+        input[type=date], select { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 9px; font-size: 12px; outline: none; background: #fff; color: #374151; font-family: inherit; height: 32px; }
+        input[type=date]:focus, select:focus { border-color: #6366f1; }
+
+        .btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 14px; height: 32px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #d1d5db; background: #fff; color: #374151; font-family: inherit; transition: background .12s; white-space: nowrap; }
+        .btn:hover { background: #f9fafb; }
+        .btn-primary { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-primary:disabled { opacity: .5; cursor: default; }
+        .btn-caja { background: #1e40af; color: #fff; border-color: #1e40af; }
+        .btn-caja:hover { background: #1e3a8a; }
+
+        .summary-bar { display: flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 16px; background: #fff; flex-wrap: wrap; }
+        .sc { flex: 1; min-width: 120px; padding: 14px 20px; border-right: 1px solid #e5e7eb; }
+        .sc:last-child { border-right: none; }
+        .sc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; margin-bottom: 4px; }
+        .sc-value { font-size: 22px; font-weight: 800; color: #111827; line-height: 1.2; }
+        .sc-sub { font-size: 11px; color: #d1d5db; margin-top: 3px; }
+
+        .dt { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .dt th { padding: 10px 8px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+        .dt th.r, .dt td.r { text-align: right; }
+        .dt th.c, .dt td.c { text-align: center; }
+        .dt td { padding: 9px 8px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+        .dt tbody tr:last-child td { border-bottom: none; }
+        .dt tfoot td { padding: 10px 8px 8px; border-top: 2px solid #e5e7eb; border-bottom: none; font-weight: 700; color: #111827; }
+
+        .badge { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; background: #f3f4f6; color: #374151; }
+        .badge-ok   { background: #d1fae5; color: #065f46; }
+        .badge-warn { background: #fef3c7; color: #92400e; }
+        .empty { padding: 28px 0; text-align: center; color: #9ca3af; font-size: 13px; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { width: 13px; height: 13px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+<div id="app">
+
+    <header class="topbar">
+        <div class="topbar-brand">
+            <img src="/static/logo.png" alt="Clínica HD">
+            {{ sucursalNombre }}
+        </div>
+        <nav class="nav">
+            <a href="/recepcion">Recepción</a>
+            <a href="/static/pagos.html">CxC / Abonos</a>
+            <a href="/cuadre" class="active">Cuadre Diario</a>
+            <a v-if="role !== 'doctor'" href="/gastos">Gastos</a>
+            <a v-if="role !== 'doctor'" href="/admin">Administración</a>
+            <a v-if="role !== 'doctor'" href="/admin/paciente/list">Pacientes</a>
+            <a v-if="role !== 'doctor'" href="/static/reportes.html">Reportes</a>
+            <a href="/recepcion/historial">Historial</a>
+            <a v-if="role !== 'doctor'" href="/admin/insumo/list">Mantenimiento</a>
+        </nav>
+        <div class="nav-user">
+            <svg style="width:16px;height:16px;color:#6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            <span>{{ currentUser }}</span>
+            <a href="#" @click.prevent="logout" class="nav exit" style="margin-left:4px;">Salir</a>
+        </div>
+    </header>
+
+    <div class="page">
+
+        <div style="margin-bottom:16px;">
+            <h1 style="font-size:18px; font-weight:700; color:#111827;">Cuadre Diario</h1>
+            <p style="font-size:12px; color:#6b7280; margin-top:2px;">
+                Detalle de cobros por hoja de cargo. EF + TR + TC = dinero físico recibido. AB = saldo de billetera usado (recibido en días anteriores).
+            </p>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>Fecha inicio</label>
+                <input type="date" v-model="startDate">
+            </div>
+            <div class="filter-group">
+                <label>Fecha fin</label>
+                <input type="date" v-model="endDate">
+            </div>
+            <button class="btn btn-primary" @click="loadCuadre" :disabled="isLoading">
+                <div v-if="isLoading" class="spin"></div>
+                {{ isLoading ? 'Cargando...' : 'Generar' }}
+            </button>
+            <button v-if="data.real_caja" class="btn btn-caja" @click="verTotalRealCaja">
+                📊 Total Real de Caja
+            </button>
+        </div>
+
+        <!-- Tarjetas resumen -->
+        <div v-if="data.totales" class="summary-bar">
+            <div class="sc">
+                <div class="sc-label">Efectivo</div>
+                <div class="sc-value" style="color:#059669;">${{ fmt(data.totales.efectivo) }}</div>
+                <div class="sc-sub">Dinero físico</div>
+            </div>
+            <div class="sc">
+                <div class="sc-label">Transferencia</div>
+                <div class="sc-value" style="color:#2563eb;">${{ fmt(data.totales.transferencia) }}</div>
+                <div class="sc-sub">Dinero físico</div>
+            </div>
+            <div class="sc">
+                <div class="sc-label">Tarjeta</div>
+                <div class="sc-value" style="color:#7c3aed;">${{ fmt(data.totales.tarjeta) }}</div>
+                <div class="sc-sub">Dinero físico</div>
+            </div>
+            <div class="sc">
+                <div class="sc-label">Abono Usado</div>
+                <div class="sc-value" style="color:#d97706;">${{ fmt(data.totales.abono_usado) }}</div>
+                <div class="sc-sub">De billetera</div>
+            </div>
+            <div class="sc" style="background:#f0fdf4;">
+                <div class="sc-label" style="color:#059669;">Total Físico</div>
+                <div class="sc-value" style="color:#059669; font-size:26px;">${{ fmt(data.totales.total_fisico) }}</div>
+                <div class="sc-sub">EF + TR + TC</div>
+            </div>
+            <div class="sc">
+                <div class="sc-label">Total Cobrado</div>
+                <div class="sc-value">${{ fmt(data.totales.total_cobrado) }}</div>
+                <div class="sc-sub">Incl. abono</div>
+            </div>
+        </div>
+
+        <!-- Tabla hojas de cargo -->
+        <div class="section">
+            <div class="section-head">
+                <span class="section-title">Detalle por Hoja de Cargo</span>
+                <span class="section-desc">{{ data.filas?.length || 0 }} atenciones</span>
+            </div>
+            <div class="section-body" style="overflow-x:auto;">
+                <table class="dt">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Paciente</th>
+                            <th class="c">HC</th>
+                            <th class="r">Total Trat.</th>
+                            <th class="r" style="color:#059669;">Efectivo</th>
+                            <th class="r" style="color:#2563eb;">Transf.</th>
+                            <th class="r" style="color:#7c3aed;">Tarjeta</th>
+                            <th class="r" style="color:#d97706;">Abono</th>
+                            <th class="r">Total Cobrado</th>
+                            <th class="r">Pendiente</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="f in data.filas || []" :key="f.atencion_id">
+                            <td style="white-space:nowrap; color:#6b7280; font-size:12px;">{{ f.fecha }}</td>
+                            <td style="font-weight:500;">{{ f.paciente }}</td>
+                            <td class="c" style="color:#6b7280; font-size:12px;">{{ f.historia_clinica }}</td>
+                            <td class="r">${{ fmt(f.total_tratamiento) }}</td>
+                            <td class="r" style="color:#059669; font-weight:600;">${{ fmt(f.efectivo) }}</td>
+                            <td class="r" style="color:#2563eb; font-weight:600;">${{ fmt(f.transferencia) }}</td>
+                            <td class="r" style="color:#7c3aed; font-weight:600;">${{ fmt(f.tarjeta) }}</td>
+                            <td class="r" style="color:#d97706; font-weight:600;">${{ fmt(f.abono_usado) }}</td>
+                            <td class="r" style="font-weight:700;">${{ fmt(f.total_cobrado) }}</td>
+                            <td class="r">
+                                <span :class="f.saldo_pendiente > 0.01 ? 'badge badge-warn' : 'badge badge-ok'">
+                                    ${{ fmt(f.saldo_pendiente) }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr v-if="!data.filas?.length">
+                            <td colspan="10" class="empty">Sin datos — selecciona una fecha y presiona Generar</td>
+                        </tr>
+                    </tbody>
+                    <tfoot v-if="data.filas?.length">
+                        <tr>
+                            <td colspan="3" style="font-weight:700;">TOTALES</td>
+                            <td class="r">${{ fmt(data.totales?.total_tratamiento) }}</td>
+                            <td class="r" style="color:#059669;">${{ fmt(data.totales?.efectivo) }}</td>
+                            <td class="r" style="color:#2563eb;">${{ fmt(data.totales?.transferencia) }}</td>
+                            <td class="r" style="color:#7c3aed;">${{ fmt(data.totales?.tarjeta) }}</td>
+                            <td class="r" style="color:#d97706;">${{ fmt(data.totales?.abono_usado) }}</td>
+                            <td class="r">${{ fmt(data.totales?.total_cobrado) }}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Abonos generados -->
+        <div class="section" v-if="data.abonos_generados?.length">
+            <div class="section-head">
+                <span class="section-title">Abonos Generados (Nuevo dinero a Billeteras)</span>
+                <span class="section-desc">Sobrepagos o recargas directas que acreditaron saldo a pacientes</span>
+            </div>
+            <div class="section-body" style="overflow-x:auto;">
+                <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
+                    <div v-for="(monto, metodo) in data.abonos_por_metodo || {}" :key="metodo"
+                        style="background:#fef9ec; border:1px solid #fde68a; border-radius:6px; padding:8px 16px; min-width:130px;">
+                        <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#92400e; margin-bottom:2px;">{{ metodo }}</div>
+                        <div style="font-size:18px; font-weight:800; color:#d97706;">${{ fmt(monto) }}</div>
+                    </div>
+                    <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:8px 16px; min-width:130px;">
+                        <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#c2410c; margin-bottom:2px;">Total</div>
+                        <div style="font-size:18px; font-weight:800; color:#ea580c;">${{ fmt(data.total_abonos_generados) }}</div>
+                    </div>
+                </div>
+                <table class="dt">
+                    <thead>
+                        <tr>
+                            <th>Fecha / Hora</th>
+                            <th>Paciente</th>
+                            <th>Método</th>
+                            <th class="r">Monto Acreditado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(ab, i) in data.abonos_generados" :key="i">
+                            <td style="color:#6b7280; font-size:12px; white-space:nowrap;">{{ ab.fecha }}</td>
+                            <td style="font-weight:500;">{{ ab.paciente }}</td>
+                            <td><span class="badge">{{ ab.metodo }}</span></td>
+                            <td class="r" style="font-weight:700; color:#d97706;">${{ fmt(ab.monto) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted } = Vue
+
+    createApp({
+        setup() {
+            const token = localStorage.getItem('token')
+            if (!token) window.location.href = '/login'
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+            axios.interceptors.response.use(
+                r => r,
+                err => {
+                    if (err.response?.status === 401) {
+                        localStorage.removeItem('token')
+                        window.location.href = '/login'
+                    }
+                    return Promise.reject(err)
+                }
+            )
+
+            const role = ref(localStorage.getItem('role') || 'recepcion')
+            const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD')
+            const currentUser = ref(localStorage.getItem('full_name') || localStorage.getItem('username') || 'Usuario')
+            const logout = () => { localStorage.clear(); window.location.href = '/login' }
+
+            const today = new Date().toISOString().split('T')[0]
+            const startDate   = ref(today)
+            const endDate     = ref(today)
+            const data        = ref({ filas: [], totales: null, abonos_generados: [], abonos_normalizados: {}, total_abonos_generados: 0, real_caja: null })
+            const isLoading   = ref(false)
+
+            const fmt = (v) => Number(v || 0).toFixed(2)
+
+            const loadCuadre = async () => {
+                isLoading.value = true
+                try {
+                    const params = {}
+                    if (startDate.value) params.start_date = startDate.value
+                    if (endDate.value)   params.end_date   = endDate.value
+                    const res = await axios.get('/api/reportes/cuadre-diario', { params })
+                    data.value = res.data
+                } catch (err) {
+                    console.error(err)
+                } finally {
+                    isLoading.value = false
+                }
+            }
+
+            const verTotalRealCaja = () => {
+                const rc = data.value.real_caja
+                if (!rc) return
+                const periodo = startDate.value === endDate.value
+                    ? startDate.value
+                    : `${startDate.value} al ${endDate.value}`
+
+                const row = (label, d, bold) => `
+                    <tr style="${bold ? 'font-weight:700; border-top:2px solid #374151;' : ''}">
+                        <td style="padding:8px 12px; text-align:left;">${label}</td>
+                        <td style="padding:8px 12px; text-align:right; color:#059669;">$${fmt(d.tratamiento)}</td>
+                        <td style="padding:8px 12px; text-align:right; color:#d97706;">$${fmt(d.abono)}</td>
+                        <td style="padding:8px 12px; text-align:right; font-weight:700;">$${fmt(d.total)}</td>
+                    </tr>`
+
+                const ef = rc.efectivo, tr = rc.transferencia, tc = rc.tarjeta, gt = rc.gran_total
+
+                const html = `
+                    <p style="font-size:12px; color:#6b7280; margin-bottom:12px;">Período: <strong>${periodo}</strong></p>
+                    <table style="width:100%; border-collapse:collapse; font-size:13px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
+                        <thead style="background:#f3f4f6;">
+                            <tr>
+                                <th style="padding:8px 12px; text-align:left; font-size:11px; text-transform:uppercase; color:#6b7280;">Método</th>
+                                <th style="padding:8px 12px; text-align:right; font-size:11px; text-transform:uppercase; color:#059669;">Pago Tratamiento</th>
+                                <th style="padding:8px 12px; text-align:right; font-size:11px; text-transform:uppercase; color:#d97706;">Abono Realizado</th>
+                                <th style="padding:8px 12px; text-align:right; font-size:11px; text-transform:uppercase; color:#374151;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${row('Efectivo', ef, false)}
+                            ${row('Transferencia', tr, false)}
+                            ${row('Tarjeta / TC', tc, false)}
+                            ${row('TOTAL', gt, true)}
+                        </tbody>
+                    </table>
+                    <div style="margin-top:14px; font-size:12px; color:#374151; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; padding:10px 14px; text-align:left; line-height:1.8;">
+                        <strong>Efectivo:</strong> $${fmt(ef.total)} en total —
+                            $${fmt(ef.tratamiento)} de tratamientos y $${fmt(ef.abono)} destinados a billetera.<br>
+                        <strong>Transferencia:</strong> $${fmt(tr.total)} en total —
+                            $${fmt(tr.tratamiento)} de tratamientos y $${fmt(tr.abono)} destinados a billetera.<br>
+                        <strong>Tarjeta / TC:</strong> $${fmt(tc.total)} en total —
+                            $${fmt(tc.tratamiento)} de tratamientos y $${fmt(tc.abono)} destinados a billetera.
+                    </div>`
+
+                Swal.fire({
+                    title: '📊 Total Real de Caja',
+                    html,
+                    width: '600px',
+                    confirmButtonText: 'Cerrar',
+                    confirmButtonColor: '#1e40af',
+                    showClass: { popup: '' },
+                })
+            }
+
+            onMounted(() => loadCuadre())
+
+            return {
+                role, sucursalNombre, currentUser, logout,
+                startDate, endDate, data, isLoading, fmt,
+                loadCuadre, verTotalRealCaja
+            }
+        }
+    }).mount('#app')
+</script>
+</body>
+</html>

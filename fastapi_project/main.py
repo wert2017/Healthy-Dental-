@@ -270,6 +270,10 @@ def imprimir_atencion_page(atencion_id: int):
 def gastos_page():
     return FileResponse("static/gastos.html")
 
+@app.get("/cuadre", response_class=HTMLResponse)
+def cuadre_page():
+    return FileResponse("static/cuadre.html")
+
 @app.get("/admin/inventario", response_class=HTMLResponse)
 def admin_inventario_page():
     return FileResponse("static/inventario.html") 

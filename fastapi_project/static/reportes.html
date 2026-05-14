@@ -134,7 +134,6 @@
 
         <!-- TABS -->
         <div class="tabs">
-            <button class="tab-btn" :class="{ active: tab === 'cuadre' }" @click="tab = 'cuadre'">Cuadre Diario</button>
             <button class="tab-btn" :class="{ active: tab === 'doctores' }" @click="tab = 'doctores'">Doctores</button>
             <button class="tab-btn" :class="{ active: tab === 'resultados' }" @click="tab = 'resultados'">Resultados</button>
             <button class="tab-btn" :class="{ active: tab === 'tratamientos' }" @click="tab = 'tratamientos'">Tratamientos en Curso</button>
@@ -663,7 +662,7 @@
             const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD')
             const logout = () => { localStorage.clear(); window.location.href = '/login' }
 
-            const tab = ref('cuadre')
+            const tab = ref('doctores')
 
             // Doctor report
             const docStartDate    = ref('')
