@@ -129,33 +129,42 @@
         <div v-if="data.totales" class="summary-bar">
             <div class="sc">
                 <div class="sc-label">Efectivo</div>
-                <div class="sc-value" style="color:#059669;">${{ fmt(data.totales.efectivo) }}</div>
-                <div class="sc-sub">Dinero físico</div>
+                <div class="sc-value" style="color:#059669;">${{ fmt(data.real_caja?.efectivo?.total ?? data.totales.efectivo) }}</div>
+                <div class="sc-sub" style="color:#059669;">
+                    Trat: ${{ fmt(data.totales.efectivo) }}
+                    <span v-if="data.real_caja?.efectivo?.abono > 0"> + Abono: ${{ fmt(data.real_caja.efectivo.abono) }}</span>
+                </div>
             </div>
             <div class="sc">
                 <div class="sc-label">Transferencia</div>
-                <div class="sc-value" style="color:#2563eb;">${{ fmt(data.totales.transferencia) }}</div>
-                <div class="sc-sub">Dinero físico</div>
+                <div class="sc-value" style="color:#2563eb;">${{ fmt(data.real_caja?.transferencia?.total ?? data.totales.transferencia) }}</div>
+                <div class="sc-sub" style="color:#2563eb;">
+                    Trat: ${{ fmt(data.totales.transferencia) }}
+                    <span v-if="data.real_caja?.transferencia?.abono > 0"> + Abono: ${{ fmt(data.real_caja.transferencia.abono) }}</span>
+                </div>
             </div>
             <div class="sc">
                 <div class="sc-label">Tarjeta</div>
-                <div class="sc-value" style="color:#7c3aed;">${{ fmt(data.totales.tarjeta) }}</div>
-                <div class="sc-sub">Dinero físico</div>
+                <div class="sc-value" style="color:#7c3aed;">${{ fmt(data.real_caja?.tarjeta?.total ?? data.totales.tarjeta) }}</div>
+                <div class="sc-sub" style="color:#7c3aed;">
+                    Trat: ${{ fmt(data.totales.tarjeta) }}
+                    <span v-if="data.real_caja?.tarjeta?.abono > 0"> + Abono: ${{ fmt(data.real_caja.tarjeta.abono) }}</span>
+                </div>
             </div>
             <div class="sc">
                 <div class="sc-label">Abono Usado</div>
                 <div class="sc-value" style="color:#d97706;">${{ fmt(data.totales.abono_usado) }}</div>
-                <div class="sc-sub">De billetera</div>
+                <div class="sc-sub">De billetera paciente</div>
             </div>
             <div class="sc" style="background:#f0fdf4;">
-                <div class="sc-label" style="color:#059669;">Total Físico</div>
-                <div class="sc-value" style="color:#059669; font-size:26px;">${{ fmt(data.totales.total_fisico) }}</div>
-                <div class="sc-sub">EF + TR + TC</div>
+                <div class="sc-label" style="color:#059669;">Total Físico Real</div>
+                <div class="sc-value" style="color:#059669; font-size:26px;">${{ fmt(data.real_caja?.gran_total?.total ?? data.totales.total_fisico) }}</div>
+                <div class="sc-sub">EF + TR + TC (incl. abonos generados)</div>
             </div>
             <div class="sc">
                 <div class="sc-label">Total Cobrado</div>
-                <div class="sc-value">${{ fmt(data.totales.total_cobrado) }}</div>
-                <div class="sc-sub">Incl. abono</div>
+                <div class="sc-value">${{ fmt((data.real_caja?.gran_total?.total ?? data.totales.total_fisico) + data.totales.abono_usado) }}</div>
+                <div class="sc-sub">Físico + abono usado</div>
             </div>
         </div>
 
