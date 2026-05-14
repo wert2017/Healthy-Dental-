@@ -67,84 +67,74 @@
     <div id="app">
         <!-- Header Unificado -->
         <header class="bg-white shadow-sm border-b border-gray-200 mb-8 sticky top-0 z-30">
-            <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-                <!-- Logo -->
-                <div class="flex-shrink-0 flex items-center gap-4">
-                    <img src="/static/logo.png" alt="Logo Clínica HD" class="h-10 w-auto">
-                    <h1
-                        class="text-sm font-semibold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
-                        {{ sucursalNombre }}
-                    </h1>
-                </div>
-
-                <div class="flex items-center gap-1 overflow-x-auto">
-                    <!-- Recepción -->
-                    <a href="/recepcion"
-                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/recepcion') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Recepción
-                    </a>
-                    <!-- CxC / Abonos -->
-                    <a href="/static/pagos.html"
-                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/static/pagos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        CxC / Abonos
-                    </a>
-                    <!-- Cuadre Diario -->
-                    <a v-if="role !== 'doctor'" href="/cuadre"
-                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/cuadre') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Cuadre Diario
-                    </a>
-                    <!-- Gastos -->
-                    <a v-if="role !== 'doctor'" href="/gastos"
-                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/gastos') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Gastos
-                    </a>
-                    <!-- Administración -->
-                    <a v-if="role !== 'doctor'" href="/admin"
-                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/admin') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Administración
-                    </a>
-                    <!-- Pacientes -->
-                    <a v-if="role !== 'doctor'" href="/admin/paciente/list"
-                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/admin/paciente/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Pacientes
-                    </a>
-                    <!-- Reportes -->
-                    <a v-if="role !== 'doctor'" href="/static/reportes.html"
-                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/static/reportes.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Reportes
-                    </a>
-                    <!-- Historial -->
-                    <a href="/recepcion/historial"
-                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/recepcion/historial') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Historial
-                    </a>
-                    <!-- Inventario -->
-                    <a v-if="role !== 'doctor'" href="/admin/insumo/list"
-                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/admin/insumo/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Mantenimiento
-                    </a>
-                    <!-- Usuario activo -->
-                    <div class="flex items-center gap-2 ml-3 pl-3 border-l border-gray-200">
-                        <div class="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
-                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+                <!-- Fila 1: Logo + Usuario + Salir -->
+                <div class="flex justify-between items-center h-12 border-b border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <img src="/static/logo.png" alt="Logo Clínica HD" class="h-8 w-auto">
+                        <h1 class="text-sm font-semibold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
+                            {{ sucursalNombre }}
+                        </h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                             </svg>
                         </div>
-                        <span class="text-sm font-medium text-gray-700 whitespace-nowrap">{{ currentUser }}</span>
+                        <span class="text-sm font-medium text-gray-700">{{ currentUser }}</span>
+                        <a href="#" @click.prevent="logout"
+                            class="ml-2 px-3 py-1 rounded-md text-xs font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors">
+                            Salir
+                        </a>
                     </div>
-                    <!-- Salir -->
-                    <a href="#" @click.prevent="logout"
-                        class="px-3 py-2 rounded-md text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors ml-2 whitespace-nowrap">
-                        Salir
+                </div>
+                <!-- Fila 2: Navegación (wrap automático en dos filas si es necesario) -->
+                <div class="flex flex-wrap gap-x-1 gap-y-0.5 py-1.5">
+                    <a href="/recepcion"
+                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium"
+                        :class="isActive('/recepcion') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Recepción
+                    </a>
+                    <a href="/static/pagos.html"
+                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium"
+                        :class="isActive('/static/pagos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        CxC / Abonos
+                    </a>
+                    <a v-if="role !== 'doctor'" href="/cuadre"
+                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium"
+                        :class="isActive('/cuadre') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Cuadre Diario
+                    </a>
+                    <a v-if="role !== 'doctor'" href="/gastos"
+                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium"
+                        :class="isActive('/gastos') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Gastos
+                    </a>
+                    <a v-if="role !== 'doctor'" href="/admin"
+                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium"
+                        :class="isActive('/admin') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Administración
+                    </a>
+                    <a v-if="role !== 'doctor'" href="/admin/paciente/list"
+                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium"
+                        :class="isActive('/admin/paciente/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Pacientes
+                    </a>
+                    <a v-if="role !== 'doctor'" href="/static/reportes.html"
+                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium"
+                        :class="isActive('/static/reportes.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Reportes
+                    </a>
+                    <a href="/recepcion/historial"
+                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium"
+                        :class="isActive('/recepcion/historial') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Historial
+                    </a>
+                    <a v-if="role !== 'doctor'" href="/admin/insumo/list"
+                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium"
+                        :class="isActive('/admin/insumo/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Mantenimiento
                     </a>
                 </div>
             </div>
