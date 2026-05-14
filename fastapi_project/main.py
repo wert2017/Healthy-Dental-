@@ -3608,22 +3608,6 @@ def get_global_historial(page: int = 1, size: int = 50, session: Session = Depen
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/api/admin/limpiar-abonos-paciente")
-def limpiar_abonos_paciente(historia_clinica: str, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    if user.role != "admin":
-        raise HTTPException(status_code=403)
-    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica == historia_clinica)).first()
-    if not paciente:
-        raise HTTPException(status_code=404, detail="Paciente no encontrado")
-    abonos = session.exec(select(HistorialAbono).where(HistorialAbono.paciente_id == paciente.id)).all()
-    total = len(abonos)
-    for a in abonos:
-        session.delete(a)
-    paciente.saldo_favor = Decimal("0.00")
-    session.add(paciente)
-    session.commit()
-    return {"eliminados": total, "paciente": f"{paciente.nombres} {paciente.apellidos}", "saldo_favor": 0}
-
 
 @app.get("/recepcion/historial", response_class=HTMLResponse)
 def view_historial():
