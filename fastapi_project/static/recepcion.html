@@ -761,30 +761,39 @@
                 }
 
                 const crearAtencion = async (paciente) => {
-                    console.log('Iniciando crearAtencion...');
-                    console.log('Paciente Object:', paciente);
-
                     if (!paciente || !paciente.id) {
                         alert('Error CRÍTICO: Objeto paciente inválido o sin ID: ' + JSON.stringify(paciente));
                         return;
                     }
 
                     const pacienteId = paciente.id;
+                    let fechaParam = '';
+
+                    // Admin puede elegir una fecha pasada
+                    if (role.value === 'admin') {
+                        const hoy = new Date().toISOString().split('T')[0];
+                        const { value: fechaElegida, isConfirmed } = await Swal.fire({
+                            title: 'Fecha de la atención',
+                            html: `<input type="date" id="swal-fecha" class="swal2-input" value="${hoy}" max="${hoy}">`,
+                            confirmButtonText: 'Crear atención',
+                            showCancelButton: true,
+                            cancelButtonText: 'Cancelar',
+                            preConfirm: () => document.getElementById('swal-fecha').value
+                        });
+                        if (!isConfirmed) return;
+                        if (fechaElegida && fechaElegida !== hoy) {
+                            fechaParam = `&fecha=${fechaElegida}`;
+                        }
+                    }
 
                     try {
-                        console.log(`Enviando POST a /api/atenciones?paciente_id=${pacienteId}`);
-                        const res = await axios.post(`/api/atenciones?paciente_id=${pacienteId}`)
-                        console.log('Respuesta del servidor:', res);
-
+                        const res = await axios.post(`/api/atenciones?paciente_id=${pacienteId}${fechaParam}`)
                         if (res && res.data && res.data.id) {
-                            console.log('Redirigiendo a:', `/recepcion/editar/${res.data.id}`);
                             window.location.href = `/recepcion/editar/${res.data.id}`
                         } else {
-                            console.error('Respuesta inválida:', res);
-                            throw new Error('La respuesta del servidor no contiene un ID de atención válido. Data: ' + JSON.stringify(res?.data));
+                            throw new Error('Respuesta inválida del servidor: ' + JSON.stringify(res?.data));
                         }
                     } catch (error) {
-                        console.error('Error capturado en crearAtencion:', error);
                         Swal.fire('Error', 'Error al crear atención: ' + (error.response?.data?.detail || error.message), 'error');
                     }
                 }

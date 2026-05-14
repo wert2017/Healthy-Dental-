@@ -202,13 +202,27 @@
                         <div class="text-2xl font-bold text-gray-800">{{ atencion.paciente.nombres }} {{
                             atencion.paciente.apellidos }}</div>
                         <div class="text-sm text-gray-500 flex gap-4 mt-1">
-                            <span><span class="font-semibold">ID:</span> {{ atencion.paciente.numero_identificacion
-                                }}</span>
-                            <span><span class="font-semibold">HC:</span> {{ atencion.paciente.historia_clinica
-                                }}</span>
+                            <span><span class="font-semibold">ID:</span> {{ atencion.paciente.numero_identificacion }}</span>
+                            <span><span class="font-semibold">HC:</span> {{ atencion.paciente.historia_clinica }}</span>
                         </div>
                     </div>
-
+                    <!-- Fecha editable solo para admin -->
+                    <div v-if="isAdmin" class="flex items-center gap-3 mt-4 md:mt-0">
+                        <div class="text-right">
+                            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Fecha Atención</div>
+                            <div class="flex items-center gap-2">
+                                <input type="date" v-model="fechaEditable"
+                                    class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-800 font-medium">
+                                <button @click="guardarFecha"
+                                    class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition">
+                                    Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="text-sm text-gray-400 mt-4 md:mt-0">
+                        {{ atencion.fecha ? new Date(atencion.fecha).toLocaleDateString('es-EC') : '' }}
+                    </div>
                 </div>
 
                 <!-- SINGLE WIDE COLUMN LAYOUT -->
@@ -802,6 +816,9 @@
                         tratamientos.value = resTratamientos.data;
                         doctores.value = resDoctores.data;
                         vendedores.value = resVendedores.data;
+                        if (resAtencion.data.fecha) {
+                            fechaEditable.value = resAtencion.data.fecha.split('T')[0];
+                        }
 
                         if (atencion.value.pagos) {
                             payments.value.efectivo = atencion.value.pagos.find(p => p.forma_pago === 'EF')?.monto || 0;
@@ -815,6 +832,19 @@
                         Swal.fire('Error', 'No se pudo cargar la atención. Verifique si el ID existe.', 'error');
                     } finally {
                         loading.value = false;
+                    }
+                };
+
+                const fechaEditable = ref('');
+
+                const guardarFecha = async () => {
+                    if (!fechaEditable.value) return;
+                    try {
+                        await axios.put(`/api/atenciones/${atencionId}/fecha?fecha=${fechaEditable.value}`);
+                        await loadData();
+                        Swal.fire({ title: 'Fecha actualizada', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+                    } catch (error) {
+                        Swal.fire('Error', error.response?.data?.detail || 'No se pudo cambiar la fecha', 'error');
                     }
                 };
 
@@ -992,6 +1022,7 @@
                 return {
                     atencion, tratamientos, doctores, vendedores, loading,
                     newDetail, payments, role, sucursalNombre, currentUser, isDoctor, isAdmin, editLocked,
+                    fechaEditable, guardarFecha,
                     savingNotes, editingDetailId,
                     startEditing, cancelEditing, updatePrice, addDetail, deleteDetalle,
                     eliminarAtencion, debouncedSync, debouncedNoteSave,

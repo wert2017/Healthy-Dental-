@@ -1068,19 +1068,24 @@ def list_tratamientos(session: Session = Depends(get_session)):
     return session.exec(select(Tratamiento).where(Tratamiento.activo == True)).all()
 
 @app.post("/api/atenciones")
-def create_atencion(paciente_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    # Create new attention for patient, linked to creator's branch
-    # If creator is a Doctor, link it to them immediately
+def create_atencion(paciente_id: int, fecha: Optional[str] = None, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     doc_id = user.doctor_id if user.role == "doctor" else None
-    
+
+    fecha_atencion = datetime.now()
+    if fecha and user.role == "admin":
+        try:
+            fecha_atencion = datetime.fromisoformat(fecha)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD o YYYY-MM-DDTHH:MM")
+
     atencion = Atencion(
-        paciente_id=paciente_id, 
+        paciente_id=paciente_id,
         sucursal_id=user.sucursal_id,
-        doctor_id=doc_id
+        doctor_id=doc_id,
+        fecha=fecha_atencion
     )
     session.add(atencion)
     session.commit()
-    session.refresh(atencion)
     session.refresh(atencion)
     return atencion
 
@@ -1709,6 +1714,22 @@ def update_detalle(detalle_id: int, data: UpdateDetail, session: Session = Depen
 
 class UpdateAtencion(BaseModel):
     observaciones: str | None = None
+
+@app.put("/api/atenciones/{atencion_id}/fecha")
+def update_atencion_fecha(atencion_id: int, fecha: str, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo el administrador puede cambiar la fecha de una atención")
+    atencion = session.get(Atencion, atencion_id)
+    if not atencion:
+        raise HTTPException(status_code=404, detail="Atención no encontrada")
+    try:
+        atencion.fecha = datetime.fromisoformat(fecha)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
+    registrar_log(atencion_id, "Fecha Modificada", f"Fecha cambiada a {fecha}", session, user)
+    session.add(atencion)
+    session.commit()
+    return {"message": "Fecha actualizada"}
 
 @app.put("/api/atenciones/{atencion_id}")
 def update_atencion(atencion_id: int, data: UpdateAtencion, session: Session = Depends(get_session)):
