@@ -877,25 +877,19 @@ def ver_abonos_test(session: Session = Depends(get_session), user: User = Depend
 
 @app.delete("/api/admin/limpiar-abonos-test")
 def limpiar_abonos_test(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Temporal: elimina todos los abonos de Chasiluisa y Cuenca"""
+    """Temporal: elimina abono id=27 de Tatiana Chasiluisa y ajusta saldo"""
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Solo admin")
-    apellidos = ["Chasiluisa", "Cuenca"]
-    eliminados = []
-    for apellido in apellidos:
-        paciente = session.exec(select(Paciente).where(Paciente.apellidos.ilike(f"%{apellido}%"))).first()
-        if not paciente:
-            continue
-        abonos = session.exec(
-            select(HistorialAbono).where(HistorialAbono.paciente_id == paciente.id)
-        ).all()
-        for a in abonos:
-            paciente.saldo_favor -= a.monto
-            session.delete(a)
-            eliminados.append(f"{paciente.nombres} {paciente.apellidos} - ${a.monto}")
+    abono = session.get(HistorialAbono, 27)
+    if not abono:
+        return {"message": "Abono id=27 no encontrado"}
+    paciente = session.get(Paciente, abono.paciente_id)
+    if paciente:
+        paciente.saldo_favor -= abono.monto
         session.add(paciente)
+    session.delete(abono)
     session.commit()
-    return {"eliminados": eliminados}
+    return {"eliminado": f"{paciente.nombres if paciente else '?'} - ${abono.monto}", "nuevo_saldo": float(paciente.saldo_favor) if paciente else 0}
 
 @app.delete("/api/admin/nuke-pacientes")
 def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
