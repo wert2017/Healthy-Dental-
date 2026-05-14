@@ -1573,13 +1573,14 @@ def get_atencion_detail(atencion_id: int, session: Session = Depends(get_session
 
 @app.post("/api/atenciones/{atencion_id}/detalles")
 def add_detalle(
-    atencion_id: int, 
-    tratamiento_id: int, 
-    precio: float, 
-    doctor_id: Optional[int] = None, 
-    vendedor_id: Optional[int] = None, 
-    comision: float = 0, 
-    session: Session = Depends(get_session), 
+    atencion_id: int,
+    tratamiento_id: int,
+    precio: float,
+    cantidad: int = 1,
+    doctor_id: Optional[int] = None,
+    vendedor_id: Optional[int] = None,
+    comision: float = 0,
+    session: Session = Depends(get_session),
     user: User = Depends(get_current_user)
 ):
     atencion = session.get(Atencion, atencion_id)
@@ -1587,12 +1588,13 @@ def add_detalle(
         raise HTTPException(status_code=404, detail="Atención no encontrada")
     if atencion.validado:
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
-        
+    check_recepcion_time_limit(atencion, user)
+
     detalle = AtencionDetalle(
         atencion_id=atencion_id,
         tratamiento_id=tratamiento_id,
         precio_unitario=precio,
-        cantidad=1,
+        cantidad=max(1, int(cantidad)),
         porcentaje_comision=comision,
         doctor_id=doctor_id,
         vendedor_id=vendedor_id
@@ -1622,6 +1624,8 @@ def delete_detalle(
     atencion = session.get(Atencion, detalle.atencion_id)
     if atencion and atencion.validado:
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
+    if atencion:
+        check_recepcion_time_limit(atencion, user)
 
     monto_detalle = detalle.total_calculado
     nuevo_total = atencion.total_atencion_valor - monto_detalle
@@ -1665,21 +1669,24 @@ class UpdateDetail(BaseModel):
     tratamiento_id: int
     doctor_id: Optional[int] = None
     vendedor_id: Optional[int] = None
+    cantidad: int = 1
     precio: float
     comision: float
 
 @app.put("/api/detalles/{detalle_id}")
-
-def update_detalle(detalle_id: int, data: UpdateDetail, session: Session = Depends(get_session)):
+def update_detalle(detalle_id: int, data: UpdateDetail, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     detalle = session.get(AtencionDetalle, detalle_id)
     if not detalle:
         raise HTTPException(status_code=404, detail="Detalle no encontrado")
-        
+
     atencion = session.get(Atencion, detalle.atencion_id)
     if atencion and atencion.validado:
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
+    if atencion:
+        check_recepcion_time_limit(atencion, user)
 
     detalle.tratamiento_id = data.tratamiento_id
+    detalle.cantidad = max(1, int(data.cantidad))
     detalle.doctor_id = data.doctor_id
     
     # If the user sets a doctor, wipe the vendedor_id.
@@ -2022,7 +2029,8 @@ def delete_atencion(atencion_id: int, session: Session = Depends(get_session), u
         raise HTTPException(status_code=404, detail="Atención no encontrada")
     if atencion.validado:
         raise HTTPException(status_code=400, detail="No se puede eliminar una atención validada")
-    
+    check_recepcion_time_limit(atencion, user)
+
     # Devolvemos el monto de billetera al saldo del paciente
     total_abono = sum([p.monto for p in atencion.pagos if p.forma_pago == "AB"])
     if total_abono > 0:
@@ -2716,6 +2724,18 @@ def read_root():
     return {"message": "Sistema Clínica HD - FastAPI Backend Operativo", "docs": "/docs", "frontend": "/recepcion"}
 
 
+
+RECEPCION_EDIT_HOURS = 48
+
+def check_recepcion_time_limit(atencion: Atencion, user: User):
+    """For recepcion users, blocks edits/deletes on atenciones older than RECEPCION_EDIT_HOURS."""
+    if user.role == "recepcion":
+        elapsed = datetime.now() - atencion.fecha
+        if elapsed.total_seconds() > RECEPCION_EDIT_HOURS * 3600:
+            raise HTTPException(
+                status_code=403,
+                detail=f"No puedes modificar esta atención. Han pasado más de {RECEPCION_EDIT_HOURS} horas desde su creación."
+            )
 
 # --- AUDITORIA HELPERS ---
 def registrar_log(atencion_id: int, accion: str, descripcion: str, session: Session, user: User = None):

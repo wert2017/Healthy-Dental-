@@ -16,11 +16,45 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #c8d3dc;
+        }
+
+        .bg-white.rounded-xl,
+        .bg-white.rounded-2xl {
+            background-color: #e2e8ee !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.13), 0 1px 4px rgba(0,0,0,0.08) !important;
+        }
+
+        header.bg-white {
+            background-color: #ffffff !important;
+        }
+
+        input[type="text"], input[type="number"], input[type="email"],
+        input[type="password"], input[type="tel"], input[type="date"],
+        input[type="search"], select, textarea {
+            background-color: #ffffff !important;
+            color: #111827 !important;
+            border: 1px solid #9ca3af !important;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #3b82f6 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 2px #93c5fd !important;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #9ca3af !important;
+        }
+
+        input:disabled, select:disabled {
+            background-color: #f3f4f6 !important;
+            color: #6b7280 !important;
         }
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen">
+<body class="min-h-screen">
     <!-- DEBUGGING SCRIPT -->
     <script>
         window.onerror = function (msg, url, lineNo, columnNo, error) {
@@ -480,7 +514,7 @@
                                                     </path>
                                                 </svg>
                                             </a>
-                                            <button v-if="!item.validado" @click="deleteAtencion(item.id)"
+                                            <button v-if="!item.validado && !isItemLocked(item)" @click="deleteAtencion(item.id)"
                                                 class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                                                 title="Eliminar">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor"
@@ -867,6 +901,13 @@
                     }
                 }
 
+                const isItemLocked = (item) => {
+                    if (role.value !== 'recepcion') return false;
+                    if (!item.fecha) return false;
+                    const hours = (Date.now() - new Date(item.fecha).getTime()) / (1000 * 60 * 60);
+                    return hours > 48;
+                };
+
                 const deleteAtencion = async (id) => {
                     const result = await Swal.fire({
                         title: '¿Estás seguro?',
@@ -941,7 +982,7 @@
                     openRecargaModal,
                     closeRecargaModal,
                     procesarRecarga,
-                    deleteAtencion, conciliar,
+                    deleteAtencion, isItemLocked, conciliar,
                     // Renamed Modal State
                     isReportModalOpen,
                     dailyReport,

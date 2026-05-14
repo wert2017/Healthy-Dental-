@@ -16,11 +16,45 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #c8d3dc;
+        }
+
+        .bg-white.rounded-xl,
+        .bg-white.rounded-2xl {
+            background-color: #e2e8ee !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.13), 0 1px 4px rgba(0,0,0,0.08) !important;
+        }
+
+        header.bg-white {
+            background-color: #ffffff !important;
+        }
+
+        input[type="text"], input[type="number"], input[type="email"],
+        input[type="password"], input[type="tel"], input[type="date"],
+        input[type="search"], select, textarea {
+            background-color: #ffffff !important;
+            color: #111827 !important;
+            border: 1px solid #9ca3af !important;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #3b82f6 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 2px #93c5fd !important;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #9ca3af !important;
+        }
+
+        input:disabled, select:disabled {
+            background-color: #f3f4f6 !important;
+            color: #6b7280 !important;
         }
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen">
+<body class="min-h-screen">
     <!-- DEBUGGING SCRIPT -->
     <script>
         window.onerror = function (msg, url, lineNo, columnNo, error) {

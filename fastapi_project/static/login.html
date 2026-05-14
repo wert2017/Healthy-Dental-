@@ -13,11 +13,35 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
+            background-color: #c8d3dc;
+        }
+
+        .bg-white.rounded-xl,
+        .bg-white.rounded-2xl {
+            background-color: #e2e8ee !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.10) !important;
+        }
+
+        input[type="text"], input[type="number"], input[type="email"],
+        input[type="password"], input[type="tel"], select, textarea {
+            background-color: #ffffff !important;
+            color: #111827 !important;
+            border: 1px solid #9ca3af !important;
+        }
+
+        input:focus, select:focus {
+            border-color: #3b82f6 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 2px #93c5fd !important;
+        }
+
+        input::placeholder {
+            color: #9ca3af !important;
         }
     </style>
 </head>
 
-<body class="bg-gray-50 flex items-center justify-center min-h-screen">
+<body class="flex items-center justify-center min-h-screen">
     <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-gray-100">
         <div class="text-center mb-8 relative">
             <a href="/"
