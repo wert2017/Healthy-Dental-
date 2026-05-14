@@ -363,13 +363,18 @@ class PacienteAdmin(ModelView, model=Paciente):
             model.sucursal_id = admin_sucursal_id
         
         # Default missing values to bypass DB constraints safely
-        if not model.tipo_identificacion:
+        if not data.get('tipo_identificacion'):
+            data['tipo_identificacion'] = "S/N"
             model.tipo_identificacion = "S/N"
-        if not model.numero_identificacion:
-            model.numero_identificacion = f"SD-{str(uuid.uuid4())[:8]}"
-        if not model.apellidos:
+        if not data.get('numero_identificacion'):
+            generated = f"SD-{str(uuid.uuid4())[:8]}"
+            data['numero_identificacion'] = generated
+            model.numero_identificacion = generated
+        if not data.get('apellidos'):
+            data['apellidos'] = ""
             model.apellidos = ""
-        if not model.telefono:
+        if not data.get('telefono'):
+            data['telefono'] = ""
             model.telefono = ""
         
         # 2. Auto-generate Clinical History Number if missing (supports manual override)
