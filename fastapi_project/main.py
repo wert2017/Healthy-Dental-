@@ -866,25 +866,6 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
 
 
 
-@app.patch("/api/admin/fix-fechas-hc536")
-def fix_fechas_hc536(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Corrige fecha del abono id=30 y pago de la atencion id=79 al 2 de mayo"""
-    if user.role != "admin":
-        raise HTTPException(status_code=403)
-    corregidos = []
-    abono = session.get(HistorialAbono, 30)
-    if abono:
-        abono.fecha = abono.fecha.replace(month=5, day=2)
-        session.add(abono)
-        corregidos.append(f"HistorialAbono #{abono.id} → {abono.fecha}")
-    atencion = session.get(Atencion, 79)
-    if atencion:
-        for pago in atencion.pagos:
-            pago.fecha = pago.fecha.replace(month=5, day=2)
-            session.add(pago)
-            corregidos.append(f"Pago #{pago.id} → {pago.fecha}")
-    session.commit()
-    return {"ok": True, "corregidos": corregidos}
 
 @app.delete("/api/admin/nuke-pacientes")
 def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
