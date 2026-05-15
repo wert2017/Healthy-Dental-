@@ -134,9 +134,9 @@
                 if (username) localStorage.setItem('username', username);
                 if (full_name) localStorage.setItem('full_name', full_name);
                 if (doctor_id) localStorage.setItem('doctor_id', doctor_id);
-                if (sid) localStorage.setItem('sucursal_id', sid);
-                // Usar nombre del backend si viene, si no usar el texto del select
                 const sucursalSelect = document.getElementById('sucursal_id');
+                const finalSucursalId = sid || sucursal_id;
+                if (finalSucursalId) localStorage.setItem('sucursal_id', finalSucursalId);
                 const nombreFinal = sucursal_nombre || sucursalSelect.options[sucursalSelect.selectedIndex].text;
                 localStorage.setItem('sucursal_nombre', nombreFinal);
 

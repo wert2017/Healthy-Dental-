@@ -123,17 +123,10 @@
 
         <!-- Acciones globales -->
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
-            <template v-if="role !== 'doctor'">
-                <select v-if="role === 'admin'" v-model="selectedImportSucursal"
-                    style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
-                    <option :value="null">— Sucursal para importar —</option>
-                    <option v-for="s in sucursalesList" :key="s.id" :value="s.id">{{ s.nombre }}</option>
-                </select>
-                <label class="btn" :style="isImporting ? 'opacity:.5;cursor:default' : 'cursor:pointer'">
-                    <input type="file" style="display:none" accept=".xlsx" @change="importExcel" :disabled="isImporting">
-                    {{ isImporting ? 'Subiendo...' : 'Importar Excel' }}
-                </label>
-            </template>
+            <label v-if="role !== 'doctor'" class="btn" :style="isImporting ? 'opacity:.5;cursor:default' : 'cursor:pointer'">
+                <input type="file" style="display:none" accept=".xlsx" @change="importExcel" :disabled="isImporting">
+                {{ isImporting ? 'Subiendo...' : 'Importar Excel' }}
+            </label>
             <button class="btn" @click="exportMasterReport" :disabled="isExporting">
                 {{ isExporting ? 'Generando...' : 'Exportar .xlsx' }}
             </button>
@@ -885,13 +878,13 @@
                 const file = event.target.files[0]
                 if (!file) return
 
-                if (role.value === 'admin' && !selectedImportSucursal.value) {
-                    Swal.fire('Selecciona una sucursal', 'Debes elegir la sucursal de destino antes de importar.', 'warning')
+                const authHeaders = { Authorization: `Bearer ${token}` }
+                const sucursalId = localStorage.getItem('sucursal_id')
+                if (!sucursalId) {
+                    Swal.fire('Sin sucursal', 'No hay sucursal seleccionada. Cierra sesión y vuelve a entrar seleccionando tu sucursal.', 'warning')
                     event.target.value = ''
                     return
                 }
-
-                const authHeaders = { Authorization: `Bearer ${token}` }
 
                 // --- Paso 1: Validar el archivo ---
                 isImporting.value = true
@@ -986,7 +979,7 @@
                 try {
                     const fd2 = new FormData()
                     fd2.append("file", file)
-                    if (selectedImportSucursal.value) fd2.append("sucursal_id", selectedImportSucursal.value)
+                    if (sucursalId) fd2.append("sucursal_id", sucursalId)
                     const res = await axios.post("/api/pacientes/importar-excel", fd2, {
                         headers: { "Content-Type": "multipart/form-data", ...authHeaders }
                     })
