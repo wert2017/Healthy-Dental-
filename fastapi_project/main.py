@@ -3677,7 +3677,7 @@ def secret_patch_db(session: Session = Depends(get_session)):
         
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
-@app.get("/admin/delete-atencion-hc0051-mayo2")
+@app.get("/fix/delete-atencion-hc0051-mayo2")
 def delete_atencion_hc0051_mayo2():
     with Session(engine) as session:
         paciente = session.exec(
