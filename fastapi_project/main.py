@@ -157,10 +157,6 @@ def on_startup():
     with Session(engine) as session:
         seed_data(session)
 
-@app.get("/api/public/server-time")
-def server_time():
-    import time as _time
-    return {"datetime_now": str(datetime.now()), "tz_env": os.environ.get("TZ", "NO_SET"), "localtime": _time.strftime("%Y-%m-%d %H:%M:%S %Z")}
 
 @app.get("/api/public/sucursales")
 def list_public_sucursales(session: Session = Depends(get_session)):
