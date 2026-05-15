@@ -3677,73 +3677,59 @@ def secret_patch_db(session: Session = Depends(get_session)):
         
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
-@app.get("/admin/fix-fecha-hc0051")
-def fix_fecha_hc0051():
+@app.get("/admin/diagnostico-hc0051")
+def diagnostico_hc0051():
     with Session(engine) as session:
-        paciente = session.exec(
+        pacientes = session.exec(
             select(Paciente).where(Paciente.numero_historia.ilike("%0051%"))
-        ).first()
-        if not paciente:
-            return {"error": "Paciente HC-0051 no encontrado"}
-
-        atenciones = session.exec(
-            select(Atencion).where(
-                Atencion.paciente_id == paciente.id,
-                Atencion.fecha >= datetime(2026, 5, 2),
-                Atencion.fecha < datetime(2026, 5, 3),
-            )
         ).all()
-
-        if not atenciones:
-            return {"error": "No se encontro atencion del dia 2 de mayo para HC-0051", "paciente_id": paciente.id}
-
-        # Buscar la atencion de Cntrl Ortodoncia del dia 2
-        target_atencion = None
-        for a in atenciones:
-            detalles = session.exec(
-                select(AtencionDetalle).where(AtencionDetalle.atencion_id == a.id)
+        if not pacientes:
+            return {"error": "Ningun paciente con 0051 encontrado"}
+        resultado = []
+        for p in pacientes:
+            atenciones = session.exec(
+                select(Atencion).where(Atencion.paciente_id == p.id)
             ).all()
-            for d in detalles:
-                trat = session.get(Tratamiento, d.tratamiento_id)
-                if trat and "ortodoncia" in trat.nombre.lower():
-                    target_atencion = a
-                    break
-            if target_atencion:
-                break
+            ats = []
+            for a in atenciones:
+                detalles = session.exec(
+                    select(AtencionDetalle).where(AtencionDetalle.atencion_id == a.id)
+                ).all()
+                tratamientos = []
+                for d in detalles:
+                    trat = session.get(Tratamiento, d.tratamiento_id)
+                    tratamientos.append(trat.nombre if trat else "?")
+                ats.append({"atencion_id": a.id, "fecha": str(a.fecha), "estado": a.estado, "tratamientos": tratamientos})
+            resultado.append({"paciente_id": p.id, "nombre": p.nombre_completo, "hc": p.numero_historia, "atenciones": ats})
+        return resultado
 
-        if not target_atencion:
-            # Si no encontro por nombre, tomar la primera del dia 2
-            target_atencion = atenciones[0]
+@app.get("/admin/fix-fecha-hc0051/{atencion_id}")
+def fix_fecha_hc0051(atencion_id: int):
+    with Session(engine) as session:
+        atencion = session.get(Atencion, atencion_id)
+        if not atencion:
+            return {"error": f"Atencion {atencion_id} no encontrada"}
 
-        old_fecha = target_atencion.fecha
-        new_fecha = target_atencion.fecha.replace(day=4)
-        target_atencion.fecha = new_fecha
-        session.add(target_atencion)
+        old_fecha = atencion.fecha
+        atencion.fecha = atencion.fecha.replace(day=4)
+        session.add(atencion)
 
-        # Corregir pagos de esa atencion
-        pagos = session.exec(
-            select(Pago).where(Pago.atencion_id == target_atencion.id)
-        ).all()
+        pagos = session.exec(select(Pago).where(Pago.atencion_id == atencion_id)).all()
         for p in pagos:
             p.fecha = p.fecha.replace(day=4)
             session.add(p)
 
-        # Corregir historialabono vinculado
-        historiales = session.exec(
-            select(HistorialAbono).where(HistorialAbono.atencion_id == target_atencion.id)
-        ).all()
+        historiales = session.exec(select(HistorialAbono).where(HistorialAbono.atencion_id == atencion_id)).all()
         for h in historiales:
             h.fecha = h.fecha.replace(day=4)
             session.add(h)
 
         session.commit()
-
         return {
             "status": "ok",
-            "paciente": paciente.nombre_completo,
-            "atencion_id": target_atencion.id,
+            "atencion_id": atencion_id,
             "fecha_anterior": str(old_fecha),
-            "fecha_nueva": str(new_fecha),
+            "fecha_nueva": str(atencion.fecha),
             "pagos_corregidos": len(pagos),
             "historiales_corregidos": len(historiales),
         }
