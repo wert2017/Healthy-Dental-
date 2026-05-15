@@ -3703,36 +3703,30 @@ def diagnostico_hc0051():
             resultado.append({"paciente_id": p.id, "nombre": p.nombre_completo, "hc": p.numero_historia, "atenciones": ats})
         return resultado
 
-@app.get("/admin/fix-fecha-hc0051/{atencion_id}")
-def fix_fecha_hc0051(atencion_id: int):
+@app.get("/admin/delete-atencion-hc0051/{atencion_id}")
+def delete_atencion_hc0051(atencion_id: int):
     with Session(engine) as session:
         atencion = session.get(Atencion, atencion_id)
         if not atencion:
             return {"error": f"Atencion {atencion_id} no encontrada"}
 
-        old_fecha = atencion.fecha
-        atencion.fecha = atencion.fecha.replace(day=4)
-        session.add(atencion)
+        paciente = session.exec(select(Paciente).where(Paciente.id == atencion.paciente_id)).first()
+        if paciente:
+            historial_atencion = session.exec(
+                select(HistorialAbono).where(HistorialAbono.atencion_id == atencion_id)
+            ).all()
+            for h in historial_atencion:
+                paciente.saldo_favor -= h.monto
+                session.delete(h)
+            total_abono = sum([p.monto for p in atencion.pagos if p.forma_pago == "AB"])
+            if total_abono > 0:
+                paciente.saldo_favor += total_abono
+            session.add(paciente)
 
-        pagos = session.exec(select(Pago).where(Pago.atencion_id == atencion_id)).all()
-        for p in pagos:
-            p.fecha = p.fecha.replace(day=4)
-            session.add(p)
-
-        historiales = session.exec(select(HistorialAbono).where(HistorialAbono.atencion_id == atencion_id)).all()
-        for h in historiales:
-            h.fecha = h.fecha.replace(day=4)
-            session.add(h)
-
+        nombre = paciente.nombre_completo if paciente else "?"
+        session.delete(atencion)
         session.commit()
-        return {
-            "status": "ok",
-            "atencion_id": atencion_id,
-            "fecha_anterior": str(old_fecha),
-            "fecha_nueva": str(atencion.fecha),
-            "pagos_corregidos": len(pagos),
-            "historiales_corregidos": len(historiales),
-        }
+        return {"status": "ok", "mensaje": f"Atencion {atencion_id} de {nombre} eliminada correctamente"}
 
 # --- END API ROUTES ---
 
