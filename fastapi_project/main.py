@@ -864,42 +864,6 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
 
 
 
-@app.patch("/api/admin/mover-fechas-mayo1")
-def mover_fechas_mayo1(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Temporal: mueve todas las operaciones del 14-may al 1-may"""
-    if user.role != "admin":
-        raise HTTPException(status_code=403)
-    from sqlalchemy import text
-    d14_ini = datetime(2026, 5, 14, 0, 0, 0)
-    d14_fin = datetime(2026, 5, 14, 23, 59, 59)
-    conteos = {}
-
-    atenciones = session.exec(select(Atencion).where(Atencion.fecha >= d14_ini).where(Atencion.fecha <= d14_fin)).all()
-    for a in atenciones:
-        a.fecha = a.fecha.replace(month=5, day=1)
-        session.add(a)
-    conteos["atenciones"] = len(atenciones)
-
-    pagos = session.exec(select(Pago).where(Pago.fecha >= d14_ini).where(Pago.fecha <= d14_fin)).all()
-    for p in pagos:
-        p.fecha = p.fecha.replace(month=5, day=1)
-        session.add(p)
-    conteos["pagos"] = len(pagos)
-
-    abonos = session.exec(select(HistorialAbono).where(HistorialAbono.fecha >= d14_ini).where(HistorialAbono.fecha <= d14_fin)).all()
-    for h in abonos:
-        h.fecha = h.fecha.replace(month=5, day=1)
-        session.add(h)
-    conteos["abonos"] = len(abonos)
-
-    auditorias = session.exec(select(AuditoriaAtencion).where(AuditoriaAtencion.fecha >= d14_ini).where(AuditoriaAtencion.fecha <= d14_fin)).all()
-    for au in auditorias:
-        au.fecha = au.fecha.replace(month=5, day=1)
-        session.add(au)
-    conteos["auditorias"] = len(auditorias)
-
-    session.commit()
-    return {"ok": True, "movidos": conteos}
 
 @app.delete("/api/admin/nuke-pacientes")
 def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
