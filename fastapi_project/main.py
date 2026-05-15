@@ -865,6 +865,26 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
 
 
 
+@app.patch("/api/admin/fix-comision-klever")
+def fix_comision_klever(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403)
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica.ilike("%0401%"))).first()
+    if not paciente:
+        return {"error": "Paciente HC-0401 no encontrado"}
+    atenciones = session.exec(select(Atencion).where(Atencion.paciente_id == paciente.id)).all()
+    actualizados = []
+    for a in atenciones:
+        detalles = session.exec(select(AtencionDetalle).where(AtencionDetalle.atencion_id == a.id)).all()
+        for d in detalles:
+            trat = session.get(Tratamiento, d.tratamiento_id)
+            if trat and "ortodoncia" in trat.nombre.lower() and float(d.porcentaje_comision) == 1.0:
+                d.porcentaje_comision = Decimal("7")
+                session.add(d)
+                actualizados.append(f"Detalle #{d.id} - {trat.nombre} → 7%")
+    session.commit()
+    return {"ok": True, "actualizados": actualizados}
+
 @app.delete("/api/admin/nuke-pacientes")
 def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     if user.role != "admin" or user.username != "admin":
