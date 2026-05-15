@@ -1,3 +1,12 @@
+import os
+import time
+# Zona horaria Ecuador (Quito) — debe ir antes de cualquier import de datetime
+os.environ['TZ'] = 'America/Guayaquil'
+try:
+    time.tzset()  # Solo funciona en Linux/Mac (Railway usa Linux)
+except AttributeError:
+    pass  # Windows: no hace falta, el server local usa la hora del sistema
+
 from fastapi import FastAPI, Depends, HTTPException, Query, status, Request, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import engine, create_db_and_tables, get_session
@@ -12,7 +21,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.responses import RedirectResponse
 import uvicorn
-import os
 from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime, timedelta, time
