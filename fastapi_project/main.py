@@ -866,6 +866,23 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
 
 
 
+@app.get("/api/admin/diagnostico-hc536")
+def diagnostico_hc536(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403)
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica.ilike("%536%"))).first()
+    if not paciente:
+        return {"error": "Paciente HC-536 no encontrado"}
+    abonos = session.exec(select(HistorialAbono).where(HistorialAbono.paciente_id == paciente.id)).all()
+    atenciones = session.exec(select(Atencion).where(Atencion.paciente_id == paciente.id)).all()
+    return {
+        "paciente": f"{paciente.nombres} {paciente.apellidos}",
+        "sucursal_id": paciente.sucursal_id,
+        "saldo_favor": float(paciente.saldo_favor),
+        "abonos": [{"id": a.id, "fecha": str(a.fecha), "monto": float(a.monto), "metodo": a.metodo_pago, "atencion_id": a.atencion_id} for a in abonos],
+        "atenciones": [{"id": a.id, "fecha": str(a.fecha), "estado": a.estado, "pagos": [{"forma": p.forma_pago, "monto": float(p.monto), "fecha": str(p.fecha)} for p in a.pagos]} for a in atenciones],
+    }
+
 @app.delete("/api/admin/nuke-pacientes")
 def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     if user.role != "admin" or user.username != "admin":
