@@ -853,13 +853,6 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
 
 
 
-@app.get("/api/admin/conteo-pacientes")
-def conteo_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    if user.role != "admin":
-        raise HTTPException(status_code=403)
-    from sqlalchemy import text
-    rows = session.exec(text("SELECT sucursal_id, COUNT(*) as total FROM paciente GROUP BY sucursal_id")).all()
-    return [{"sucursal_id": r[0], "total": r[1]} for r in rows]
 
 @app.delete("/api/admin/nuke-pacientes")
 def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
