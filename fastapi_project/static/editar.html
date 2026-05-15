@@ -329,89 +329,73 @@
                                         Agregar
                                         Nuevo Tratamiento</h3>
 
-                                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                                    <div class="flex flex-wrap gap-2 items-end">
                                         <!-- Tratamiento -->
-                                        <div class="md:col-span-6">
-                                            <label
-                                                class="block text-xs font-bold text-gray-400 mb-1 uppercase">Tratamiento</label>
+                                        <div style="flex:2;min-width:140px;">
+                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Tratamiento</label>
                                             <select v-model="newDetail.tratamiento_id" @change="updatePrice"
-                                                class="input-clean bg-white h-10 border-gray-200 w-full text-sm rounded-lg focus:ring-2 focus:ring-blue-100">
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg focus:ring-2 focus:ring-blue-100">
                                                 <option value="" disabled selected>Seleccionar...</option>
-                                                <option v-for="t in tratamientos" :key="t.id" :value="t.id">{{
-                                                    t.nombre }}</option>
+                                                <option v-for="t in tratamientos" :key="t.id" :value="t.id">{{ t.nombre }}</option>
                                             </select>
                                         </div>
 
                                         <!-- Doctor / Vendedor -->
-                                        <div class="md:col-span-6">
-                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Doctor /
-                                                Vendedor</label>
+                                        <div style="flex:2;min-width:130px;">
+                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Doctor / Vendedor</label>
                                             <select v-model="newDetail.assignedTo" :disabled="isDoctor"
-                                                class="input-clean bg-white h-10 border-gray-200 w-full text-sm rounded-lg disabled:bg-gray-100 disabled:text-gray-500">
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg disabled:bg-gray-100 disabled:text-gray-500">
                                                 <option value="">-- Sin Asignar --</option>
                                                 <optgroup label="👨‍⚕️ Doctores">
-                                                    <option v-for="d in doctores" :key="'doc_'+d.id" :value="'doc_'+d.id">
-                                                        {{ d.nombres }} {{ d.apellidos }}
-                                                    </option>
+                                                    <option v-for="d in doctores" :key="'doc_'+d.id" :value="'doc_'+d.id">{{ d.nombres }} {{ d.apellidos }}</option>
                                                 </optgroup>
                                                 <optgroup label="👤 Vendedor / Recepción" v-if="vendedores.length > 0">
-                                                    <option v-for="v in vendedores" :key="'usr_'+v.id" :value="'usr_'+v.id">
-                                                        {{ v.username }}
-                                                    </option>
+                                                    <option v-for="v in vendedores" :key="'usr_'+v.id" :value="'usr_'+v.id">{{ v.username }}</option>
                                                 </optgroup>
                                             </select>
                                         </div>
 
+                                        <!-- Comision -->
+                                        <div style="width:68px;">
+                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Comis%</label>
+                                            <input type="number" v-model="newDetail.comision" step="1" min="0" max="100"
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-medium text-gray-600"
+                                                placeholder="0">
+                                        </div>
+
                                         <!-- Cantidad -->
-                                        <div class="md:col-span-2">
+                                        <div style="width:60px;">
                                             <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Cant.</label>
                                             <input type="number" v-model="newDetail.cantidad" min="1" step="1"
-                                                class="input-clean bg-white h-10 border-gray-200 w-full text-sm rounded-lg text-center font-bold text-gray-700">
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-gray-700">
                                         </div>
 
                                         <!-- Precio unitario -->
-                                        <div class="md:col-span-3">
-                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">P. Unitario ($)</label>
+                                        <div style="width:88px;">
+                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">P. Unit ($)</label>
                                             <input type="number" v-model="newDetail.precio" step="0.01"
-                                                class="input-clean bg-white h-10 border-gray-200 w-full text-sm rounded-lg text-center font-bold text-gray-700">
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-gray-700">
                                         </div>
 
-                                        <!-- Total calculado (solo lectura) -->
-                                        <div class="md:col-span-3">
-                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Total ($)</label>
-                                            <div class="h-10 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-indigo-700">
+                                        <!-- Total calculado -->
+                                        <div style="width:80px;">
+                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Total</label>
+                                            <div class="h-9 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-indigo-700">
                                                 ${{ ((newDetail.cantidad || 1) * (newDetail.precio || 0)).toFixed(2) }}
                                             </div>
                                         </div>
 
-                                        <!-- Comision -->
-                                        <div class="md:col-span-2">
-                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Comis %</label>
-                                            <input type="number" v-model="newDetail.comision" step="1" min="0" max="100"
-                                                class="input-clean bg-white h-10 border-gray-200 w-full text-sm rounded-lg text-center font-medium text-gray-600"
-                                                placeholder="0%">
-                                        </div>
-
                                         <!-- Botones -->
-                                        <div class="md:col-span-4 flex gap-2">
+                                        <div class="flex gap-1" style="flex-shrink:0;">
                                             <button @click="addDetail"
                                                 :class="editingDetailId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'"
-                                                class="flex-1 h-10 text-white font-bold rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2 text-sm">
-                                                <span v-if="editingDetailId" class="flex items-center gap-1">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                                                        viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                    </svg>
-                                                    Guardar Cambios
-                                                </span>
-                                                <span v-else>+ Agregar Tratamiento</span>
+                                                class="h-9 px-3 text-white font-bold rounded-lg shadow-sm transition flex items-center gap-1 text-xs whitespace-nowrap">
+                                                <span v-if="editingDetailId">✓ Guardar</span>
+                                                <span v-else>+ Agregar</span>
                                             </button>
                                             <button v-if="editingDetailId" @click="cancelEditing"
-                                                class="w-10 h-10 bg-gray-200 text-gray-600 hover:bg-gray-300 rounded-lg flex items-center justify-center transition"
-                                                title="Cancelar Edición">
-                                                ✕
-                                            </button>
+                                                class="w-9 h-9 bg-gray-200 text-gray-600 hover:bg-gray-300 rounded-lg flex items-center justify-center transition text-xs"
+                                                title="Cancelar">✕</button>
                                         </div>
                                     </div>
                                 </div>
