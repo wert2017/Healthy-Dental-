@@ -122,11 +122,18 @@
     <div class="page">
 
         <!-- Acciones globales -->
-        <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:16px;">
-            <label v-if="role !== 'doctor'" class="btn" :style="isImporting ? 'opacity:.5;cursor:default' : 'cursor:pointer'">
-                <input type="file" style="display:none" accept=".xlsx" @change="importExcel" :disabled="isImporting">
-                {{ isImporting ? 'Subiendo...' : 'Importar Excel' }}
-            </label>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+            <template v-if="role !== 'doctor'">
+                <select v-if="role === 'admin'" v-model="selectedImportSucursal"
+                    style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+                    <option :value="null">— Sucursal para importar —</option>
+                    <option v-for="s in sucursalesList" :key="s.id" :value="s.id">{{ s.nombre }}</option>
+                </select>
+                <label class="btn" :style="isImporting ? 'opacity:.5;cursor:default' : 'cursor:pointer'">
+                    <input type="file" style="display:none" accept=".xlsx" @change="importExcel" :disabled="isImporting">
+                    {{ isImporting ? 'Subiendo...' : 'Importar Excel' }}
+                </label>
+            </template>
             <button class="btn" @click="exportMasterReport" :disabled="isExporting">
                 {{ isExporting ? 'Generando...' : 'Exportar .xlsx' }}
             </button>
@@ -819,14 +826,19 @@
                 }
             }
 
+            const sucursalesList = ref([])
+            const selectedImportSucursal = ref(null)
+
             const loadCatalogs = async () => {
                 try {
-                    const [rd, rt] = await Promise.all([
+                    const [rd, rt, rs] = await Promise.all([
                         axios.get('/api/doctores'),
-                        axios.get('/api/tratamientos')
+                        axios.get('/api/tratamientos'),
+                        axios.get('/api/public/sucursales')
                     ])
                     doctoresList.value    = rd.data
                     tratamientosList.value = rt.data
+                    sucursalesList.value  = rs.data
                 } catch (e) { console.error(e) }
             }
 
@@ -872,6 +884,12 @@
             const importExcel = async (event) => {
                 const file = event.target.files[0]
                 if (!file) return
+
+                if (role.value === 'admin' && !selectedImportSucursal.value) {
+                    Swal.fire('Selecciona una sucursal', 'Debes elegir la sucursal de destino antes de importar.', 'warning')
+                    event.target.value = ''
+                    return
+                }
 
                 const authHeaders = { Authorization: `Bearer ${token}` }
 
@@ -968,6 +986,7 @@
                 try {
                     const fd2 = new FormData()
                     fd2.append("file", file)
+                    if (selectedImportSucursal.value) fd2.append("sucursal_id", selectedImportSucursal.value)
                     const res = await axios.post("/api/pacientes/importar-excel", fd2, {
                         headers: { "Content-Type": "multipart/form-data", ...authHeaders }
                     })
@@ -995,6 +1014,7 @@
                 docData, isLoadingDoc, doctoresList, tratamientosList,
                 resStartDate, resEndDate, resumen, isLoadingRes,
                 isExporting, isImporting,
+                sucursalesList, selectedImportSucursal,
                 fmt, loadDocReport, loadResumen, loadTratReport,
                 tratStartDate, tratEndDate, tratTratamientoId, tratData, isLoadingTrat,
                 exportMasterReport, importExcel

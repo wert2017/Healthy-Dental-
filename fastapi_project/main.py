@@ -942,7 +942,7 @@ async def validar_excel_pacientes(file: UploadFile = File(...), user: User = Dep
 
 
 @app.post("/api/pacientes/importar-excel")
-async def importar_pacientes_excel(file: UploadFile = File(...), session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+async def importar_pacientes_excel(file: UploadFile = File(...), sucursal_id: Optional[int] = Form(None), session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     import openpyxl
     import io
     
@@ -957,7 +957,8 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
         # Read the headers from the first row
         headers = {str(cell.value).strip(): idx for idx, cell in enumerate(sheet[1]) if cell.value is not None}
         
-        suc = session.get(Sucursal, user.sucursal_id)
+        target_sucursal_id = sucursal_id or user.sucursal_id
+        suc = session.get(Sucursal, target_sucursal_id)
         prefix = suc.nombre[:3].upper() if suc and len(suc.nombre) >= 3 else "GEN"
         last_patient = session.exec(select(Paciente).order_by(Paciente.id.desc())).first()
         hc_counter = (last_patient.id + 1) if last_patient else 1
@@ -1040,7 +1041,7 @@ async def importar_pacientes_excel(file: UploadFile = File(...), session: Sessio
                 edad=edad,
                 ciudad=ciudad,
                 activo=True,
-                sucursal_id=user.sucursal_id
+                sucursal_id=target_sucursal_id
             )
             session.add(nuevo_paciente)
             inserted += 1
