@@ -3677,43 +3677,29 @@ def secret_patch_db(session: Session = Depends(get_session)):
         
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
-@app.get("/admin/diagnostico-hc0051")
-def diagnostico_hc0051():
+@app.get("/admin/delete-atencion-hc0051-mayo2")
+def delete_atencion_hc0051_mayo2():
     with Session(engine) as session:
-        pacientes = session.exec(
+        paciente = session.exec(
             select(Paciente).where(Paciente.numero_historia.ilike("%0051%"))
+        ).first()
+        if not paciente:
+            return {"error": "Paciente HC-0051 no encontrado"}
+
+        atenciones = session.exec(
+            select(Atencion).where(
+                Atencion.paciente_id == paciente.id,
+                Atencion.fecha >= datetime(2026, 5, 1),
+                Atencion.fecha < datetime(2026, 5, 3),
+            )
         ).all()
-        if not pacientes:
-            return {"error": "Ningun paciente con 0051 encontrado"}
-        resultado = []
-        for p in pacientes:
-            atenciones = session.exec(
-                select(Atencion).where(Atencion.paciente_id == p.id)
-            ).all()
-            ats = []
-            for a in atenciones:
-                detalles = session.exec(
-                    select(AtencionDetalle).where(AtencionDetalle.atencion_id == a.id)
-                ).all()
-                tratamientos = []
-                for d in detalles:
-                    trat = session.get(Tratamiento, d.tratamiento_id)
-                    tratamientos.append(trat.nombre if trat else "?")
-                ats.append({"atencion_id": a.id, "fecha": str(a.fecha), "estado": a.estado, "tratamientos": tratamientos})
-            resultado.append({"paciente_id": p.id, "nombre": p.nombre_completo, "hc": p.numero_historia, "atenciones": ats})
-        return resultado
+        if not atenciones:
+            return {"error": "No hay atencion del 2 de mayo para HC-0051", "paciente": paciente.nombre_completo}
 
-@app.get("/admin/delete-atencion-hc0051/{atencion_id}")
-def delete_atencion_hc0051(atencion_id: int):
-    with Session(engine) as session:
-        atencion = session.get(Atencion, atencion_id)
-        if not atencion:
-            return {"error": f"Atencion {atencion_id} no encontrada"}
-
-        paciente = session.exec(select(Paciente).where(Paciente.id == atencion.paciente_id)).first()
-        if paciente:
+        eliminadas = []
+        for atencion in atenciones:
             historial_atencion = session.exec(
-                select(HistorialAbono).where(HistorialAbono.atencion_id == atencion_id)
+                select(HistorialAbono).where(HistorialAbono.atencion_id == atencion.id)
             ).all()
             for h in historial_atencion:
                 paciente.saldo_favor -= h.monto
@@ -3721,12 +3707,12 @@ def delete_atencion_hc0051(atencion_id: int):
             total_abono = sum([p.monto for p in atencion.pagos if p.forma_pago == "AB"])
             if total_abono > 0:
                 paciente.saldo_favor += total_abono
-            session.add(paciente)
+            eliminadas.append({"atencion_id": atencion.id, "fecha": str(atencion.fecha)})
+            session.delete(atencion)
 
-        nombre = paciente.nombre_completo if paciente else "?"
-        session.delete(atencion)
+        session.add(paciente)
         session.commit()
-        return {"status": "ok", "mensaje": f"Atencion {atencion_id} de {nombre} eliminada correctamente"}
+        return {"status": "ok", "paciente": paciente.nombre_completo, "atenciones_eliminadas": eliminadas}
 
 # --- END API ROUTES ---
 
