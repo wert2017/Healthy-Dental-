@@ -631,7 +631,7 @@
                 const dashboardData = ref([])
                 const groupedAtenciones = ref({})
                 const loading = ref(false)
-                const todayStr = new Date().toISOString().split('T')[0]
+                const _d = new Date(); const todayStr = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`
                 const hojaCargoDate = ref(todayStr)
                 const role = ref(localStorage.getItem('role') || 'doctor')
                 const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD')
@@ -767,7 +767,7 @@
 
                     // Admin puede elegir una fecha pasada
                     if (role.value === 'admin') {
-                        const hoy = new Date().toISOString().split('T')[0];
+                        const _hd = new Date(); const hoy = `${_hd.getFullYear()}-${String(_hd.getMonth()+1).padStart(2,'0')}-${String(_hd.getDate()).padStart(2,'0')}`;
                         const { value: fechaElegida, isConfirmed } = await Swal.fire({
                             title: 'Fecha de la atención',
                             html: `<input type="date" id="swal-fecha" class="swal2-input" value="${hoy}" max="${hoy}">`,
