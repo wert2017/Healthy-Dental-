@@ -863,6 +863,28 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
 
 
 
+@app.patch("/api/admin/fix-abono-fecha")
+def fix_abono_fecha(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    """Temporal: corrige fecha de abono del 15-may al 14-may para HC-531"""
+    if user.role != "admin":
+        raise HTTPException(status_code=403)
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica.ilike("%531%"))).first()
+    if not paciente:
+        return {"error": "Paciente HC-531 no encontrado"}
+    abonos = session.exec(
+        select(HistorialAbono)
+        .where(HistorialAbono.paciente_id == paciente.id)
+        .where(HistorialAbono.fecha >= datetime(2026, 5, 15, 0, 0, 0))
+        .where(HistorialAbono.fecha < datetime(2026, 5, 16, 0, 0, 0))
+    ).all()
+    if not abonos:
+        return {"error": "No se encontró abono del 15-may para ese paciente"}
+    for a in abonos:
+        a.fecha = a.fecha.replace(day=14)
+        session.add(a)
+    session.commit()
+    return {"ok": True, "corregidos": len(abonos), "paciente": f"{paciente.nombres} {paciente.apellidos}"}
+
 @app.delete("/api/admin/nuke-pacientes")
 def nuke_all_pacientes(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     if user.role != "admin" or user.username != "admin":
