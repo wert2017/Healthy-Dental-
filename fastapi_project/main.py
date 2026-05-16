@@ -3677,67 +3677,60 @@ def secret_patch_db(session: Session = Depends(get_session)):
         
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
-@app.get("/fix/fecha-ortodoncia-mayo5")
-def fix_fecha_ortodoncia_mayo5():
-    hcs = ["%0051%", "%0138%"]
-    resultados = []
+@app.get("/fix/fecha-hc0138-mayo5")
+def fix_fecha_hc0138_mayo5():
     with Session(engine) as session:
-        for hc_pattern in hcs:
-            paciente = session.exec(
-                select(Paciente).where(Paciente.numero_historia.ilike(hc_pattern))
-            ).first()
-            if not paciente:
-                resultados.append({"hc": hc_pattern, "error": "Paciente no encontrado"})
-                continue
+        paciente = session.exec(
+            select(Paciente).where(Paciente.numero_historia.ilike("%0138%"))
+        ).first()
+        if not paciente:
+            return {"error": "Paciente HC-0138 no encontrado"}
 
-            atenciones = session.exec(
-                select(Atencion).where(
-                    Atencion.paciente_id == paciente.id,
-                    Atencion.fecha >= datetime(2026, 5, 1),
-                    Atencion.fecha < datetime(2026, 5, 6),
-                )
-            ).all()
-            if not atenciones:
-                resultados.append({"hc": hc_pattern, "paciente": paciente.nombre_completo, "error": "No hay atenciones en mayo 1-5"})
-                continue
+        atenciones = session.exec(
+            select(Atencion).where(
+                Atencion.paciente_id == paciente.id,
+                Atencion.fecha >= datetime(2026, 5, 1),
+                Atencion.fecha < datetime(2026, 5, 6),
+            )
+        ).all()
+        if not atenciones:
+            return {"error": "No hay atenciones en mayo 1-5 para HC-0138", "paciente": paciente.nombre_completo}
 
-            target = None
-            for a in atenciones:
-                detalles = session.exec(select(AtencionDetalle).where(AtencionDetalle.atencion_id == a.id)).all()
-                for d in detalles:
-                    trat = session.get(Tratamiento, d.tratamiento_id)
-                    if trat and "ortodoncia" in trat.nombre.lower():
-                        target = a
-                        break
-                if target:
+        target = None
+        for a in atenciones:
+            detalles = session.exec(select(AtencionDetalle).where(AtencionDetalle.atencion_id == a.id)).all()
+            for d in detalles:
+                trat = session.get(Tratamiento, d.tratamiento_id)
+                if trat and "ortodoncia" in trat.nombre.lower():
+                    target = a
                     break
-            if not target:
-                target = atenciones[0]
+            if target:
+                break
+        if not target:
+            target = atenciones[0]
 
-            old_fecha = target.fecha
-            target.fecha = target.fecha.replace(day=5)
-            session.add(target)
+        old_fecha = target.fecha
+        target.fecha = target.fecha.replace(day=5)
+        session.add(target)
 
-            pagos = session.exec(select(Pago).where(Pago.atencion_id == target.id)).all()
-            for p in pagos:
-                p.fecha = p.fecha.replace(day=5)
-                session.add(p)
+        pagos = session.exec(select(Pago).where(Pago.atencion_id == target.id)).all()
+        for p in pagos:
+            p.fecha = p.fecha.replace(day=5)
+            session.add(p)
 
-            historiales = session.exec(select(HistorialAbono).where(HistorialAbono.atencion_id == target.id)).all()
-            for h in historiales:
-                h.fecha = h.fecha.replace(day=5)
-                session.add(h)
-
-            resultados.append({
-                "status": "ok",
-                "paciente": paciente.nombre_completo,
-                "atencion_id": target.id,
-                "fecha_anterior": str(old_fecha),
-                "fecha_nueva": str(target.fecha),
-            })
+        historiales = session.exec(select(HistorialAbono).where(HistorialAbono.atencion_id == target.id)).all()
+        for h in historiales:
+            h.fecha = h.fecha.replace(day=5)
+            session.add(h)
 
         session.commit()
-    return resultados
+        return {
+            "status": "ok",
+            "paciente": paciente.nombre_completo,
+            "atencion_id": target.id,
+            "fecha_anterior": str(old_fecha),
+            "fecha_nueva": str(target.fecha),
+        }
 
 # --- END API ROUTES ---
 
