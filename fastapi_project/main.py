@@ -3677,60 +3677,59 @@ def secret_patch_db(session: Session = Depends(get_session)):
         
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
-@app.get("/fix/fecha-hc0138-mayo5")
-def fix_fecha_hc0138_mayo5():
+@app.get("/fix/borrar-mayo5-y-hc0138")
+def borrar_mayo5_y_hc0138():
+    eliminadas = []
     with Session(engine) as session:
-        paciente = session.exec(
-            select(Paciente).where(Paciente.numero_historia.ilike("%0138%"))
-        ).first()
-        if not paciente:
-            return {"error": "Paciente HC-0138 no encontrado"}
-
-        atenciones = session.exec(
+        # 1. Todas las atenciones del dia 5 de mayo
+        atenciones_mayo5 = session.exec(
             select(Atencion).where(
-                Atencion.paciente_id == paciente.id,
-                Atencion.fecha >= datetime(2026, 5, 1),
+                Atencion.fecha >= datetime(2026, 5, 5),
                 Atencion.fecha < datetime(2026, 5, 6),
             )
         ).all()
-        if not atenciones:
-            return {"error": "No hay atenciones en mayo 1-5 para HC-0138", "paciente": paciente.nombre_completo}
 
-        target = None
-        for a in atenciones:
-            detalles = session.exec(select(AtencionDetalle).where(AtencionDetalle.atencion_id == a.id)).all()
-            for d in detalles:
-                trat = session.get(Tratamiento, d.tratamiento_id)
-                if trat and "ortodoncia" in trat.nombre.lower():
-                    target = a
-                    break
-            if target:
-                break
-        if not target:
-            target = atenciones[0]
+        # 2. Atenciones de HC-0138 en cualquier fecha (por si no estan en mayo 5)
+        paciente_0138 = session.exec(
+            select(Paciente).where(Paciente.numero_historia.ilike("%0138%"))
+        ).first()
+        atenciones_0138 = []
+        if paciente_0138:
+            atenciones_0138 = session.exec(
+                select(Atencion).where(Atencion.paciente_id == paciente_0138.id)
+            ).all()
 
-        old_fecha = target.fecha
-        target.fecha = target.fecha.replace(day=5)
-        session.add(target)
+        # Unir sin duplicados
+        ids_vistos = set()
+        todas = []
+        for a in list(atenciones_mayo5) + list(atenciones_0138):
+            if a.id not in ids_vistos:
+                ids_vistos.add(a.id)
+                todas.append(a)
 
-        pagos = session.exec(select(Pago).where(Pago.atencion_id == target.id)).all()
-        for p in pagos:
-            p.fecha = p.fecha.replace(day=5)
-            session.add(p)
+        for atencion in todas:
+            pac = session.exec(select(Paciente).where(Paciente.id == atencion.paciente_id)).first()
+            if pac:
+                historiales = session.exec(
+                    select(HistorialAbono).where(HistorialAbono.atencion_id == atencion.id)
+                ).all()
+                for h in historiales:
+                    pac.saldo_favor -= h.monto
+                    session.delete(h)
+                total_ab = sum(p.monto for p in atencion.pagos if p.forma_pago == "AB")
+                if total_ab > 0:
+                    pac.saldo_favor += total_ab
+                session.add(pac)
 
-        historiales = session.exec(select(HistorialAbono).where(HistorialAbono.atencion_id == target.id)).all()
-        for h in historiales:
-            h.fecha = h.fecha.replace(day=5)
-            session.add(h)
+            eliminadas.append({
+                "atencion_id": atencion.id,
+                "paciente": pac.nombre_completo if pac else "?",
+                "fecha": str(atencion.fecha),
+            })
+            session.delete(atencion)
 
         session.commit()
-        return {
-            "status": "ok",
-            "paciente": paciente.nombre_completo,
-            "atencion_id": target.id,
-            "fecha_anterior": str(old_fecha),
-            "fecha_nueva": str(target.fecha),
-        }
+    return {"status": "ok", "eliminadas": eliminadas}
 
 # --- END API ROUTES ---
 
