@@ -3680,38 +3680,6 @@ def secret_patch_db(session: Session = Depends(get_session)):
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
 
-@app.get("/fix/corregir-fechas-mayo5")
-def corregir_fechas_mayo5():
-    with Session(engine) as session:
-        atenciones = session.exec(
-            select(Atencion).where(
-                Atencion.fecha >= datetime(2026, 5, 5),
-                Atencion.fecha < datetime(2026, 5, 6),
-            )
-        ).all()
-
-        pagos_corregidos = 0
-        historiales_corregidos = 0
-
-        detalle = []
-        for atencion in atenciones:
-            fecha_correcta = atencion.fecha.date()
-            pagos = session.exec(select(Pago).where(Pago.atencion_id == atencion.id)).all()
-            historiales = session.exec(select(HistorialAbono).where(HistorialAbono.atencion_id == atencion.id)).all()
-            detalle.append({
-                "atencion_id": atencion.id,
-                "atencion_fecha": str(atencion.fecha),
-                "pagos": [{"id": p.id, "fecha": str(p.fecha), "monto": str(p.monto), "forma": p.forma_pago} for p in pagos],
-                "historiales": [{"id": h.id, "fecha": str(h.fecha), "monto": str(h.monto)} for h in historiales],
-            })
-
-        session.commit()
-        return {
-            "status": "ok",
-            "atenciones_revisadas": len(atenciones),
-            "detalle": detalle,
-        }
-
 # --- END API ROUTES ---
 
 if __name__ == "__main__":
