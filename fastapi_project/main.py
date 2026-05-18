@@ -3680,19 +3680,6 @@ def secret_patch_db(session: Session = Depends(get_session)):
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
 
-@app.get("/fix/tr-a-ef-atn121")
-def fix_tr_a_ef_atn121():
-    with Session(engine) as session:
-        pago = session.exec(
-            select(Pago).where(Pago.atencion_id == 121, Pago.forma_pago == "TR")
-        ).first()
-        if not pago:
-            return {"error": "No se encontro pago TR en atencion 121"}
-        pago.forma_pago = "EF"
-        session.add(pago)
-        session.commit()
-        return {"status": "ok", "pago_id": pago.id, "monto": str(pago.monto), "forma_nueva": "EF"}
-
 # --- END API ROUTES ---
 
 if __name__ == "__main__":
