@@ -1842,7 +1842,7 @@ def sync_pagos(atencion_id: int, data: PaymentSync, session: Session = Depends(g
             atencion_id=atencion_id,
             monto=surplus,
             metodo_pago=metodo_final,
-            fecha=datetime.now()
+            fecha=atencion.fecha,
         )
         session.add(historial)
 
@@ -1885,15 +1885,16 @@ def sync_pagos(atencion_id: int, data: PaymentSync, session: Session = Depends(g
         session.delete(p)
     
     # Add new payments (using adjusted values)
+    pago_fecha = atencion.fecha
     if new_efectivo > 0:
-        session.add(Pago(atencion_id=atencion_id, forma_pago="EF", monto=new_efectivo))
+        session.add(Pago(atencion_id=atencion_id, forma_pago="EF", monto=new_efectivo, fecha=pago_fecha))
     if new_transferencia > 0:
-        session.add(Pago(atencion_id=atencion_id, forma_pago="TR", monto=new_transferencia))
+        session.add(Pago(atencion_id=atencion_id, forma_pago="TR", monto=new_transferencia, fecha=pago_fecha))
     if new_tarjeta > 0:
-        session.add(Pago(atencion_id=atencion_id, forma_pago="TC", monto=new_tarjeta))
+        session.add(Pago(atencion_id=atencion_id, forma_pago="TC", monto=new_tarjeta, fecha=pago_fecha))
     if new_abono > 0:
-        session.add(Pago(atencion_id=atencion_id, forma_pago="AB", monto=new_abono))
-        
+        session.add(Pago(atencion_id=atencion_id, forma_pago="AB", monto=new_abono, fecha=pago_fecha))
+
     session.commit()
     return {"message": "Pagos actualizados"}
 
@@ -1968,15 +1969,16 @@ def update_atencion_pagos(atencion_id: int, data: dict, session: Session = Depen
     session.flush() # Ensure deletions are processed before adding new ones
     
     # Add new payments (use adjusted values)
+    pago_fecha = atencion.fecha
     if new_efectivo > 0:
-        session.add(Pago(atencion_id=atencion_id, forma_pago="EF", monto=new_efectivo))
+        session.add(Pago(atencion_id=atencion_id, forma_pago="EF", monto=new_efectivo, fecha=pago_fecha))
     if new_transferencia > 0:
-        session.add(Pago(atencion_id=atencion_id, forma_pago="TR", monto=new_transferencia))
+        session.add(Pago(atencion_id=atencion_id, forma_pago="TR", monto=new_transferencia, fecha=pago_fecha))
     if new_tarjeta > 0:
-        session.add(Pago(atencion_id=atencion_id, forma_pago="TC", monto=new_tarjeta))
+        session.add(Pago(atencion_id=atencion_id, forma_pago="TC", monto=new_tarjeta, fecha=pago_fecha))
     if new_abono > 0:
-        session.add(Pago(atencion_id=atencion_id, forma_pago="AB", monto=new_abono))
-        
+        session.add(Pago(atencion_id=atencion_id, forma_pago="AB", monto=new_abono, fecha=pago_fecha))
+
     session.commit()
     return {"message": "Pagos actualizados correctamente"}
 
@@ -2043,7 +2045,7 @@ def add_atencion_pago(atencion_id: int, data: dict, session: Session = Depends(g
                     usuario_id=user.id if user else None,
                     monto=Decimal(credit_to_wallet),
                     metodo_pago=metodo_excedente,
-                    fecha=datetime.now()
+                    fecha=atencion.fecha,
                 )
                 session.add(historial)
 
