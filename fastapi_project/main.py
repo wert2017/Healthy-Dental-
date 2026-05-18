@@ -3690,7 +3690,7 @@ def borrar_mayo5_y_hc0138():
             ).all()
 
             paciente_0138 = session.exec(
-                select(Paciente).where(Paciente.numero_historia.ilike("%0138%"))
+                select(Paciente).where(Paciente.historia_clinica.ilike("%0138%"))
             ).first()
             atenciones_0138 = []
             if paciente_0138:
@@ -3724,7 +3724,7 @@ def borrar_mayo5_y_hc0138():
 
                 eliminadas.append({
                     "atencion_id": atencion.id,
-                    "paciente": pac.nombre_completo if pac else "?",
+                    "paciente": pac.nombre_mostrar if pac else "?",
                     "fecha": str(atencion.fecha),
                 })
                 session.delete(atencion)
