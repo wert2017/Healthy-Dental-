@@ -3694,27 +3694,24 @@ def corregir_fechas_mayo5():
         historiales_corregidos = 0
 
         for atencion in atenciones:
+            fecha_correcta = atencion.fecha.date()
             pagos = session.exec(
-                select(Pago).where(
-                    Pago.atencion_id == atencion.id,
-                    Pago.fecha >= datetime(2026, 5, 18),
-                )
+                select(Pago).where(Pago.atencion_id == atencion.id)
             ).all()
             for p in pagos:
-                p.fecha = atencion.fecha
-                session.add(p)
-                pagos_corregidos += 1
+                if p.fecha.date() != fecha_correcta:
+                    p.fecha = atencion.fecha
+                    session.add(p)
+                    pagos_corregidos += 1
 
             historiales = session.exec(
-                select(HistorialAbono).where(
-                    HistorialAbono.atencion_id == atencion.id,
-                    HistorialAbono.fecha >= datetime(2026, 5, 18),
-                )
+                select(HistorialAbono).where(HistorialAbono.atencion_id == atencion.id)
             ).all()
             for h in historiales:
-                h.fecha = atencion.fecha
-                session.add(h)
-                historiales_corregidos += 1
+                if h.fecha.date() != fecha_correcta:
+                    h.fecha = atencion.fecha
+                    session.add(h)
+                    historiales_corregidos += 1
 
         session.commit()
         return {
