@@ -3677,6 +3677,32 @@ def secret_patch_db(session: Session = Depends(get_session)):
         
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
+@app.get("/fix/diagnostico-mayo")
+def diagnostico_mayo():
+    with Session(engine) as session:
+        atenciones = session.exec(
+            select(Atencion).where(
+                Atencion.fecha >= datetime(2026, 5, 1),
+                Atencion.fecha < datetime(2026, 6, 1),
+            )
+        ).all()
+        resultado = []
+        for a in atenciones:
+            pac = session.exec(select(Paciente).where(Paciente.id == a.paciente_id)).first()
+            detalles = session.exec(select(AtencionDetalle).where(AtencionDetalle.atencion_id == a.id)).all()
+            trats = []
+            for d in detalles:
+                t = session.get(Tratamiento, d.tratamiento_id)
+                trats.append(t.nombre if t else "?")
+            resultado.append({
+                "atencion_id": a.id,
+                "fecha": str(a.fecha),
+                "paciente": pac.nombre_mostrar if pac else "?",
+                "historia_clinica": pac.historia_clinica if pac else "?",
+                "tratamientos": trats,
+            })
+        return resultado
+
 @app.get("/fix/borrar-mayo5-y-hc0138")
 def borrar_mayo5_y_hc0138():
     eliminadas = []
