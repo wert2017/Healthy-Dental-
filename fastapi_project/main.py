@@ -3680,6 +3680,50 @@ def secret_patch_db(session: Session = Depends(get_session)):
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
 
+@app.get("/fix/corregir-fechas-mayo5")
+def corregir_fechas_mayo5():
+    with Session(engine) as session:
+        atenciones = session.exec(
+            select(Atencion).where(
+                Atencion.fecha >= datetime(2026, 5, 5),
+                Atencion.fecha < datetime(2026, 5, 6),
+            )
+        ).all()
+
+        pagos_corregidos = 0
+        historiales_corregidos = 0
+
+        for atencion in atenciones:
+            pagos = session.exec(
+                select(Pago).where(
+                    Pago.atencion_id == atencion.id,
+                    Pago.fecha >= datetime(2026, 5, 18),
+                )
+            ).all()
+            for p in pagos:
+                p.fecha = atencion.fecha
+                session.add(p)
+                pagos_corregidos += 1
+
+            historiales = session.exec(
+                select(HistorialAbono).where(
+                    HistorialAbono.atencion_id == atencion.id,
+                    HistorialAbono.fecha >= datetime(2026, 5, 18),
+                )
+            ).all()
+            for h in historiales:
+                h.fecha = atencion.fecha
+                session.add(h)
+                historiales_corregidos += 1
+
+        session.commit()
+        return {
+            "status": "ok",
+            "atenciones_revisadas": len(atenciones),
+            "pagos_corregidos": pagos_corregidos,
+            "historiales_corregidos": historiales_corregidos,
+        }
+
 # --- END API ROUTES ---
 
 if __name__ == "__main__":
