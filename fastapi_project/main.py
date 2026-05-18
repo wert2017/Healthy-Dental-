@@ -3732,7 +3732,8 @@ def borrar_mayo5_y_hc0138():
             session.commit()
         return {"status": "ok", "eliminadas": eliminadas}
     except Exception as e:
-        return {"status": "error", "detalle": str(e)}
+        import traceback
+        return {"status": "error", "tipo": type(e).__name__, "detalle": str(e), "trace": traceback.format_exc()}
 
 # --- END API ROUTES ---
 
