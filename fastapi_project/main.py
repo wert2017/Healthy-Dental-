@@ -3693,32 +3693,23 @@ def corregir_fechas_mayo5():
         pagos_corregidos = 0
         historiales_corregidos = 0
 
+        detalle = []
         for atencion in atenciones:
             fecha_correcta = atencion.fecha.date()
-            pagos = session.exec(
-                select(Pago).where(Pago.atencion_id == atencion.id)
-            ).all()
-            for p in pagos:
-                if p.fecha.date() != fecha_correcta:
-                    p.fecha = atencion.fecha
-                    session.add(p)
-                    pagos_corregidos += 1
-
-            historiales = session.exec(
-                select(HistorialAbono).where(HistorialAbono.atencion_id == atencion.id)
-            ).all()
-            for h in historiales:
-                if h.fecha.date() != fecha_correcta:
-                    h.fecha = atencion.fecha
-                    session.add(h)
-                    historiales_corregidos += 1
+            pagos = session.exec(select(Pago).where(Pago.atencion_id == atencion.id)).all()
+            historiales = session.exec(select(HistorialAbono).where(HistorialAbono.atencion_id == atencion.id)).all()
+            detalle.append({
+                "atencion_id": atencion.id,
+                "atencion_fecha": str(atencion.fecha),
+                "pagos": [{"id": p.id, "fecha": str(p.fecha), "monto": str(p.monto), "forma": p.forma_pago} for p in pagos],
+                "historiales": [{"id": h.id, "fecha": str(h.fecha), "monto": str(h.monto)} for h in historiales],
+            })
 
         session.commit()
         return {
             "status": "ok",
             "atenciones_revisadas": len(atenciones),
-            "pagos_corregidos": pagos_corregidos,
-            "historiales_corregidos": historiales_corregidos,
+            "detalle": detalle,
         }
 
 # --- END API ROUTES ---
