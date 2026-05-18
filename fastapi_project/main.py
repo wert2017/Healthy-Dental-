@@ -3677,61 +3677,6 @@ def secret_patch_db(session: Session = Depends(get_session)):
         
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
-@app.get("/fix/diagnostico-mayo")
-def diagnostico_mayo():
-    with Session(engine) as session:
-        atenciones = session.exec(
-            select(Atencion).where(
-                Atencion.fecha >= datetime(2026, 5, 1),
-                Atencion.fecha < datetime(2026, 6, 1),
-            )
-        ).all()
-        resultado = []
-        for a in atenciones:
-            pac = session.exec(select(Paciente).where(Paciente.id == a.paciente_id)).first()
-            detalles = session.exec(select(AtencionDetalle).where(AtencionDetalle.atencion_id == a.id)).all()
-            trats = []
-            for d in detalles:
-                t = session.get(Tratamiento, d.tratamiento_id)
-                trats.append(t.nombre if t else "?")
-            resultado.append({
-                "atencion_id": a.id,
-                "fecha": str(a.fecha),
-                "paciente": pac.nombre_mostrar if pac else "?",
-                "historia_clinica": pac.historia_clinica if pac else "?",
-                "tratamientos": trats,
-            })
-        return resultado
-
-@app.get("/fix/borrar-atencion-83")
-def borrar_atencion_83():
-    try:
-        with Session(engine) as session:
-            atencion = session.get(Atencion, 83)
-            if not atencion:
-                return {"status": "error", "detalle": "Atencion 83 no encontrada"}
-            pac = session.exec(select(Paciente).where(Paciente.id == atencion.paciente_id)).first()
-            if pac:
-                historiales = session.exec(
-                    select(HistorialAbono).where(HistorialAbono.atencion_id == 83)
-                ).all()
-                for h in historiales:
-                    pac.saldo_favor -= h.monto
-                    session.delete(h)
-                pagos_ab = session.exec(
-                    select(Pago).where(Pago.atencion_id == 83, Pago.forma_pago == "AB")
-                ).all()
-                total_ab = sum(p.monto for p in pagos_ab)
-                if total_ab > 0:
-                    pac.saldo_favor += total_ab
-                session.add(pac)
-            nombre = pac.nombre_mostrar if pac else "?"
-            session.delete(atencion)
-            session.commit()
-        return {"status": "ok", "eliminada": {"atencion_id": 83, "paciente": nombre}}
-    except Exception as e:
-        import traceback
-        return {"status": "error", "tipo": type(e).__name__, "detalle": str(e), "trace": traceback.format_exc()}
 
 # --- END API ROUTES ---
 
