@@ -3703,60 +3703,32 @@ def diagnostico_mayo():
             })
         return resultado
 
-@app.get("/fix/borrar-mayo5-y-hc0138")
-def borrar_mayo5_y_hc0138():
-    eliminadas = []
+@app.get("/fix/borrar-atencion-83")
+def borrar_atencion_83():
     try:
         with Session(engine) as session:
-            atenciones_mayo5 = session.exec(
-                select(Atencion).where(
-                    Atencion.fecha >= datetime(2026, 5, 5),
-                    Atencion.fecha < datetime(2026, 5, 6),
-                )
-            ).all()
-
-            paciente_0138 = session.exec(
-                select(Paciente).where(Paciente.historia_clinica.ilike("%0138%"))
-            ).first()
-            atenciones_0138 = []
-            if paciente_0138:
-                atenciones_0138 = session.exec(
-                    select(Atencion).where(Atencion.paciente_id == paciente_0138.id)
+            atencion = session.get(Atencion, 83)
+            if not atencion:
+                return {"status": "error", "detalle": "Atencion 83 no encontrada"}
+            pac = session.exec(select(Paciente).where(Paciente.id == atencion.paciente_id)).first()
+            if pac:
+                historiales = session.exec(
+                    select(HistorialAbono).where(HistorialAbono.atencion_id == 83)
                 ).all()
-
-            ids_vistos = set()
-            todas = []
-            for a in list(atenciones_mayo5) + list(atenciones_0138):
-                if a.id not in ids_vistos:
-                    ids_vistos.add(a.id)
-                    todas.append(a)
-
-            for atencion in todas:
-                pac = session.exec(select(Paciente).where(Paciente.id == atencion.paciente_id)).first()
-                if pac:
-                    historiales = session.exec(
-                        select(HistorialAbono).where(HistorialAbono.atencion_id == atencion.id)
-                    ).all()
-                    for h in historiales:
-                        pac.saldo_favor -= h.monto
-                        session.delete(h)
-                    pagos_ab = session.exec(
-                        select(Pago).where(Pago.atencion_id == atencion.id, Pago.forma_pago == "AB")
-                    ).all()
-                    total_ab = sum(p.monto for p in pagos_ab)
-                    if total_ab > 0:
-                        pac.saldo_favor += total_ab
-                    session.add(pac)
-
-                eliminadas.append({
-                    "atencion_id": atencion.id,
-                    "paciente": pac.nombre_mostrar if pac else "?",
-                    "fecha": str(atencion.fecha),
-                })
-                session.delete(atencion)
-
+                for h in historiales:
+                    pac.saldo_favor -= h.monto
+                    session.delete(h)
+                pagos_ab = session.exec(
+                    select(Pago).where(Pago.atencion_id == 83, Pago.forma_pago == "AB")
+                ).all()
+                total_ab = sum(p.monto for p in pagos_ab)
+                if total_ab > 0:
+                    pac.saldo_favor += total_ab
+                session.add(pac)
+            nombre = pac.nombre_mostrar if pac else "?"
+            session.delete(atencion)
             session.commit()
-        return {"status": "ok", "eliminadas": eliminadas}
+        return {"status": "ok", "eliminada": {"atencion_id": 83, "paciente": nombre}}
     except Exception as e:
         import traceback
         return {"status": "error", "tipo": type(e).__name__, "detalle": str(e), "trace": traceback.format_exc()}
