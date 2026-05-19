@@ -3680,28 +3680,6 @@ def secret_patch_db(session: Session = Depends(get_session)):
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
 
-@app.get("/fix/borrar-abono-josue-90")
-def borrar_abono_josue_90():
-    with Session(engine) as session:
-        pagos_ab = session.exec(
-            select(Pago).where(Pago.forma_pago == "AB", Pago.monto == Decimal("90"))
-        ).all()
-        pagos_resultado = []
-        for p in pagos_ab:
-            atn = session.get(Atencion, p.atencion_id)
-            pac = session.get(Paciente, atn.paciente_id) if atn else None
-            pagos_resultado.append({"pago_id": p.id, "atencion_id": p.atencion_id, "monto": str(p.monto), "fecha": str(p.fecha), "paciente": pac.nombre_mostrar if pac else "?"})
-
-        historiales_90 = session.exec(
-            select(HistorialAbono).where(HistorialAbono.monto == Decimal("90"))
-        ).all()
-        hist_resultado = []
-        for h in historiales_90:
-            pac = session.get(Paciente, h.paciente_id)
-            hist_resultado.append({"historial_id": h.id, "monto": str(h.monto), "fecha": str(h.fecha), "paciente": pac.nombre_mostrar if pac else "?"})
-
-        return {"pagos_ab_90": pagos_resultado, "historial_abono_90": hist_resultado}
-
 # --- END API ROUTES ---
 
 if __name__ == "__main__":
