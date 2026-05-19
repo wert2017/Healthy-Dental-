@@ -3683,17 +3683,20 @@ def secret_patch_db(session: Session = Depends(get_session)):
 @app.get("/fix/borrar-abono-josue-90")
 def borrar_abono_josue_90():
     with Session(engine) as session:
-        # Buscar todos los abonos del 18 de mayo para encontrar el correcto
         historiales = session.exec(
-            select(HistorialAbono).where(
-                HistorialAbono.fecha >= datetime(2026, 5, 18),
-            )
+            select(HistorialAbono).where(HistorialAbono.monto == Decimal("90"))
         ).all()
         resultado = []
         for h in historiales:
             pac = session.get(Paciente, h.paciente_id)
             resultado.append({"id": h.id, "monto": str(h.monto), "fecha": str(h.fecha), "paciente": pac.nombre_mostrar if pac else "?"})
-        return {"abonos_mayo18": resultado}
+        if not resultado:
+            # Si no hay $90 exacto, mostrar todos los historiales
+            todos = session.exec(select(HistorialAbono)).all()
+            for h in todos:
+                pac = session.get(Paciente, h.paciente_id)
+                resultado.append({"id": h.id, "monto": str(h.monto), "fecha": str(h.fecha), "paciente": pac.nombre_mostrar if pac else "?"})
+        return {"historiales": resultado}
 
 # --- END API ROUTES ---
 
