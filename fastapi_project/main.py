@@ -3678,6 +3678,44 @@ def secret_patch_db(session: Session = Depends(get_session)):
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
 
+# --- TEMP: eliminar atencion duplicada EMILY VELOZ (HC-EL -0343) mayo 18 ---
+@app.get("/api/temp/fix-duplicado-emily-may18")
+def temp_fix_duplicado_emily(clave: str, session: Session = Depends(get_session)):
+    if clave != "hd2026fix":
+        raise HTTPException(status_code=403, detail="Clave incorrecta")
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica == "HC-EL -0343")).first()
+    if not paciente:
+        return {"error": "Paciente HC-EL -0343 no encontrado"}
+    fecha_start = datetime(2026, 5, 18, 0, 0, 0)
+    fecha_end   = datetime(2026, 5, 18, 23, 59, 59)
+    atenciones = session.exec(
+        select(Atencion)
+        .where(Atencion.paciente_id == paciente.id)
+        .where(Atencion.fecha >= fecha_start)
+        .where(Atencion.fecha <= fecha_end)
+        .order_by(Atencion.id)
+    ).all()
+    if len(atenciones) < 2:
+        return {"mensaje": f"Solo hay {len(atenciones)} atención(es) el 18 de mayo, no hay duplicado",
+                "atenciones": [{"id": a.id, "fecha": str(a.fecha), "validado": a.validado} for a in atenciones]}
+    # Eliminar la de ID mayor (la duplicada/más reciente)
+    a_conservar  = atenciones[0]
+    a_eliminar   = atenciones[-1]
+    # Borrar pagos y detalles del duplicado primero
+    for pago in a_eliminar.pagos:
+        session.delete(pago)
+    for detalle in a_eliminar.detalles:
+        session.delete(detalle)
+    session.flush()
+    session.delete(a_eliminar)
+    session.commit()
+    return {
+        "ok": True,
+        "conservada": {"id": a_conservar.id, "fecha": str(a_conservar.fecha)},
+        "eliminada":  {"id": a_eliminar.id,  "fecha": str(a_eliminar.fecha)}
+    }
+# --- END TEMP ---
+
 # --- END API ROUTES ---
 
 if __name__ == "__main__":
