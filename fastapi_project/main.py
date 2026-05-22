@@ -1219,13 +1219,13 @@ def get_doctores(session: Session = Depends(get_session)):
 
 @app.get("/api/atenciones/global")
 def get_global_atenciones(
-    search: str = None, 
-    status: str = "all", 
+    search: str = None,
+    status: str = "all",
     start_date: str = None,
     end_date: str = None,
     page: int = 1,
     size: int = 50,
-    session: Session = Depends(get_session), 
+    session: Session = Depends(get_session),
     user: User = Depends(get_current_user)
 ):
     """
@@ -1239,46 +1239,44 @@ def get_global_atenciones(
             selectinload(Atencion.detalles).selectinload(AtencionDetalle.tratamiento),
             selectinload(Atencion.pagos)
         )
-        
+
+        # Apply search filter at DB level so pagination doesn't hide results
+        if search:
+            s = f"%{search}%"
+            query = query.join(Paciente, Atencion.paciente_id == Paciente.id).where(
+                Paciente.nombres.ilike(s) |
+                Paciente.apellidos.ilike(s) |
+                Paciente.numero_identificacion.ilike(s)
+            )
+
         # Apply Date Filters at DB level for efficiency
         if start_date:
             try:
                 start_dt = datetime.strptime(start_date, "%Y-%m-%d")
                 query = query.where(Atencion.fecha >= start_dt)
             except ValueError:
-                pass # Or raise error
+                pass
         if end_date:
             try:
                 end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
                 query = query.where(Atencion.fecha < end_dt)
             except ValueError:
                 pass
-        
-        # Executes query first to handle complex filtering/aggregation in Python
-        # (Safer for calculated totals)
-        # Apply pagination after potentially joining (if needed) but here it's simple results
+
         atenciones = session.exec(query.offset(skip).limit(size)).all()
-        
+
         results = []
         for a in atenciones:
             total_atencion = sum([d.total_calculado for d in a.detalles])
             total_pagado = sum([p.monto for p in a.pagos])
             saldo_pendiente = total_atencion - total_pagado
-            
-            # Simple Search Filter
-            if search:
-                s = search.lower()
-                full_name = (a.paciente.nombres + " " + a.paciente.apellidos).lower()
-                if s not in full_name and s not in (a.paciente.numero_identificacion or ""):
-                    continue
-            
+
             # Status Filter
-            # status: 'all', 'pending' (saldo > 0), 'paid' (saldo <= 0)
             if status == "pending" and saldo_pendiente <= 0.01:
                 continue
             if status == "paid" and saldo_pendiente > 0.01:
                 continue
-                
+
             results.append({
                 "id": a.id,
                 "fecha": a.fecha,
@@ -1290,7 +1288,7 @@ def get_global_atenciones(
                 "validado": a.validado,
                 "estado": a.estado
             })
-            
+
         return results
     except Exception as e:
         import traceback
