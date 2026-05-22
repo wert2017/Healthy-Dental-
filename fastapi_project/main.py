@@ -3680,6 +3680,34 @@ def secret_patch_db(session: Session = Depends(get_session)):
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
 
+# --- TEMP: corregir fecha atencion ASHLEY ANDRADE (HC-EL -0373) de mayo 11 a mayo 12 ---
+@app.get("/api/temp/fix-fecha-ashley-may11")
+def temp_fix_fecha_ashley(clave: str, session: Session = Depends(get_session)):
+    if clave != "hd2026fix":
+        raise HTTPException(status_code=403, detail="Clave incorrecta")
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica == "HC-EL -0373")).first()
+    if not paciente:
+        return {"error": "Paciente HC-EL -0373 no encontrado"}
+    fecha_incorrecta_start = datetime(2026, 5, 11, 0, 0, 0)
+    fecha_incorrecta_end   = datetime(2026, 5, 11, 23, 59, 59)
+    fecha_correcta         = datetime(2026, 5, 12, 0, 0, 0)
+    atenciones = session.exec(
+        select(Atencion)
+        .where(Atencion.paciente_id == paciente.id)
+        .where(Atencion.fecha >= fecha_incorrecta_start)
+        .where(Atencion.fecha <= fecha_incorrecta_end)
+    ).all()
+    if not atenciones:
+        return {"mensaje": "No se encontraron atenciones de HC-EL -0373 con fecha 2026-05-11", "paciente_id": paciente.id}
+    modificadas = []
+    for a in atenciones:
+        a.fecha = fecha_correcta
+        session.add(a)
+        modificadas.append({"atencion_id": a.id, "fecha_anterior": "2026-05-11", "fecha_nueva": "2026-05-12"})
+    session.commit()
+    return {"ok": True, "modificadas": modificadas}
+# --- END TEMP ---
+
 # --- END API ROUTES ---
 
 if __name__ == "__main__":
