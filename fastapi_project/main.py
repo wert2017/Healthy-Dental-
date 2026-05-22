@@ -3680,41 +3680,6 @@ def secret_patch_db(session: Session = Depends(get_session)):
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
 
-# --- TEMP: corregir comision de 1% a 7% para JAVIER PALMA AVERO (HC-EL -0316) mayo 11 ---
-@app.get("/api/temp/fix-comision-palma-may11")
-def temp_fix_comision_palma(clave: str, session: Session = Depends(get_session)):
-    if clave != "hd2026fix":
-        raise HTTPException(status_code=403, detail="Clave incorrecta")
-    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica == "HC-EL -0316")).first()
-    if not paciente:
-        return {"error": "Paciente HC-EL -0316 no encontrado"}
-    fecha_start = datetime(2026, 5, 11, 0, 0, 0)
-    fecha_end   = datetime(2026, 5, 11, 23, 59, 59)
-    atenciones = session.exec(
-        select(Atencion)
-        .where(Atencion.paciente_id == paciente.id)
-        .where(Atencion.fecha >= fecha_start)
-        .where(Atencion.fecha <= fecha_end)
-    ).all()
-    if not atenciones:
-        return {"mensaje": "No se encontraron atenciones de HC-EL -0316 con fecha 2026-05-11", "paciente_id": paciente.id}
-    modificados = []
-    for a in atenciones:
-        detalles = session.exec(
-            select(AtencionDetalle)
-            .where(AtencionDetalle.atencion_id == a.id)
-            .where(AtencionDetalle.porcentaje_comision == 1)
-        ).all()
-        for d in detalles:
-            d.porcentaje_comision = 7
-            session.add(d)
-            modificados.append({"atencion_id": a.id, "detalle_id": d.id, "comision_anterior": "1%", "comision_nueva": "7%"})
-    if not modificados:
-        return {"mensaje": "No se encontraron detalles con 1% de comisión en esa atención"}
-    session.commit()
-    return {"ok": True, "modificados": modificados}
-# --- END TEMP ---
-
 # --- END API ROUTES ---
 
 if __name__ == "__main__":
