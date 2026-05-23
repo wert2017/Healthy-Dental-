@@ -3744,6 +3744,41 @@ def temp_fix_fecha_michel(clave: str, session: Session = Depends(get_session)):
     return {"ok": True, "modificadas": modificadas}
 # --- END TEMP ---
 
+# --- TEMP: cambiar pago EF a TR para DAYANA PALLO (HC-EL -0556) mayo 20 ---
+@app.get("/api/temp/fix-pago-dayana-may20")
+def temp_fix_pago_dayana(clave: str, session: Session = Depends(get_session)):
+    if clave != "hd2026fix":
+        raise HTTPException(status_code=403, detail="Clave incorrecta")
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica == "HC-EL -0556")).first()
+    if not paciente:
+        return {"error": "Paciente HC-EL -0556 no encontrado"}
+    fecha_start = datetime(2026, 5, 20, 0, 0, 0)
+    fecha_end   = datetime(2026, 5, 20, 23, 59, 59)
+    atenciones = session.exec(
+        select(Atencion)
+        .where(Atencion.paciente_id == paciente.id)
+        .where(Atencion.fecha >= fecha_start)
+        .where(Atencion.fecha <= fecha_end)
+    ).all()
+    if not atenciones:
+        return {"mensaje": "No se encontraron atenciones de HC-EL -0556 con fecha 2026-05-20"}
+    modificados = []
+    for a in atenciones:
+        pagos_ef = session.exec(
+            select(Pago)
+            .where(Pago.atencion_id == a.id)
+            .where(Pago.forma_pago == "EF")
+        ).all()
+        for p in pagos_ef:
+            p.forma_pago = "TR"
+            session.add(p)
+            modificados.append({"pago_id": p.id, "atencion_id": a.id, "monto": float(p.monto), "anterior": "EF", "nuevo": "TR"})
+    if not modificados:
+        return {"mensaje": "No se encontraron pagos en efectivo (EF) en esa atención"}
+    session.commit()
+    return {"ok": True, "modificados": modificados}
+# --- END TEMP ---
+
 # --- END API ROUTES ---
 
 if __name__ == "__main__":
