@@ -2697,6 +2697,73 @@ def reporte_resumen_financiero(
         "balance": round(total_cobrado - total_gastos, 2)
     }
 
+
+@app.get("/api/reportes/ortodoncia")
+def get_ortodoncia_seguimiento(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role not in ["admin", "recepcion"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+
+    ORTHO_CODES = ['INSTAL', 'CNTRL', 'INSAUTLIGA', 'CATLIG']
+
+    stmt = (
+        select(
+            Paciente.id,
+            Paciente.nombres,
+            Paciente.apellidos,
+            Paciente.historia_clinica,
+            Paciente.telefono,
+            func.min(Atencion.fecha).label("primera_cita"),
+            func.max(Atencion.fecha).label("ultima_cita"),
+            func.count(Atencion.id.distinct()).label("total_atenciones")
+        )
+        .join(Atencion, Paciente.id == Atencion.paciente_id)
+        .join(AtencionDetalle, Atencion.id == AtencionDetalle.atencion_id)
+        .join(Tratamiento, AtencionDetalle.tratamiento_id == Tratamiento.id)
+        .where(Tratamiento.codigo.in_(ORTHO_CODES))
+        .where(Atencion.sucursal_id == user.sucursal_id)
+        .group_by(
+            Paciente.id, Paciente.nombres, Paciente.apellidos,
+            Paciente.historia_clinica, Paciente.telefono
+        )
+        .order_by(func.max(Atencion.fecha).asc())
+    )
+
+    rows = session.exec(stmt).all()
+
+    now = datetime.now()
+    result = []
+    for row in rows:
+        ultima = row.ultima_cita
+        dias_ausente = (now - ultima).days
+        meses_ausente = dias_ausente // 30
+
+        if meses_ausente == 0:
+            estado = "al_dia"
+        elif meses_ausente == 1:
+            estado = "reciente"
+        elif meses_ausente == 2:
+            estado = "riesgo"
+        else:
+            estado = "critico"
+
+        result.append({
+            "paciente_id": row.id,
+            "nombre": f"{row.nombres} {row.apellidos or ''}".strip(),
+            "historia_clinica": row.historia_clinica,
+            "telefono": row.telefono or "",
+            "primera_cita": row.primera_cita.isoformat(),
+            "ultima_cita": ultima.isoformat(),
+            "total_atenciones": row.total_atenciones,
+            "dias_ausente": dias_ausente,
+            "meses_ausente": meses_ausente,
+            "estado": estado
+        })
+
+    return result
+
 @app.post("/api/pacientes/{paciente_id}/tratamientos")
 def iniciar_tratamiento(paciente_id: int, tratamiento_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     # Check if already active

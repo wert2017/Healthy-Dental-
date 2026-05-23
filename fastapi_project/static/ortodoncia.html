@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seguimiento Ortodoncia - Clínica HD</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #f3f4f6; color: #111827; font-size: 13px; line-height: 1.5; }
+
+        .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 30; height: 52px; display: flex; align-items: center; padding: 0 24px; gap: 16px; }
+        .topbar-brand { font-size: 15px; font-weight: 700; color: #1e40af; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .topbar-brand img { height: 30px; }
+        .nav { display: flex; gap: 2px; align-items: center; overflow-x: auto; }
+        .nav a { padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: 500; color: #6b7280; text-decoration: none; white-space: nowrap; }
+        .nav a:hover { background: #f3f4f6; color: #111827; }
+        .nav a.active { background: #eff6ff; color: #1d4ed8; }
+        .nav a.exit { color: #dc2626; margin-left: 6px; }
+
+        .page { max-width: 1300px; margin: 0 auto; padding: 20px 24px 48px; }
+
+        .page-title { font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+        .page-desc { font-size: 12px; color: #6b7280; margin-bottom: 20px; }
+
+        /* SUMMARY CARDS */
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 16px; }
+        .card-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; margin-bottom: 6px; }
+        .card-value { font-size: 26px; font-weight: 700; line-height: 1; }
+        .card-sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+        .card-total .card-value { color: #1d4ed8; }
+        .card-ok .card-value { color: #065f46; }
+        .card-warn .card-value { color: #92400e; }
+        .card-danger .card-value { color: #991b1b; }
+
+        /* FILTER */
+        .filter-bar { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 18px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+        .filter-group label { display: block; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+        input[type=text], select { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 9px; font-size: 12px; outline: none; background: #fff; color: #374151; font-family: inherit; height: 32px; }
+        input[type=text]:focus, select:focus { border-color: #6366f1; }
+        input[type=text] { width: 220px; }
+
+        .btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 14px; height: 32px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #d1d5db; background: #fff; color: #374151; font-family: inherit; transition: background .12s; white-space: nowrap; }
+        .btn:hover { background: #f9fafb; }
+        .btn-primary { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .btn-primary:hover { background: #4338ca; }
+
+        /* TABLE */
+        .table-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+        .dt { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .dt th { padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; background: #f9fafb; white-space: nowrap; }
+        .dt td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
+        .dt tbody tr:last-child td { border-bottom: none; }
+        .dt tbody tr:hover td { background: #f9fafb; }
+
+        /* STATUS BADGES */
+        .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+        .badge-ok    { background: #d1fae5; color: #065f46; }
+        .badge-warn  { background: #fef3c7; color: #92400e; }
+        .badge-risk  { background: #ffedd5; color: #9a3412; }
+        .badge-crit  { background: #fee2e2; color: #991b1b; }
+
+        /* ROW COLORS */
+        .row-ok   td { background: #f0fdf4; }
+        .row-warn td { background: #fffbeb; }
+        .row-risk td { background: #fff7ed; }
+        .row-crit td { background: #fff1f2; }
+        .row-ok:hover td   { background: #dcfce7 !important; }
+        .row-warn:hover td { background: #fef9c3 !important; }
+        .row-risk:hover td { background: #ffedd5 !important; }
+        .row-crit:hover td { background: #fee2e2 !important; }
+
+        .link-atn { color: #1d4ed8; font-weight: 600; text-decoration: none; font-size: 12px; }
+        .link-atn:hover { text-decoration: underline; }
+
+        .empty { padding: 40px; text-align: center; color: #9ca3af; font-size: 13px; }
+
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .dot-ok   { background: #10b981; }
+        .dot-warn { background: #f59e0b; }
+        .dot-risk { background: #f97316; }
+        .dot-crit { background: #ef4444; }
+
+        .months-bar { display: flex; gap: 2px; align-items: center; }
+        .month-box { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; }
+        .month-box-absent { background: #fca5a5; }
+        .month-box-present { background: #6ee7b7; }
+        .month-box-future { background: #e5e7eb; }
+    </style>
+</head>
+<body>
+<div id="app">
+
+    <header class="topbar">
+        <div class="topbar-brand">
+            <img src="/static/logo.png" alt="Clínica HD">
+            {{ sucursalNombre }}
+        </div>
+        <nav class="nav">
+            <a href="/recepcion">Recepción</a>
+            <a href="/static/pagos.html">CxC / Abonos</a>
+            <a v-if="role !== 'doctor'" href="/gastos">Gastos</a>
+            <a v-if="role === 'admin'" href="/admin">Administración</a>
+            <a v-if="role !== 'doctor'" href="/admin/paciente/list">Pacientes</a>
+            <a v-if="role === 'admin'" href="/static/reportes.html">Reportes</a>
+            <a v-if="role !== 'doctor'" href="/static/doctores.html">Doctores</a>
+            <a v-if="role !== 'doctor'" href="/static/ortodoncia.html" class="active">Ortodoncia</a>
+            <a v-if="role !== 'recepcion'" href="/recepcion/historial">Historial</a>
+            <a href="#" @click.prevent="logout" class="exit">Salir</a>
+        </nav>
+    </header>
+
+    <div class="page">
+        <div class="page-title">Seguimiento de Pacientes de Ortodoncia</div>
+        <div class="page-desc">
+            Pacientes con tratamientos INSTAL / CNTRL / INSAUTLIGA / CATLIG — ordenados por fecha de última cita (más ausentes primero).
+        </div>
+
+        <!-- Cards resumen -->
+        <div class="cards">
+            <div class="card card-total">
+                <div class="card-label">Total Pacientes</div>
+                <div class="card-value">{{ pacientes.length }}</div>
+                <div class="card-sub">con ortodoncia activa</div>
+            </div>
+            <div class="card card-ok">
+                <div class="card-label">Al día (0–1 mes)</div>
+                <div class="card-value">{{ counts.al_dia + counts.reciente }}</div>
+                <div class="card-sub">última cita reciente</div>
+            </div>
+            <div class="card card-warn">
+                <div class="card-label">En riesgo (2 meses)</div>
+                <div class="card-value">{{ counts.riesgo }}</div>
+                <div class="card-sub">necesitan recordatorio</div>
+            </div>
+            <div class="card card-danger">
+                <div class="card-label">Crítico (3+ meses)</div>
+                <div class="card-value">{{ counts.critico }}</div>
+                <div class="card-sub">ausentes por largo tiempo</div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>Buscar paciente</label>
+                <input type="text" v-model="search" placeholder="Nombre o historia clínica...">
+            </div>
+            <div class="filter-group">
+                <label>Filtrar por estado</label>
+                <select v-model="filterEstado">
+                    <option value="">Todos</option>
+                    <option value="al_dia">Al día (este mes)</option>
+                    <option value="reciente">Reciente (1 mes)</option>
+                    <option value="riesgo">En riesgo (2 meses)</option>
+                    <option value="critico">Crítico (3+ meses)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Meses ausente mínimo</label>
+                <select v-model="filterMesesMin">
+                    <option value="0">Cualquiera</option>
+                    <option value="1">1+ mes</option>
+                    <option value="2">2+ meses</option>
+                    <option value="3">3+ meses</option>
+                    <option value="4">4+ meses</option>
+                    <option value="6">6+ meses</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" @click="loadData" :disabled="loading">
+                <span v-if="loading">Cargando...</span>
+                <span v-else">↻ Actualizar</span>
+            </button>
+        </div>
+
+        <!-- Tabla -->
+        <div class="table-wrap">
+            <table class="dt">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Paciente</th>
+                        <th>HC</th>
+                        <th>Teléfono</th>
+                        <th>Primera Cita</th>
+                        <th>Última Cita</th>
+                        <th>Citas Totales</th>
+                        <th>Meses Ausente</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-if="loading">
+                        <td colspan="10" class="empty">Cargando datos...</td>
+                    </tr>
+                    <tr v-else-if="filtered.length === 0">
+                        <td colspan="10" class="empty">No se encontraron pacientes con los filtros seleccionados.</td>
+                    </tr>
+                    <tr v-for="(p, i) in filtered" :key="p.paciente_id"
+                        :class="{
+                            'row-ok':   p.estado === 'al_dia',
+                            'row-warn': p.estado === 'reciente',
+                            'row-risk': p.estado === 'riesgo',
+                            'row-crit': p.estado === 'critico'
+                        }">
+                        <td style="color:#9ca3af; font-size:11px;">{{ i + 1 }}</td>
+                        <td style="font-weight:600;">{{ p.nombre }}</td>
+                        <td style="font-family:monospace; font-size:12px; color:#6b7280;">{{ p.historia_clinica }}</td>
+                        <td style="color:#374151;">{{ p.telefono || '—' }}</td>
+                        <td style="font-size:12px; color:#6b7280;">{{ formatDate(p.primera_cita) }}</td>
+                        <td style="font-size:12px; font-weight:600;">{{ formatDate(p.ultima_cita) }}</td>
+                        <td style="text-align:center; font-weight:600;">{{ p.total_atenciones }}</td>
+                        <td>
+                            <div class="months-bar" :title="p.meses_ausente + ' meses sin venir'">
+                                <span v-for="n in Math.min(p.meses_ausente, 12)" :key="n"
+                                    class="month-box month-box-absent"
+                                    :title="'Mes ' + n + ' sin cita'">
+                                </span>
+                                <span style="font-size:12px; font-weight:700; margin-left:4px; color:#374151;">
+                                    {{ p.meses_ausente }} mes{{ p.meses_ausente !== 1 ? 'es' : '' }}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge"
+                                :class="{
+                                    'badge-ok':   p.estado === 'al_dia',
+                                    'badge-warn': p.estado === 'reciente',
+                                    'badge-risk': p.estado === 'riesgo',
+                                    'badge-crit': p.estado === 'critico'
+                                }">
+                                <span class="dot"
+                                    :class="{
+                                        'dot-ok':   p.estado === 'al_dia',
+                                        'dot-warn': p.estado === 'reciente',
+                                        'dot-risk': p.estado === 'riesgo',
+                                        'dot-crit': p.estado === 'critico'
+                                    }">
+                                </span>
+                                {{ estadoLabel(p.estado) }}
+                            </span>
+                        </td>
+                        <td>
+                            <a :href="'/admin/paciente/details/'+p.paciente_id" target="_blank" class="link-atn">
+                                Ver paciente →
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top:8px; font-size:11px; color:#9ca3af;" v-if="!loading && filtered.length > 0">
+            Mostrando {{ filtered.length }} de {{ pacientes.length }} pacientes
+        </div>
+    </div>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+
+createApp({
+    setup() {
+        const pacientes = ref([]);
+        const loading = ref(true);
+        const search = ref('');
+        const filterEstado = ref('');
+        const filterMesesMin = ref('0');
+        const role = ref(localStorage.getItem('role') || '');
+        const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD');
+
+        const loadData = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) { window.location.href = '/login'; return; }
+            if (role.value === 'doctor') { window.location.href = '/recepcion'; return; }
+            loading.value = true;
+            try {
+                const res = await axios.get('/api/reportes/ortodoncia', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                pacientes.value = res.data;
+            } catch (e) {
+                console.error('Error cargando ortodoncia', e);
+            } finally {
+                loading.value = false;
+            }
+        };
+
+        const counts = computed(() => {
+            const c = { al_dia: 0, reciente: 0, riesgo: 0, critico: 0 };
+            pacientes.value.forEach(p => { if (c[p.estado] !== undefined) c[p.estado]++; });
+            return c;
+        });
+
+        const filtered = computed(() => {
+            let list = pacientes.value;
+            if (filterEstado.value) list = list.filter(p => p.estado === filterEstado.value);
+            const min = parseInt(filterMesesMin.value) || 0;
+            if (min > 0) list = list.filter(p => p.meses_ausente >= min);
+            if (search.value.trim()) {
+                const q = search.value.toLowerCase();
+                list = list.filter(p =>
+                    p.nombre.toLowerCase().includes(q) ||
+                    p.historia_clinica.toLowerCase().includes(q)
+                );
+            }
+            return list;
+        });
+
+        const formatDate = (iso) => {
+            if (!iso) return '—';
+            const d = new Date(iso);
+            return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        };
+
+        const estadoLabel = (e) => {
+            return { al_dia: 'Al día', reciente: '1 mes', riesgo: '2 meses', critico: '3+ meses' }[e] || e;
+        };
+
+        const logout = () => { localStorage.clear(); window.location.href = '/login'; };
+
+        onMounted(loadData);
+
+        return { pacientes, loading, search, filterEstado, filterMesesMin, role, sucursalNombre, counts, filtered, formatDate, estadoLabel, loadData, logout };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

@@ -90,6 +90,12 @@
                         :class="isActive('/static/doctores.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
                         Doctores
                     </a>
+                    <!-- Ortodoncia -->
+                    <a v-if="role !== 'doctor'" href="/static/ortodoncia.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/ortodoncia.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Ortodoncia
+                    </a>
                     <!-- Historial -->
                     <a v-if="role !== 'recepcion'" href="/recepcion/historial"
                         class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
