@@ -3628,12 +3628,14 @@ def internal_transfer(data: TransferenciaInternaSchema, session: Session = Depen
 def get_global_historial(page: int = 1, size: int = 50, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     try:
         skip = (page - 1) * size
-        # Join with Atencion and Paciente to provide more context in the global list
-        logs = session.exec(
+        query = (
             select(AuditoriaAtencion)
+            .join(Atencion, AuditoriaAtencion.atencion_id == Atencion.id)
             .order_by(AuditoriaAtencion.fecha.desc())
-            .offset(skip).limit(size)
-        ).all()
+        )
+        if user.sucursal_id:
+            query = query.where(Atencion.sucursal_id == user.sucursal_id)
+        logs = session.exec(query.offset(skip).limit(size)).all()
         
         return [
             {
