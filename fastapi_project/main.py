@@ -3678,6 +3678,36 @@ def secret_patch_db(session: Session = Depends(get_session)):
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
 
+# --- TEMP: diagnostico paciente test ---
+@app.get("/api/temp/diag-paciente-test")
+def temp_diag_paciente_test(clave: str, session: Session = Depends(get_session)):
+    if clave != "hd2026fix":
+        raise HTTPException(status_code=403, detail="Clave incorrecta")
+    pacientes = session.exec(
+        select(Paciente).where(
+            Paciente.nombres.ilike("%test%") |
+            Paciente.apellidos.ilike("%test%") |
+            Paciente.historia_clinica.ilike("%test%")
+        )
+    ).all()
+    resultado = []
+    for p in pacientes:
+        atenciones = session.exec(select(Atencion).where(Atencion.paciente_id == p.id)).all()
+        historial   = session.exec(select(HistorialAbono).where(HistorialAbono.paciente_id == p.id)).all()
+        resultado.append({
+            "id": p.id, "nombres": p.nombres, "apellidos": p.apellidos,
+            "historia_clinica": p.historia_clinica,
+            "saldo_favor": float(p.saldo_favor),
+            "total_atenciones": len(atenciones),
+            "total_historial_abono": len(historial),
+            "atenciones": [{"id": a.id, "fecha": str(a.fecha), "validado": a.validado,
+                            "pagos": [{"forma_pago": pg.forma_pago, "monto": float(pg.monto)} for pg in a.pagos],
+                            "detalles": [{"tratamiento_id": d.tratamiento_id, "precio": float(d.precio_unitario)} for d in a.detalles]}
+                           for a in atenciones]
+        })
+    return {"pacientes_encontrados": len(resultado), "data": resultado}
+# --- END TEMP ---
+
 # --- END API ROUTES ---
 
 if __name__ == "__main__":
