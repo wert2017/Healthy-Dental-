@@ -903,7 +903,7 @@
                     const { isConfirmed } = await Swal.fire({
                         title: '¿Eliminar tratamiento?',
                         html: `<p>¿Confirmas eliminar <b>${detalle.nombre_tratamiento}</b>?</p>
-                               <p class="text-sm text-gray-500 mt-1">Si hay pagos asociados quedarán como abono en la billetera del paciente.</p>`,
+                               <p class="text-sm text-gray-500 mt-1">Los pagos asociados serán eliminados del registro.</p>`,
                         icon: 'warning',
                         showCancelButton: true,
                         confirmButtonText: 'Sí, eliminar',
@@ -913,7 +913,7 @@
                     if (!isConfirmed) return;
 
                     try {
-                        await axios.delete(`/api/detalles/${detalle.id}?accion=dejar_abono`);
+                        await axios.delete(`/api/detalles/${detalle.id}?accion=eliminar_pago`);
                         await loadData();
                         Swal.fire({ title: 'Listo', text: 'Tratamiento eliminado', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 2500 });
                     } catch (error) {
