@@ -3698,10 +3698,15 @@ def temp_del_atencion_neli(clave: str, session: Session = Depends(get_session)):
         return {"mensaje": "No se encontraron atenciones de HC-EL -0576 con fecha 2026-05-16"}
     eliminadas = []
     for a in atenciones:
-        for pago in a.pagos:
-            session.delete(pago)
-        for detalle in a.detalles:
-            session.delete(detalle)
+        # Borrar registros relacionados en orden correcto
+        for x in session.exec(select(Pago).where(Pago.atencion_id == a.id)).all():
+            session.delete(x)
+        for x in session.exec(select(AtencionDetalle).where(AtencionDetalle.atencion_id == a.id)).all():
+            session.delete(x)
+        for x in session.exec(select(AuditoriaAtencion).where(AuditoriaAtencion.atencion_id == a.id)).all():
+            session.delete(x)
+        for x in session.exec(select(HistorialAbono).where(HistorialAbono.atencion_id == a.id)).all():
+            session.delete(x)
         session.flush()
         eliminadas.append({"atencion_id": a.id, "fecha": str(a.fecha)})
         session.delete(a)
