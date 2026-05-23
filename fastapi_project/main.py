@@ -192,10 +192,11 @@ async def login_for_access_token(
          # Let's say we require it if available
          pass
 
-    # Set role cookie for Admin Panel seamless access
-    response.set_cookie(key="user_role", value=user.role, httponly=False)
+    # Set role cookie for Admin Panel seamless access (max_age = 24h, same as JWT)
+    cookie_age = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    response.set_cookie(key="user_role", value=user.role, httponly=False, max_age=cookie_age, samesite="lax")
     if final_sucursal_id:
-        response.set_cookie(key="sucursal_id", value=str(final_sucursal_id), httponly=False) 
+        response.set_cookie(key="sucursal_id", value=str(final_sucursal_id), httponly=False, max_age=cookie_age, samesite="lax")
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -438,27 +439,38 @@ class SucursalAdmin(ModelView, model=Sucursal):
 class UserAdmin(ModelView, model=User):
     name = "Usuario"
     name_plural = "Usuarios"
-    column_list = [User.username, User.role, User.doctor, User.sucursal]
-    form_columns = [User.username, "hashed_password", User.role, User.doctor, User.sucursal]
     icon = "fa-solid fa-users-gear"
-    
+    can_create = True
+    can_edit = True
+    can_delete = True
+
+    column_list = [User.username, User.role, User.sucursal, User.doctor]
+    form_columns = [User.username, User.hashed_password, User.role, User.sucursal, User.doctor]
+
+    column_labels = {"hashed_password": "Contraseña"}
+    form_overrides = {"hashed_password": wtforms.PasswordField, "role": SelectField}
     form_args = {
-        "hashed_password": {"label": "Contraseña / Password"}
+        "hashed_password": {"label": "Contraseña (dejar en blanco para no cambiar)"},
+        "role": {
+            "label": "Rol",
+            "choices": [("admin", "Admin"), ("recepcion", "Recepción"), ("doctor", "Doctor")],
+            "coerce": str,
+        },
     }
 
     def is_accessible(self, request: Request) -> bool:
         return request.cookies.get("user_role") == "admin"
-    
+
     def is_visible(self, request: Request) -> bool:
         return request.cookies.get("user_role") == "admin"
 
     async def on_model_change(self, data, model, is_created, request: Request):
-        # Si se envió una contraseña (en creación o edición), la hasheamos
-        if "hashed_password" in data and data["hashed_password"]:
-            # Solo hasheamos si no parece ser ya un hash (para evitar doble hash en ediciones sin cambio)
-            # Aunque lo ideal es que el formulario no muestre el hash.
-            # Por ahora, si el usuario escribe algo, lo hasheamos.
-            data["hashed_password"] = pwd_context.hash(data["hashed_password"])
+        pw = data.get("hashed_password", "")
+        if pw:
+            data["hashed_password"] = pwd_context.hash(pw)
+        elif not is_created:
+            # Edición sin cambio de contraseña: restaurar el hash actual
+            data["hashed_password"] = model.hashed_password
 
 class TratamientoAdmin(ModelView, model=Tratamiento):
     column_list = [Tratamiento.codigo, Tratamiento.nombre, Tratamiento.precio_base, Tratamiento.activo]

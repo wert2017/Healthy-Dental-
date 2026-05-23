@@ -97,12 +97,6 @@
                         :class="isActive('/recepcion/historial') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
                         Historial
                     </a>
-                    <!-- Inventario -->
-                    <a v-if="role !== 'doctor'" href="/admin/insumo/list"
-                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/admin/insumo/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Mantenimiento
-                    </a>
                     <!-- Salir -->
                     <a href="#" @click.prevent="logout"
                         class="px-3 py-2 rounded-md text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors ml-2 whitespace-nowrap">
