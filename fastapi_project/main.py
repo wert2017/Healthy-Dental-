@@ -3678,6 +3678,42 @@ def secret_patch_db(session: Session = Depends(get_session)):
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
 
 
+# --- TEMP: limpiar todas las operaciones del paciente TEST (id=4592) ---
+@app.get("/api/temp/wipe-paciente-test")
+def temp_wipe_paciente_test(clave: str, session: Session = Depends(get_session)):
+    if clave != "hd2026fix":
+        raise HTTPException(status_code=403, detail="Clave incorrecta")
+    paciente = session.get(Paciente, 4592)
+    if not paciente or "test" not in (paciente.nombres or "").lower():
+        return {"error": "Paciente TEST no encontrado o ID no coincide"}
+    resumen = {"atenciones_eliminadas": [], "historial_abono_eliminado": 0, "saldo_favor_anterior": float(paciente.saldo_favor)}
+    # Eliminar atenciones y sus registros relacionados
+    atenciones = session.exec(select(Atencion).where(Atencion.paciente_id == paciente.id)).all()
+    for a in atenciones:
+        for x in session.exec(select(Pago).where(Pago.atencion_id == a.id)).all():
+            session.delete(x)
+        for x in session.exec(select(AtencionDetalle).where(AtencionDetalle.atencion_id == a.id)).all():
+            session.delete(x)
+        for x in session.exec(select(AuditoriaAtencion).where(AuditoriaAtencion.atencion_id == a.id)).all():
+            session.delete(x)
+        for x in session.exec(select(HistorialAbono).where(HistorialAbono.atencion_id == a.id)).all():
+            session.delete(x)
+        session.flush()
+        resumen["atenciones_eliminadas"].append(a.id)
+        session.delete(a)
+    # Eliminar historial de abono sin atencion asociada
+    historial = session.exec(select(HistorialAbono).where(HistorialAbono.paciente_id == paciente.id)).all()
+    for h in historial:
+        session.delete(h)
+        resumen["historial_abono_eliminado"] += 1
+    # Resetear saldo_favor a 0
+    paciente.saldo_favor = 0
+    session.add(paciente)
+    session.commit()
+    resumen["saldo_favor_nuevo"] = 0
+    return {"ok": True, "resumen": resumen}
+# --- END TEMP ---
+
 # --- TEMP: diagnostico paciente test ---
 @app.get("/api/temp/diag-paciente-test")
 def temp_diag_paciente_test(clave: str, session: Session = Depends(get_session)):
