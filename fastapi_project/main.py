@@ -3744,6 +3744,27 @@ def temp_fix_fecha_michel(clave: str, session: Session = Depends(get_session)):
     return {"ok": True, "modificadas": modificadas}
 # --- END TEMP ---
 
+# --- TEMP: diagnostico atenciones MICHEL ALMAGRO (HC-EL -0211) ---
+@app.get("/api/temp/diag-michel")
+def temp_diag_michel(clave: str, session: Session = Depends(get_session)):
+    if clave != "hd2026fix":
+        raise HTTPException(status_code=403, detail="Clave incorrecta")
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica == "HC-EL -0211")).first()
+    if not paciente:
+        return {"error": "Paciente no encontrado"}
+    atenciones = session.exec(
+        select(Atencion)
+        .where(Atencion.paciente_id == paciente.id)
+        .order_by(Atencion.fecha.desc())
+    ).all()
+    return {"paciente_id": paciente.id, "atenciones": [
+        {"id": a.id, "fecha": str(a.fecha), "validado": a.validado,
+         "detalles": [{"tratamiento_id": d.tratamiento_id, "precio": float(d.precio_unitario)} for d in a.detalles],
+         "pagos": [{"forma_pago": p.forma_pago, "monto": float(p.monto)} for p in a.pagos]}
+        for a in atenciones
+    ]}
+# --- END TEMP ---
+
 # --- TEMP: cambiar pago EF a TR para DAYANA PALLO (HC-EL -0556) mayo 20 ---
 @app.get("/api/temp/fix-pago-dayana-may20")
 def temp_fix_pago_dayana(clave: str, session: Session = Depends(get_session)):
