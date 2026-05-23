@@ -97,7 +97,7 @@
                         Gastos
                     </a>
                     <!-- Administración -->
-                    <a v-if="role !== 'doctor'" href="/admin"
+                    <a v-if="role === 'admin'" href="/admin"
                         class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
                         :class="isActive('/admin') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
                         Administración
@@ -109,7 +109,7 @@
                         Pacientes
                     </a>
                     <!-- Reportes -->
-                    <a v-if="role !== 'doctor'" href="/static/reportes.html"
+                    <a v-if="role === 'admin'" href="/static/reportes.html"
                         class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
                         :class="isActive('/static/reportes.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
                         Reportes
@@ -121,7 +121,7 @@
                         Doctores
                     </a>
                     <!-- Historial -->
-                    <a href="/recepcion/historial"
+                    <a v-if="role !== 'recepcion'" href="/recepcion/historial"
                         class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
                         :class="isActive('/recepcion/historial') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
                         Historial

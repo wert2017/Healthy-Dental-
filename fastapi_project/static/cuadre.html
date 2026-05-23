@@ -82,11 +82,11 @@
             <a href="/static/pagos.html">CxC / Abonos</a>
             <a href="/cuadre" class="active">Cuadre Diario</a>
             <a v-if="role !== 'doctor'" href="/gastos">Gastos</a>
-            <a v-if="role !== 'doctor'" href="/admin">Administración</a>
+            <a v-if="role === 'admin'" href="/admin">Administración</a>
             <a v-if="role !== 'doctor'" href="/admin/paciente/list">Pacientes</a>
-            <a v-if="role !== 'doctor'" href="/static/reportes.html">Reportes</a>
+            <a v-if="role === 'admin'" href="/static/reportes.html">Reportes</a>
             <a v-if="role !== 'doctor'" href="/static/doctores.html">Doctores</a>
-            <a href="/recepcion/historial">Historial</a>
+            <a v-if="role !== 'recepcion'" href="/recepcion/historial">Historial</a>
 
         </nav>
         <div class="nav-user">

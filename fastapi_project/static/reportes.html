@@ -110,11 +110,11 @@
             <a href="/recepcion">Recepción</a>
             <a href="/static/pagos.html">CxC / Abonos</a>
             <a v-if="role !== 'doctor'" href="/gastos">Gastos</a>
-            <a v-if="role !== 'doctor'" href="/admin">Administración</a>
+            <a v-if="role === 'admin'" href="/admin">Administración</a>
             <a v-if="role !== 'doctor'" href="/admin/paciente/list">Pacientes</a>
-            <a v-if="role !== 'doctor'" href="/static/reportes.html" class="active">Reportes</a>
+            <a v-if="role === 'admin'" href="/static/reportes.html" class="active">Reportes</a>
             <a v-if="role !== 'doctor'" href="/static/doctores.html">Doctores</a>
-            <a href="/recepcion/historial">Historial</a>
+            <a v-if="role !== 'recepcion'" href="/recepcion/historial">Historial</a>
             <a href="#" @click.prevent="logout" class="exit">Salir</a>
         </nav>
     </header>
@@ -563,9 +563,9 @@
         setup() {
             const token = localStorage.getItem('token')
             if (!token) window.location.href = '/login'
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-
             const role = ref(localStorage.getItem('role') || 'admin')
+            if (role.value === 'recepcion') window.location.href = '/recepcion'
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
             const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD')
             const logout = () => { localStorage.clear(); window.location.href = '/login' }
 
