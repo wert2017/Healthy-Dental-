@@ -3714,6 +3714,44 @@ def temp_del_atencion_neli(clave: str, session: Session = Depends(get_session)):
     return {"ok": True, "eliminadas": eliminadas}
 # --- END TEMP ---
 
+# --- TEMP: cambiar tratamiento Exodoncia -> Exo de Terceros Molares para CHRISTIAN CARVAJAL (SHC0007) ---
+@app.get("/api/temp/fix-trat-carvajal")
+def temp_fix_trat_carvajal(clave: str, session: Session = Depends(get_session)):
+    if clave != "hd2026fix":
+        raise HTTPException(status_code=403, detail="Clave incorrecta")
+    # Buscar paciente
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica == "SHC0007")).first()
+    if not paciente:
+        return {"error": "Paciente SHC0007 no encontrado"}
+    # Buscar tratamiento destino
+    trat_nuevo = session.exec(select(Tratamiento).where(Tratamiento.nombre.ilike("%Exo%Terceros%"))).first()
+    if not trat_nuevo:
+        return {"error": "Tratamiento 'Exo de Terceros Molares' no encontrado — verifica el nombre exacto"}
+    # Buscar tratamiento origen
+    trat_viejo = session.exec(select(Tratamiento).where(Tratamiento.nombre.ilike("%Exodoncia%"))).all()
+    trat_viejo_ids = [t.id for t in trat_viejo if "terceros" not in t.nombre.lower()]
+    if not trat_viejo_ids:
+        return {"error": "Tratamiento 'Exodoncia' no encontrado"}
+    # Buscar el detalle de la atención de Carvajal con ese tratamiento
+    detalles = session.exec(
+        select(AtencionDetalle)
+        .join(Atencion, AtencionDetalle.atencion_id == Atencion.id)
+        .where(Atencion.paciente_id == paciente.id)
+        .where(AtencionDetalle.tratamiento_id.in_(trat_viejo_ids))
+    ).all()
+    if not detalles:
+        return {"error": "No se encontró detalle con Exodoncia para SHC0007", "paciente_id": paciente.id, "trat_viejo_ids": trat_viejo_ids}
+    modificados = []
+    for d in detalles:
+        modificados.append({"detalle_id": d.id, "atencion_id": d.atencion_id,
+                             "tratamiento_anterior": d.tratamiento_id, "tratamiento_nuevo": trat_nuevo.id,
+                             "nombre_nuevo": trat_nuevo.nombre})
+        d.tratamiento_id = trat_nuevo.id
+        session.add(d)
+    session.commit()
+    return {"ok": True, "modificados": modificados}
+# --- END TEMP ---
+
 # --- END API ROUTES ---
 
 if __name__ == "__main__":
