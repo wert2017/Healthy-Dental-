@@ -113,6 +113,7 @@
             <a v-if="role !== 'doctor'" href="/admin">Administración</a>
             <a v-if="role !== 'doctor'" href="/admin/paciente/list">Pacientes</a>
             <a v-if="role !== 'doctor'" href="/static/reportes.html" class="active">Reportes</a>
+            <a v-if="role !== 'doctor'" href="/static/doctores.html">Doctores</a>
             <a href="/recepcion/historial">Historial</a>
             <a v-if="role !== 'doctor'" href="/admin/insumo/list">Mantenimiento</a>
             <a href="#" @click.prevent="logout" class="exit">Salir</a>
@@ -134,7 +135,6 @@
 
         <!-- TABS -->
         <div class="tabs">
-            <button class="tab-btn" :class="{ active: tab === 'doctores' }" @click="tab = 'doctores'">Doctores</button>
             <button class="tab-btn" :class="{ active: tab === 'resultados' }" @click="tab = 'resultados'">Resultados</button>
             <button class="tab-btn" :class="{ active: tab === 'tratamientos' }" @click="tab = 'tratamientos'">Tratamientos en Curso</button>
         </div>
@@ -299,98 +299,6 @@
                 </div>
             </div>
 
-        </div>
-
-        <!-- ===== TAB DOCTORES ===== -->
-        <div v-show="tab === 'doctores'">
-
-            <!-- Descripción -->
-            <div class="section-desc" style="margin-bottom:12px; color:#6b7280;">
-                Muestra la producción de cada doctor por rango de fecha: tratamientos realizados, valor cancelado del tratamiento y comisiones.
-            </div>
-
-            <!-- Filtros -->
-            <div class="filter-bar">
-                <div class="filter-group">
-                    <label>Fecha inicio</label>
-                    <input type="date" v-model="docStartDate">
-                </div>
-                <div class="filter-group">
-                    <label>Fecha fin</label>
-                    <input type="date" v-model="docEndDate">
-                </div>
-                <div class="filter-group">
-                    <label>Tipo de tratamiento</label>
-                    <select v-model="docTratamientoId" style="min-width:180px;">
-                        <option :value="null">Todos los tratamientos</option>
-                        <option v-for="t in tratamientosList" :key="t.id" :value="t.id">{{ t.nombre }}</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Doctor</label>
-                    <select v-model="docDoctorId" style="min-width:180px;">
-                        <option :value="null">Todos los doctores</option>
-                        <option v-for="d in doctoresList" :key="d.id" :value="d.id">{{ d.nombres }} {{ d.apellidos }}</option>
-                    </select>
-                </div>
-                <button class="btn btn-primary" @click="loadDocReport" :disabled="isLoadingDoc">
-                    <div v-if="isLoadingDoc" class="spin"></div>
-                    {{ isLoadingDoc ? 'Cargando...' : 'Generar' }}
-                </button>
-            </div>
-
-            <!-- Tabla doctores -->
-            <div class="section">
-                <div class="section-head">
-                    <span class="section-title">Detalle por Doctor</span>
-                    <span class="section-desc">{{ docData.filas?.length || 0 }} registros</span>
-                </div>
-                <div class="section-body" style="overflow-x:auto;">
-                    <table class="dt">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Doctor</th>
-                                <th>Tratamiento</th>
-                                <th class="r">Valor Cancelado</th>
-                                <th class="c">% Comisión</th>
-                                <th class="r">Valor de Comisión</th>
-                                <th class="r">Comisión Cancelada</th>
-                                <th class="r">Pendiente por Cancelar</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(f, i) in docData.filas || []" :key="i">
-                                <td style="white-space:nowrap; color:#6b7280;">{{ f.fecha }}</td>
-                                <td style="font-weight:500;">{{ f.doctor }}</td>
-                                <td>{{ f.tratamiento }}</td>
-                                <td class="r">${{ fmt(f.valor_cancelado) }}</td>
-                                <td class="c"><span class="badge">{{ f.pct_comision }}%</span></td>
-                                <td class="r">${{ fmt(f.valor_comision) }}</td>
-                                <td class="r">${{ fmt(f.valor_comision_pagada) }}</td>
-                                <td class="r">
-                                    <span :class="f.comision_pendiente > 0 ? 'badge badge-warn' : 'badge badge-ok'">
-                                        ${{ fmt(f.comision_pendiente) }}
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr v-if="!docData.filas?.length">
-                                <td colspan="8" class="empty">Sin datos — ajusta los filtros y presiona Generar</td>
-                            </tr>
-                        </tbody>
-                        <tfoot v-if="docData.filas?.length">
-                            <tr>
-                                <td colspan="3" style="font-weight:700; color:#374151;">TOTALES</td>
-                                <td class="r">${{ fmt(docData.totales?.valor_cancelado) }}</td>
-                                <td></td>
-                                <td class="r">${{ fmt(docData.totales?.valor_comision) }}</td>
-                                <td class="r">${{ fmt(docData.totales?.valor_comision_pagada) }}</td>
-                                <td class="r">${{ fmt(docData.totales?.comision_pendiente) }}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
         </div>
 
         <!-- ===== TAB RESULTADOS ===== -->
@@ -662,17 +570,7 @@
             const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD')
             const logout = () => { localStorage.clear(); window.location.href = '/login' }
 
-            const tab = ref('doctores')
-
-            // Doctor report
-            const docStartDate    = ref('')
-            const docEndDate      = ref('')
-            const docDoctorId     = ref(null)
-            const docTratamientoId = ref(null)
-            const docData         = ref({ filas: [], totales: {} })
-            const isLoadingDoc    = ref(false)
-            const doctoresList    = ref([])
-            const tratamientosList = ref([])
+            const tab = ref('resultados')
 
             // Results report
             const resStartDate  = ref('')
@@ -770,24 +668,6 @@
 
             const fmt = (v) => Number(v || 0).toFixed(2)
 
-            const loadDocReport = async () => {
-                isLoadingDoc.value = true
-                try {
-                    const params = {}
-                    if (docStartDate.value)      params.start_date      = docStartDate.value
-                    if (docEndDate.value)        params.end_date        = docEndDate.value
-                    if (docDoctorId.value)       params.doctor_id       = docDoctorId.value
-                    if (docTratamientoId.value)  params.tratamiento_id  = docTratamientoId.value
-                    const res = await axios.get('/api/reportes/reporte-doctores', { params })
-                    docData.value = res.data
-                } catch (err) {
-                    console.error(err)
-                    if (err.response?.status === 401) window.location.href = '/login'
-                } finally {
-                    isLoadingDoc.value = false
-                }
-            }
-
             const loadResumen = async () => {
                 isLoadingRes.value = true
                 try {
@@ -824,12 +704,10 @@
 
             const loadCatalogs = async () => {
                 try {
-                    const [rd, rt, rs] = await Promise.all([
-                        axios.get('/api/doctores'),
+                    const [rt, rs] = await Promise.all([
                         axios.get('/api/tratamientos'),
                         axios.get('/api/public/sucursales')
                     ])
-                    doctoresList.value    = rd.data
                     tratamientosList.value = rt.data
                     sucursalesList.value  = rs.data
                 } catch (e) { console.error(e) }
@@ -995,7 +873,6 @@
             onMounted(() => {
                 loadCatalogs()
                 loadCuadre()
-                loadDocReport()
                 loadResumen()
                 loadTratReport()
             })
@@ -1003,12 +880,11 @@
             return {
                 role, sucursalNombre, logout, tab,
                 cuadreStartDate, cuadreEndDate, cuadreData, isLoadingCuadre, loadCuadre, verTotalRealCaja,
-                docStartDate, docEndDate, docDoctorId, docTratamientoId,
-                docData, isLoadingDoc, doctoresList, tratamientosList,
+                tratamientosList,
                 resStartDate, resEndDate, resumen, isLoadingRes,
                 isExporting, isImporting,
                 sucursalesList, selectedImportSucursal,
-                fmt, loadDocReport, loadResumen, loadTratReport,
+                fmt, loadResumen, loadTratReport,
                 tratStartDate, tratEndDate, tratTratamientoId, tratData, isLoadingTrat,
                 exportMasterReport, importExcel
             }
