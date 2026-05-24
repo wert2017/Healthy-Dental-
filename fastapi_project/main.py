@@ -2764,6 +2764,37 @@ def get_ortodoncia_seguimiento(
 
     return result
 
+# TEMP: eliminar atencion Ariel Alessandro SHC0008 Exo Terceros Molares 23/05/2026 — borrar después de usar
+@app.delete("/api/temp/eliminar-atencion-shc0008-exo-23may")
+def eliminar_atencion_shc0008_exo(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo admin")
+    from datetime import date
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica == "SHC0008")).first()
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente SHC0008 no encontrado")
+    atenciones = session.exec(
+        select(Atencion)
+        .where(Atencion.paciente_id == paciente.id)
+        .where(func.date(Atencion.fecha) == date(2026, 5, 23))
+    ).all()
+    target = None
+    for at in atenciones:
+        detalles = session.exec(select(AtencionDetalle).where(AtencionDetalle.atencion_id == at.id)).all()
+        for d in detalles:
+            trat = session.get(Tratamiento, d.tratamiento_id)
+            if trat and "terceros" in trat.nombre.lower():
+                target = at
+                break
+        if target:
+            break
+    if not target:
+        raise HTTPException(status_code=404, detail="No se encontró la atención de Exo Terceros Molares del 23/05/2026 para SHC0008")
+    atencion_id = target.id
+    session.delete(target)
+    session.commit()
+    return {"ok": True, "atencion_eliminada": atencion_id, "paciente": paciente.nombres + " " + (paciente.apellidos or "")}
+
 # TEMP: fix comision SCH0000 Cntrl Ortodoncia 23/05/2026 — borrar después de usar
 @app.post("/api/temp/fix-comision-toro-sch0000")
 def fix_comision_toro(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
