@@ -2765,7 +2765,7 @@ def get_ortodoncia_seguimiento(
     return result
 
 # TEMP: eliminar atencion Ariel Alessandro SHC0008 Exo Terceros Molares 23/05/2026 — borrar después de usar
-@app.delete("/api/temp/eliminar-atencion-shc0008-exo-23may")
+@app.get("/api/temp/eliminar-atencion-shc0008-exo-23may")
 def eliminar_atencion_shc0008_exo(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Solo admin")
