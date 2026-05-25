@@ -2700,28 +2700,6 @@ def reporte_resumen_financiero(
 
 
 
-# TEMP: diagnostico pagos — borrar después de usar
-@app.get("/api/temp/diagnostico-pagos")
-def diagnostico_pagos(session: Session = Depends(get_session)):
-    start_dt = datetime(2026, 5, 1)
-    end_dt = datetime(2026, 5, 31)
-    atenciones = session.exec(
-        select(Atencion.id, Atencion.fecha)
-        .where(Atencion.fecha >= start_dt)
-        .where(Atencion.fecha < end_dt)
-    ).all()
-    atencion_ids = [aid for aid, _ in atenciones]
-    pagos = session.exec(select(Pago).where(Pago.atencion_id.in_(atencion_ids))).all() if atencion_ids else []
-    sample_pagos = [{"id": p.id, "atencion_id": p.atencion_id, "forma_pago": p.forma_pago, "monto": float(p.monto)} for p in pagos[:20]]
-    all_pagos = session.exec(select(Pago).limit(5)).all()
-    sample_all = [{"id": p.id, "atencion_id": p.atencion_id, "forma_pago": p.forma_pago, "monto": float(p.monto)} for p in all_pagos]
-    return {
-        "atenciones_encontradas": len(atencion_ids),
-        "atencion_ids_muestra": atencion_ids[:10],
-        "pagos_de_esas_atenciones": len(pagos),
-        "muestra_pagos": sample_pagos,
-        "muestra_todos_pagos": sample_all
-    }
 
 @app.get("/api/reportes/ortodoncia")
 def get_ortodoncia_seguimiento(
@@ -2853,17 +2831,17 @@ def get_resumen_ingresos(
             continue
         d = get_day(dia)
         m = float(monto or 0)
-        if forma == 'EFECTIVO': d["ef"] += m
-        elif forma == 'TRANSFERENCIA': d["tf"] += m
-        elif forma == 'TARJETA': d["tc"] += m
+        if forma in ('EF', 'EFECTIVO'): d["ef"] += m
+        elif forma in ('TR', 'TRANSFERENCIA'): d["tf"] += m
+        elif forma in ('TC', 'TARJETA'): d["tc"] += m
 
     for afecha, forma, monto in abonos:
         dia = str(afecha.date()) if hasattr(afecha, 'date') else str(afecha)
         d = get_day(dia)
         m = float(monto or 0)
-        if forma == 'EFECTIVO': d["ef_ab"] += m
-        elif forma == 'TRANSFERENCIA': d["tf_ab"] += m
-        elif forma == 'TARJETA': d["tc_ab"] += m
+        if forma in ('EF', 'EFECTIVO'): d["ef_ab"] += m
+        elif forma in ('TR', 'TRANSFERENCIA'): d["tf_ab"] += m
+        elif forma in ('TC', 'TARJETA'): d["tc_ab"] += m
 
     por_dia = []
     for d in sorted(days.values(), key=lambda x: x["fecha"]):
