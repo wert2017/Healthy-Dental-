@@ -339,6 +339,24 @@
                                         Agregar
                                         Nuevo Tratamiento</h3>
 
+                                    <!-- Doctor de la sesión (solo cuando no se está editando) -->
+                                    <div v-if="!editingDetailId && !isDoctor" class="flex items-end gap-2 mb-3">
+                                        <div style="flex:2;min-width:160px;max-width:280px;">
+                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Doctor de la sesión</label>
+                                            <select v-model="sessionDoctor"
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg focus:ring-2 focus:ring-blue-100">
+                                                <option value="">-- Sin Asignar --</option>
+                                                <optgroup label="👨‍⚕️ Doctores">
+                                                    <option v-for="d in doctores" :key="'doc_'+d.id" :value="'doc_'+d.id">{{ d.nombres }} {{ d.apellidos }}</option>
+                                                </optgroup>
+                                                <optgroup label="👤 Vendedor / Recepción" v-if="vendedores.length > 0">
+                                                    <option v-for="v in vendedores" :key="'usr_'+v.id" :value="'usr_'+v.id">{{ v.username }}</option>
+                                                </optgroup>
+                                            </select>
+                                        </div>
+                                        <div class="text-xs text-gray-400 pb-2">Se aplicará a todos los tratamientos que agregues</div>
+                                    </div>
+
                                     <div class="flex flex-wrap gap-2 items-end">
                                         <!-- Tratamiento -->
                                         <div style="flex:2;min-width:140px;">
@@ -350,8 +368,8 @@
                                             </select>
                                         </div>
 
-                                        <!-- Doctor / Vendedor -->
-                                        <div style="flex:2;min-width:130px;">
+                                        <!-- Doctor / Vendedor — solo al editar un tratamiento específico -->
+                                        <div v-if="editingDetailId" style="flex:2;min-width:130px;">
                                             <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Doctor / Vendedor</label>
                                             <select v-model="newDetail.assignedTo" :disabled="isDoctor"
                                                 class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg disabled:bg-gray-100 disabled:text-gray-500">
@@ -624,6 +642,7 @@
                 const doctores = ref([]);
                 const vendedores = ref([]);
                 const loading = ref(true);
+                const sessionDoctor = ref('');
                 const newDetail = ref({
                     tratamiento_id: '',
                     assignedTo: '',
@@ -876,7 +895,7 @@
                         return;
                     }
 
-                    const assigned = newDetail.value.assignedTo || '';
+                    const assigned = editingDetailId.value ? (newDetail.value.assignedTo || '') : (sessionDoctor.value || '');
                     let docId = null, vendorId = null;
                     if (assigned.startsWith('doc_')) docId = parseInt(assigned.split('_')[1]);
                     else if (assigned.startsWith('usr_')) vendorId = parseInt(assigned.split('_')[1]);
@@ -1011,7 +1030,7 @@
                 });
 
                 return {
-                    atencion, tratamientos, doctores, vendedores, loading,
+                    atencion, tratamientos, doctores, vendedores, loading, sessionDoctor,
                     newDetail, payments, role, sucursalNombre, currentUser, isDoctor, isAdmin, editLocked,
                     fechaEditable, guardarFecha,
                     savingNotes, editingDetailId,
