@@ -2780,59 +2780,115 @@ def get_resumen_ingresos(
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
 
-    # 1. Valor total de tratamientos en atenciones del período
-    total_trat_row = session.exec(
-        select(func.sum(AtencionDetalle.precio_unitario * AtencionDetalle.cantidad))
+    # 1. Tratamientos por día (agrupado por fecha de la atencion)
+    trat_rows = session.exec(
+        select(
+            func.date(Atencion.fecha).label("dia"),
+            func.sum(AtencionDetalle.precio_unitario * AtencionDetalle.cantidad).label("total")
+        )
         .join(Atencion, AtencionDetalle.atencion_id == Atencion.id)
         .where(Atencion.sucursal_id == user.sucursal_id)
         .where(Atencion.fecha >= start_dt)
         .where(Atencion.fecha < end_dt)
-    ).one()
-    total_trat = float(total_trat_row or 0)
+        .group_by(func.date(Atencion.fecha))
+        .order_by(func.date(Atencion.fecha))
+    ).all()
 
-    # 2. Pagos de tratamientos por forma (excluye AB que son aplicaciones de saldo)
+    # 2. Pagos por día y forma (filtrado por fecha de la atencion)
     pagos_rows = session.exec(
-        select(Pago.forma_pago, func.sum(Pago.monto))
+        select(
+            func.date(Atencion.fecha).label("dia"),
+            Pago.forma_pago,
+            func.sum(Pago.monto).label("total")
+        )
         .join(Atencion, Pago.atencion_id == Atencion.id)
         .where(Atencion.sucursal_id == user.sucursal_id)
-        .where(Pago.fecha >= start_dt)
-        .where(Pago.fecha < end_dt)
+        .where(Atencion.fecha >= start_dt)
+        .where(Atencion.fecha < end_dt)
         .where(Pago.forma_pago != 'AB')
-        .group_by(Pago.forma_pago)
+        .group_by(func.date(Atencion.fecha), Pago.forma_pago)
+        .order_by(func.date(Atencion.fecha))
     ).all()
-    ef_trat = tf_trat = tc_trat = 0.0
-    for forma, monto in pagos_rows:
-        if forma == 'EFECTIVO': ef_trat = float(monto or 0)
-        elif forma == 'TRANSFERENCIA': tf_trat = float(monto or 0)
-        elif forma == 'TARJETA': tc_trat = float(monto or 0)
 
-    # 3. Abonos recibidos en el período
+    # 3. Abonos por día y forma
     abonos_rows = session.exec(
-        select(HistorialAbono.metodo_pago, func.sum(HistorialAbono.monto))
+        select(
+            func.date(HistorialAbono.fecha).label("dia"),
+            HistorialAbono.metodo_pago,
+            func.sum(HistorialAbono.monto).label("total")
+        )
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
         .where(Paciente.sucursal_id == user.sucursal_id)
         .where(HistorialAbono.fecha >= start_dt)
         .where(HistorialAbono.fecha < end_dt)
-        .group_by(HistorialAbono.metodo_pago)
+        .group_by(func.date(HistorialAbono.fecha), HistorialAbono.metodo_pago)
+        .order_by(func.date(HistorialAbono.fecha))
     ).all()
-    ef_abono = tf_abono = tc_abono = 0.0
-    for forma, monto in abonos_rows:
-        if forma == 'EFECTIVO': ef_abono = float(monto or 0)
-        elif forma == 'TRANSFERENCIA': tf_abono = float(monto or 0)
-        elif forma == 'TARJETA': tc_abono = float(monto or 0)
 
-    total_cobrado_trat = round(ef_trat + tf_trat + tc_trat, 2)
-    total_abonos = round(ef_abono + tf_abono + tc_abono, 2)
+    # Construir mapa por día
+    days = {}
+    def get_day(d):
+        k = str(d)
+        if k not in days:
+            days[k] = {"fecha": k, "total_trat": 0.0, "ef": 0.0, "tf": 0.0, "tc": 0.0, "ef_ab": 0.0, "tf_ab": 0.0, "tc_ab": 0.0}
+        return days[k]
+
+    for dia, total in trat_rows:
+        get_day(dia)["total_trat"] = float(total or 0)
+
+    for dia, forma, total in pagos_rows:
+        d = get_day(dia)
+        m = float(total or 0)
+        if forma == 'EFECTIVO': d["ef"] += m
+        elif forma == 'TRANSFERENCIA': d["tf"] += m
+        elif forma == 'TARJETA': d["tc"] += m
+
+    for dia, forma, total in abonos_rows:
+        d = get_day(dia)
+        m = float(total or 0)
+        if forma == 'EFECTIVO': d["ef_ab"] += m
+        elif forma == 'TRANSFERENCIA': d["tf_ab"] += m
+        elif forma == 'TARJETA': d["tc_ab"] += m
+
+    por_dia = []
+    for d in sorted(days.values(), key=lambda x: x["fecha"]):
+        ef = round(d["ef"] + d["ef_ab"], 2)
+        tf = round(d["tf"] + d["tf_ab"], 2)
+        tc = round(d["tc"] + d["tc_ab"], 2)
+        cobros_trat = round(d["ef"] + d["tf"] + d["tc"], 2)
+        abonos = round(d["ef_ab"] + d["tf_ab"] + d["tc_ab"], 2)
+        total_cobrado = round(cobros_trat + abonos, 2)
+        por_dia.append({
+            "fecha": d["fecha"],
+            "total_trat": round(d["total_trat"], 2),
+            "efectivo": ef,
+            "transferencia": tf,
+            "tarjeta": tc,
+            "cobros_trat": cobros_trat,
+            "abonos": abonos,
+            "total_cobrado": total_cobrado,
+            "cxc": round(d["total_trat"] - cobros_trat, 2),
+        })
+
+    total_trat       = round(sum(d["total_trat"]    for d in por_dia), 2)
+    efectivo         = round(sum(d["efectivo"]       for d in por_dia), 2)
+    transferencia    = round(sum(d["transferencia"]  for d in por_dia), 2)
+    tarjeta          = round(sum(d["tarjeta"]        for d in por_dia), 2)
+    cobros_trat_tot  = round(sum(d["cobros_trat"]   for d in por_dia), 2)
+    abonos_tot       = round(sum(d["abonos"]         for d in por_dia), 2)
+    total_cobrado    = round(sum(d["total_cobrado"]  for d in por_dia), 2)
+    cxc              = round(sum(d["cxc"]            for d in por_dia), 2)
 
     return {
-        "total_trat": round(total_trat, 2),
-        "efectivo": round(ef_trat + ef_abono, 2),
-        "transferencia": round(tf_trat + tf_abono, 2),
-        "tarjeta": round(tc_trat + tc_abono, 2),
-        "total_cobrado": round(total_cobrado_trat + total_abonos, 2),
-        "cxc": round(total_trat - total_cobrado_trat, 2),
-        "cobros_tratamiento": total_cobrado_trat,
-        "abonos_recibidos": total_abonos,
+        "total_trat": total_trat,
+        "efectivo": efectivo,
+        "transferencia": transferencia,
+        "tarjeta": tarjeta,
+        "total_cobrado": total_cobrado,
+        "cxc": cxc,
+        "cobros_tratamiento": cobros_trat_tot,
+        "abonos_recibidos": abonos_tot,
+        "por_dia": por_dia,
     }
 
 
