@@ -2702,14 +2702,11 @@ def reporte_resumen_financiero(
 
 # TEMP: diagnostico pagos — borrar después de usar
 @app.get("/api/temp/diagnostico-pagos")
-def diagnostico_pagos(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Solo admin")
+def diagnostico_pagos(session: Session = Depends(get_session)):
     start_dt = datetime(2026, 5, 1)
     end_dt = datetime(2026, 5, 31)
     atenciones = session.exec(
         select(Atencion.id, Atencion.fecha)
-        .where(Atencion.sucursal_id == user.sucursal_id)
         .where(Atencion.fecha >= start_dt)
         .where(Atencion.fecha < end_dt)
     ).all()
@@ -2719,7 +2716,6 @@ def diagnostico_pagos(session: Session = Depends(get_session), user: User = Depe
     all_pagos = session.exec(select(Pago).limit(5)).all()
     sample_all = [{"id": p.id, "atencion_id": p.atencion_id, "forma_pago": p.forma_pago, "monto": float(p.monto)} for p in all_pagos]
     return {
-        "sucursal_id": user.sucursal_id,
         "atenciones_encontradas": len(atencion_ids),
         "atencion_ids_muestra": atencion_ids[:10],
         "pagos_de_esas_atenciones": len(pagos),
