@@ -2817,13 +2817,14 @@ def get_resumen_ingresos(
     ).all() if atencion_ids else []
 
     # 4. Cargar abonos del período para esta sucursal
-    abonos = session.exec(
-        select(HistorialAbono.fecha, HistorialAbono.metodo_pago, HistorialAbono.monto)
+    abonos_rows = session.exec(
+        select(HistorialAbono)
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
         .where(Paciente.sucursal_id == user.sucursal_id)
         .where(HistorialAbono.fecha >= start_dt)
         .where(HistorialAbono.fecha < end_dt)
     ).all()
+    abonos = [(h.fecha, h.metodo_pago, h.monto) for h in abonos_rows]
 
     # Construir mapa por día
     days = {}
