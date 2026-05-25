@@ -2767,6 +2767,75 @@ def get_ortodoncia_seguimiento(
     return result
 
 
+@app.get("/api/reportes/resumen-ingresos")
+def get_resumen_ingresos(
+    start_date: str,
+    end_date: str,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo admin")
+
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+
+    # 1. Valor total de tratamientos en atenciones del período
+    total_trat_row = session.exec(
+        select(func.sum(AtencionDetalle.precio_unitario * AtencionDetalle.cantidad))
+        .join(Atencion, AtencionDetalle.atencion_id == Atencion.id)
+        .where(Atencion.sucursal_id == user.sucursal_id)
+        .where(Atencion.fecha >= start_dt)
+        .where(Atencion.fecha < end_dt)
+    ).one()
+    total_trat = float(total_trat_row or 0)
+
+    # 2. Pagos de tratamientos por forma (excluye AB que son aplicaciones de saldo)
+    pagos_rows = session.exec(
+        select(Pago.forma_pago, func.sum(Pago.monto))
+        .join(Atencion, Pago.atencion_id == Atencion.id)
+        .where(Atencion.sucursal_id == user.sucursal_id)
+        .where(Pago.fecha >= start_dt)
+        .where(Pago.fecha < end_dt)
+        .where(Pago.forma_pago != 'AB')
+        .group_by(Pago.forma_pago)
+    ).all()
+    ef_trat = tf_trat = tc_trat = 0.0
+    for forma, monto in pagos_rows:
+        if forma == 'EFECTIVO': ef_trat = float(monto or 0)
+        elif forma == 'TRANSFERENCIA': tf_trat = float(monto or 0)
+        elif forma == 'TARJETA': tc_trat = float(monto or 0)
+
+    # 3. Abonos recibidos en el período
+    abonos_rows = session.exec(
+        select(HistorialAbono.metodo_pago, func.sum(HistorialAbono.monto))
+        .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
+        .where(Paciente.sucursal_id == user.sucursal_id)
+        .where(HistorialAbono.fecha >= start_dt)
+        .where(HistorialAbono.fecha < end_dt)
+        .group_by(HistorialAbono.metodo_pago)
+    ).all()
+    ef_abono = tf_abono = tc_abono = 0.0
+    for forma, monto in abonos_rows:
+        if forma == 'EFECTIVO': ef_abono = float(monto or 0)
+        elif forma == 'TRANSFERENCIA': tf_abono = float(monto or 0)
+        elif forma == 'TARJETA': tc_abono = float(monto or 0)
+
+    total_cobrado_trat = round(ef_trat + tf_trat + tc_trat, 2)
+    total_abonos = round(ef_abono + tf_abono + tc_abono, 2)
+
+    return {
+        "total_trat": round(total_trat, 2),
+        "efectivo": round(ef_trat + ef_abono, 2),
+        "transferencia": round(tf_trat + tf_abono, 2),
+        "tarjeta": round(tc_trat + tc_abono, 2),
+        "total_cobrado": round(total_cobrado_trat + total_abonos, 2),
+        "cxc": round(total_trat - total_cobrado_trat, 2),
+        "cobros_tratamiento": total_cobrado_trat,
+        "abonos_recibidos": total_abonos,
+    }
+
+
 @app.post("/api/pacientes/{paciente_id}/tratamientos")
 def iniciar_tratamiento(paciente_id: int, tratamiento_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     # Check if already active

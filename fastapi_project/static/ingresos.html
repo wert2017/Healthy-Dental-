@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumen de Ingresos - Clínica HD</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #c8d3dc; color: #111827; font-size: 13px; line-height: 1.5; }
+
+        .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 30; height: 52px; display: flex; align-items: center; padding: 0 24px; gap: 16px; }
+        .topbar-brand { font-size: 15px; font-weight: 700; color: #1e40af; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .topbar-brand img { height: 30px; }
+        .nav { display: flex; gap: 2px; align-items: center; overflow-x: auto; }
+        .nav a { padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: 500; color: #6b7280; text-decoration: none; white-space: nowrap; }
+        .nav a:hover { background: #f3f4f6; color: #111827; }
+        .nav a.active { background: #eff6ff; color: #1d4ed8; }
+        .nav a.exit { color: #dc2626; margin-left: 6px; }
+
+        .page { max-width: 1100px; margin: 0 auto; padding: 24px 24px 48px; }
+        .page-title { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 2px; }
+        .page-desc { font-size: 12px; color: #6b7280; margin-bottom: 20px; }
+
+        /* FILTER */
+        .filter-bar { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 18px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+        .filter-group label { display: block; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+        input[type=date] { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 9px; font-size: 12px; outline: none; background: #fff; color: #374151; font-family: inherit; height: 32px; }
+        input[type=date]:focus { border-color: #6366f1; }
+        .btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 16px; height: 32px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: background .12s; white-space: nowrap; }
+        .btn-primary { background: #1e40af; color: #fff; }
+        .btn-primary:hover { background: #1e3a8a; }
+        .btn-primary:disabled { opacity: .5; cursor: default; }
+
+        /* SUMMARY BAR */
+        .summary-bar { display: flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 12px; background: #fff; flex-wrap: wrap; }
+        .sc { flex: 1; min-width: 130px; padding: 16px 20px; border-right: 1px solid #e5e7eb; }
+        .sc:last-child { border-right: none; }
+        .sc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; margin-bottom: 6px; }
+        .sc-value { font-size: 24px; font-weight: 800; color: #111827; line-height: 1.1; }
+        .sc-sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+        .sc-ef .sc-value  { color: #16a34a; }
+        .sc-tf .sc-value  { color: #7c3aed; }
+        .sc-tc .sc-value  { color: #d97706; }
+        .sc-cob .sc-value { color: #111827; }
+        .sc-cxc { background: #f0fdf4; }
+        .sc-cxc .sc-label { color: #16a34a; }
+        .sc-cxc .sc-value { color: #15803d; }
+
+        /* DESGLOSE */
+        .desglose { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 20px; margin-bottom: 16px; display: flex; gap: 32px; flex-wrap: wrap; align-items: center; }
+        .desglose-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; flex-shrink: 0; }
+        .desglose-item { display: flex; align-items: center; gap: 8px; }
+        .desglose-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .desglose-dot-trat { background: #3b82f6; }
+        .desglose-dot-abono { background: #f59e0b; }
+        .desglose-label { font-size: 12px; color: #6b7280; }
+        .desglose-val { font-size: 14px; font-weight: 700; color: #111827; margin-left: 4px; }
+
+        /* EMPTY / LOADING */
+        .status-box { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 40px; text-align: center; color: #9ca3af; font-size: 13px; }
+
+        /* BREAKDOWN TABLE (optional detail by forma de pago) */
+        .detail-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+        .detail-head { padding: 11px 18px; border-bottom: 1px solid #e5e7eb; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #374151; }
+        .dt { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .dt th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; background: #f9fafb; }
+        .dt th.r, .dt td.r { text-align: right; }
+        .dt td { padding: 11px 16px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+        .dt tbody tr:last-child td { border-bottom: none; }
+        .dt tfoot td { padding: 11px 16px; border-top: 2px solid #e5e7eb; font-weight: 700; color: #111827; font-size: 13px; }
+        .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+        .pill-trat  { background: #dbeafe; color: #1e40af; }
+        .pill-abono { background: #fef3c7; color: #92400e; }
+    </style>
+</head>
+<body>
+<div id="app">
+
+    <header class="topbar">
+        <div class="topbar-brand">
+            <img src="/static/logo.png" alt="Clínica HD">
+            {{ sucursalNombre }}
+        </div>
+        <nav class="nav">
+            <a href="/recepcion">Recepción</a>
+            <a href="/static/pagos.html">CxC / Abonos</a>
+            <a v-if="role !== 'doctor'" href="/gastos">Gastos</a>
+            <a v-if="role === 'admin'" href="/admin">Administración</a>
+            <a v-if="role !== 'doctor'" href="/admin/paciente/list">Pacientes</a>
+            <a v-if="role === 'admin'" href="/static/reportes.html">Reportes</a>
+            <a v-if="role === 'admin'" href="/static/ingresos.html" class="active">Ingresos</a>
+            <a v-if="role !== 'doctor'" href="/static/doctores.html">Doctores</a>
+            <a v-if="role !== 'doctor'" href="/static/ortodoncia.html">Ortodoncia</a>
+            <a v-if="role !== 'recepcion'" href="/recepcion/historial">Historial</a>
+            <a href="#" @click.prevent="logout" class="exit">Salir</a>
+        </nav>
+    </header>
+
+    <div class="page">
+        <div class="page-title">Resumen de Ingresos</div>
+        <div class="page-desc">Total de tratamientos y dinero recibido por rango de fecha — solo administración.</div>
+
+        <!-- Filtros -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>Fecha inicio</label>
+                <input type="date" v-model="startDate">
+            </div>
+            <div class="filter-group">
+                <label>Fecha fin</label>
+                <input type="date" v-model="endDate">
+            </div>
+            <button class="btn btn-primary" @click="generar" :disabled="loading">
+                {{ loading ? 'Cargando...' : 'Generar' }}
+            </button>
+        </div>
+
+        <!-- Sin datos -->
+        <div v-if="!data && !loading" class="status-box">
+            Sin datos — selecciona una fecha y presiona Generar
+        </div>
+        <div v-if="loading" class="status-box">Calculando...</div>
+
+        <template v-if="data && !loading">
+            <!-- Summary cards -->
+            <div class="summary-bar">
+                <div class="sc">
+                    <div class="sc-label">Total Trat.</div>
+                    <div class="sc-value">${{ fmt(data.total_trat) }}</div>
+                    <div class="sc-sub">valor generado</div>
+                </div>
+                <div class="sc sc-ef">
+                    <div class="sc-label">Efectivo</div>
+                    <div class="sc-value">${{ fmt(data.efectivo) }}</div>
+                    <div class="sc-sub">recibido en caja</div>
+                </div>
+                <div class="sc sc-tf">
+                    <div class="sc-label">Transferencia</div>
+                    <div class="sc-value">${{ fmt(data.transferencia) }}</div>
+                    <div class="sc-sub">recibido en banco</div>
+                </div>
+                <div class="sc sc-tc">
+                    <div class="sc-label">Tarjeta</div>
+                    <div class="sc-value">${{ fmt(data.tarjeta) }}</div>
+                    <div class="sc-sub">recibido en tarjeta</div>
+                </div>
+                <div class="sc sc-cob">
+                    <div class="sc-label">Total Cobrado</div>
+                    <div class="sc-value">${{ fmt(data.total_cobrado) }}</div>
+                    <div class="sc-sub">EF + TF + TC</div>
+                </div>
+                <div class="sc sc-cxc">
+                    <div class="sc-label">Total CxC</div>
+                    <div class="sc-value">${{ fmt(data.cxc) }}</div>
+                    <div class="sc-sub">pendiente de trats.</div>
+                </div>
+            </div>
+
+            <!-- Desglose cobros vs abonos -->
+            <div class="desglose">
+                <span class="desglose-title">Desglose</span>
+                <div class="desglose-item">
+                    <span class="desglose-dot desglose-dot-trat"></span>
+                    <span class="desglose-label">Cobros de tratamientos</span>
+                    <span class="desglose-val">${{ fmt(data.cobros_tratamiento) }}</span>
+                </div>
+                <div class="desglose-item">
+                    <span class="desglose-dot desglose-dot-abono"></span>
+                    <span class="desglose-label">Abonos recibidos</span>
+                    <span class="desglose-val">${{ fmt(data.abonos_recibidos) }}</span>
+                </div>
+            </div>
+
+            <!-- Tabla detalle por forma de pago -->
+            <div class="detail-card">
+                <div class="detail-head">Detalle por forma de pago</div>
+                <table class="dt">
+                    <thead>
+                        <tr>
+                            <th>Concepto</th>
+                            <th class="r">Efectivo</th>
+                            <th class="r">Transferencia</th>
+                            <th class="r">Tarjeta</th>
+                            <th class="r">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="pill pill-trat">Tratamientos</span></td>
+                            <td class="r">${{ fmt(data.ef_trat || (data.efectivo - data.abonos_recibidos > 0 ? data.efectivo - data.abonos_recibidos : 0)) }}</td>
+                            <td class="r">${{ fmt(data.tf_trat || 0) }}</td>
+                            <td class="r">${{ fmt(data.tc_trat || 0) }}</td>
+                            <td class="r" style="font-weight:700;">${{ fmt(data.cobros_tratamiento) }}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="pill pill-abono">Abonos</span></td>
+                            <td class="r">${{ fmt(data.ef_abono || 0) }}</td>
+                            <td class="r">${{ fmt(data.tf_abono || 0) }}</td>
+                            <td class="r">${{ fmt(data.tc_abono || 0) }}</td>
+                            <td class="r" style="font-weight:700;">${{ fmt(data.abonos_recibidos) }}</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td>Total Cobrado</td>
+                            <td class="r">${{ fmt(data.efectivo) }}</td>
+                            <td class="r">${{ fmt(data.transferencia) }}</td>
+                            <td class="r">${{ fmt(data.tarjeta) }}</td>
+                            <td class="r">${{ fmt(data.total_cobrado) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </template>
+    </div>
+</div>
+
+<script>
+const { createApp, ref, onMounted } = Vue;
+
+createApp({
+    setup() {
+        const role = ref(localStorage.getItem('role') || '');
+        const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD');
+        const loading = ref(false);
+        const data = ref(null);
+
+        const today = new Date().toISOString().slice(0, 10);
+        const startDate = ref(today);
+        const endDate = ref(today);
+
+        const generar = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) { window.location.href = '/login'; return; }
+            if (role.value !== 'admin') { window.location.href = '/recepcion'; return; }
+            loading.value = true;
+            data.value = null;
+            try {
+                const res = await axios.get('/api/reportes/resumen-ingresos', {
+                    headers: { Authorization: `Bearer ${token}` },
+                    params: { start_date: startDate.value, end_date: endDate.value }
+                });
+                data.value = res.data;
+            } catch (e) {
+                console.error('Error generando resumen', e);
+                alert('Error al generar el reporte.');
+            } finally {
+                loading.value = false;
+            }
+        };
+
+        const fmt = (v) => (v ?? 0).toFixed(2);
+        const logout = () => { localStorage.clear(); window.location.href = '/login'; };
+
+        onMounted(() => {
+            if (!localStorage.getItem('token')) { window.location.href = '/login'; return; }
+            if (role.value !== 'admin') { window.location.href = '/recepcion'; return; }
+        });
+
+        return { role, sucursalNombre, loading, data, startDate, endDate, generar, fmt, logout };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

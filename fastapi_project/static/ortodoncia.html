@@ -107,6 +107,7 @@
             <a v-if="role === 'admin'" href="/admin">Administración</a>
             <a v-if="role !== 'doctor'" href="/admin/paciente/list">Pacientes</a>
             <a v-if="role === 'admin'" href="/static/reportes.html">Reportes</a>
+            <a v-if="role === 'admin'" href="/static/ingresos.html">Ingresos</a>
             <a v-if="role !== 'doctor'" href="/static/doctores.html">Doctores</a>
             <a v-if="role !== 'doctor'" href="/static/ortodoncia.html" class="active">Ortodoncia</a>
             <a v-if="role !== 'recepcion'" href="/recepcion/historial">Historial</a>
