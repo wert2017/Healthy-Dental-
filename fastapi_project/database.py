@@ -22,6 +22,19 @@ def create_db_and_tables():
     except Exception as e:
         print(f"Skipping create_all due to error: {e}")
 
+    # Migrations: add columns that may not exist in older DB versions
+    migrations = [
+        "ALTER TABLE sucursal ADD COLUMN IF NOT EXISTS fondo_caja NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE sucursal ADD COLUMN IF NOT EXISTS fondo_banco NUMERIC(10,2) DEFAULT 0",
+    ]
+    with engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(__import__("sqlalchemy").text(sql))
+            except Exception:
+                pass
+        conn.commit()
+
 def get_session():
     with Session(engine) as session:
         yield session
