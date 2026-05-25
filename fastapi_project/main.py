@@ -2700,6 +2700,33 @@ def reporte_resumen_financiero(
 
 
 
+# TEMP: diagnostico pagos — borrar después de usar
+@app.get("/api/temp/diagnostico-pagos")
+def diagnostico_pagos(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo admin")
+    start_dt = datetime(2026, 5, 1)
+    end_dt = datetime(2026, 5, 31)
+    atenciones = session.exec(
+        select(Atencion.id, Atencion.fecha)
+        .where(Atencion.sucursal_id == user.sucursal_id)
+        .where(Atencion.fecha >= start_dt)
+        .where(Atencion.fecha < end_dt)
+    ).all()
+    atencion_ids = [aid for aid, _ in atenciones]
+    pagos = session.exec(select(Pago).where(Pago.atencion_id.in_(atencion_ids))).all() if atencion_ids else []
+    sample_pagos = [{"id": p.id, "atencion_id": p.atencion_id, "forma_pago": p.forma_pago, "monto": float(p.monto)} for p in pagos[:20]]
+    all_pagos = session.exec(select(Pago).limit(5)).all()
+    sample_all = [{"id": p.id, "atencion_id": p.atencion_id, "forma_pago": p.forma_pago, "monto": float(p.monto)} for p in all_pagos]
+    return {
+        "sucursal_id": user.sucursal_id,
+        "atenciones_encontradas": len(atencion_ids),
+        "atencion_ids_muestra": atencion_ids[:10],
+        "pagos_de_esas_atenciones": len(pagos),
+        "muestra_pagos": sample_pagos,
+        "muestra_todos_pagos": sample_all
+    }
+
 @app.get("/api/reportes/ortodoncia")
 def get_ortodoncia_seguimiento(
     session: Session = Depends(get_session),
