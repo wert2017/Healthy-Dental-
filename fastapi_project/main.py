@@ -2768,18 +2768,6 @@ def get_ortodoncia_seguimiento(
     return result
 
 
-@app.get("/tmp/debug-abonos")
-def debug_abonos(start_date: str = "2026-05-01", end_date: str = "2026-05-31", session: Session = Depends(get_session)):
-    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-    end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
-    rows = session.exec(
-        select(HistorialAbono.id, HistorialAbono.fecha, HistorialAbono.metodo_pago, HistorialAbono.monto, HistorialAbono.paciente_id)
-        .where(HistorialAbono.fecha >= start_dt)
-        .where(HistorialAbono.fecha < end_dt)
-    ).all()
-    return [{"id": r[0], "fecha": str(r[1]), "metodo_pago": r[2], "monto": float(r[3]), "paciente_id": r[4]} for r in rows]
-
-
 @app.get("/api/reportes/resumen-ingresos")
 def get_resumen_ingresos(
     start_date: str,
