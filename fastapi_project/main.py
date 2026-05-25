@@ -2698,6 +2698,40 @@ def reporte_resumen_financiero(
     }
 
 
+# TEMP: fix comision HC-EL-0107 Cntrl Ortodoncia 23/05/2026 — borrar después de usar
+@app.get("/api/temp/fix-comision-toro-hcel0107")
+def fix_comision_toro_hcel0107(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo admin")
+    from datetime import date
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica == "HC-EL-0107")).first()
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente HC-EL-0107 no encontrado")
+    atenciones = session.exec(
+        select(Atencion)
+        .where(Atencion.paciente_id == paciente.id)
+        .where(func.date(Atencion.fecha) == date(2026, 5, 23))
+    ).all()
+    if not atenciones:
+        raise HTTPException(status_code=404, detail="No se encontró atención del 23/05/2026 para HC-EL-0107")
+    updated = []
+    for atencion in atenciones:
+        detalles = session.exec(
+            select(AtencionDetalle)
+            .join(Tratamiento, AtencionDetalle.tratamiento_id == Tratamiento.id)
+            .where(AtencionDetalle.atencion_id == atencion.id)
+            .where(Tratamiento.codigo == "CNTRL")
+        ).all()
+        for d in detalles:
+            old = float(d.porcentaje_comision)
+            d.porcentaje_comision = 7
+            session.add(d)
+            updated.append({"detalle_id": d.id, "atencion_id": atencion.id, "anterior": old, "nuevo": 7})
+    session.commit()
+    if not updated:
+        raise HTTPException(status_code=404, detail="No se encontró detalle CNTRL en esa atención")
+    return {"ok": True, "actualizados": updated}
+
 @app.get("/api/reportes/ortodoncia")
 def get_ortodoncia_seguimiento(
     session: Session = Depends(get_session),
