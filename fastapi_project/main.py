@@ -2864,6 +2864,9 @@ def get_resumen_ingresos(
             "tarjeta": tc,
             "cobros_trat": cobros_trat,
             "abonos": abonos,
+            "ab_ef": round(d["ef_ab"], 2),
+            "ab_tf": round(d["tf_ab"], 2),
+            "ab_tc": round(d["tc_ab"], 2),
             "total_cobrado": total_cobrado,
             "cxc": round(d["total_trat"] - cobros_trat, 2),
         })

@@ -190,10 +190,16 @@
                             <td class="r">${{ fmt(d.total_trat) }}</td>
                             <td class="r">
                                 ${{ fmt(d.efectivo) }}
-                                <span v-if="d.abonos > 0" class="abono-badge">+${{ fmt(d.abonos) }} ab.</span>
+                                <span v-if="d.ab_ef > 0" class="abono-badge">+${{ fmt(d.ab_ef) }} ab.</span>
                             </td>
-                            <td class="r">${{ fmt(d.transferencia) }}</td>
-                            <td class="r">${{ fmt(d.tarjeta) }}</td>
+                            <td class="r">
+                                ${{ fmt(d.transferencia) }}
+                                <span v-if="d.ab_tf > 0" class="abono-badge">+${{ fmt(d.ab_tf) }} ab.</span>
+                            </td>
+                            <td class="r">
+                                ${{ fmt(d.tarjeta) }}
+                                <span v-if="d.ab_tc > 0" class="abono-badge">+${{ fmt(d.ab_tc) }} ab.</span>
+                            </td>
                             <td class="r" style="font-weight:700;">${{ fmt(d.total_cobrado) }}</td>
                             <td class="r" :style="d.cxc > 0 ? 'color:#dc2626;font-weight:600;' : 'color:#16a34a;font-weight:600;'">${{ fmt(d.cxc) }}</td>
                         </tr>
