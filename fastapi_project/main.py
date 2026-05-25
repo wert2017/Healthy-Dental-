@@ -2780,72 +2780,64 @@ def get_resumen_ingresos(
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
 
-    # 1. Tratamientos por día (agrupado por fecha de la atencion)
-    trat_rows = session.exec(
-        select(
-            func.date(Atencion.fecha).label("dia"),
-            func.sum(AtencionDetalle.precio_unitario * AtencionDetalle.cantidad).label("total")
-        )
-        .join(Atencion, AtencionDetalle.atencion_id == Atencion.id)
+    # 1. Cargar atenciones del período con su fecha
+    atenciones = session.exec(
+        select(Atencion.id, Atencion.fecha)
         .where(Atencion.sucursal_id == user.sucursal_id)
         .where(Atencion.fecha >= start_dt)
         .where(Atencion.fecha < end_dt)
-        .group_by(func.date(Atencion.fecha))
-        .order_by(func.date(Atencion.fecha))
     ).all()
+    atencion_fecha = {aid: str(afecha.date()) for aid, afecha in atenciones}
+    atencion_ids = list(atencion_fecha.keys())
 
-    # 2. Pagos por día y forma (filtrado por fecha de la atencion)
-    pagos_rows = session.exec(
-        select(
-            func.date(Atencion.fecha).label("dia"),
-            Pago.forma_pago,
-            func.sum(Pago.monto).label("total")
-        )
-        .join(Atencion, Pago.atencion_id == Atencion.id)
-        .where(Atencion.sucursal_id == user.sucursal_id)
-        .where(Atencion.fecha >= start_dt)
-        .where(Atencion.fecha < end_dt)
+    # 2. Cargar detalles de tratamientos
+    detalles = session.exec(
+        select(AtencionDetalle.atencion_id, AtencionDetalle.precio_unitario, AtencionDetalle.cantidad)
+        .where(AtencionDetalle.atencion_id.in_(atencion_ids))
+    ).all() if atencion_ids else []
+
+    # 3. Cargar pagos de tratamientos (excluye AB)
+    pagos = session.exec(
+        select(Pago.atencion_id, Pago.forma_pago, Pago.monto)
+        .where(Pago.atencion_id.in_(atencion_ids))
         .where(Pago.forma_pago != 'AB')
-        .group_by(func.date(Atencion.fecha), Pago.forma_pago)
-        .order_by(func.date(Atencion.fecha))
-    ).all()
+    ).all() if atencion_ids else []
 
-    # 3. Abonos por día y forma
-    abonos_rows = session.exec(
-        select(
-            func.date(HistorialAbono.fecha).label("dia"),
-            HistorialAbono.metodo_pago,
-            func.sum(HistorialAbono.monto).label("total")
-        )
+    # 4. Cargar abonos del período para esta sucursal
+    abonos = session.exec(
+        select(HistorialAbono.fecha, HistorialAbono.metodo_pago, HistorialAbono.monto)
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
         .where(Paciente.sucursal_id == user.sucursal_id)
         .where(HistorialAbono.fecha >= start_dt)
         .where(HistorialAbono.fecha < end_dt)
-        .group_by(func.date(HistorialAbono.fecha), HistorialAbono.metodo_pago)
-        .order_by(func.date(HistorialAbono.fecha))
     ).all()
 
     # Construir mapa por día
     days = {}
-    def get_day(d):
-        k = str(d)
+    def get_day(k):
         if k not in days:
             days[k] = {"fecha": k, "total_trat": 0.0, "ef": 0.0, "tf": 0.0, "tc": 0.0, "ef_ab": 0.0, "tf_ab": 0.0, "tc_ab": 0.0}
         return days[k]
 
-    for dia, total in trat_rows:
-        get_day(dia)["total_trat"] = float(total or 0)
+    for aid, precio, cantidad in detalles:
+        dia = atencion_fecha.get(aid)
+        if dia:
+            get_day(dia)["total_trat"] += float(precio or 0) * int(cantidad or 1)
 
-    for dia, forma, total in pagos_rows:
+    for aid, forma, monto in pagos:
+        dia = atencion_fecha.get(aid)
+        if not dia:
+            continue
         d = get_day(dia)
-        m = float(total or 0)
+        m = float(monto or 0)
         if forma == 'EFECTIVO': d["ef"] += m
         elif forma == 'TRANSFERENCIA': d["tf"] += m
         elif forma == 'TARJETA': d["tc"] += m
 
-    for dia, forma, total in abonos_rows:
+    for afecha, forma, monto in abonos:
+        dia = str(afecha.date()) if hasattr(afecha, 'date') else str(afecha)
         d = get_day(dia)
-        m = float(total or 0)
+        m = float(monto or 0)
         if forma == 'EFECTIVO': d["ef_ab"] += m
         elif forma == 'TRANSFERENCIA': d["tf_ab"] += m
         elif forma == 'TARJETA': d["tc_ab"] += m
