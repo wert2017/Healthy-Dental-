@@ -2702,7 +2702,9 @@ def reporte_resumen_financiero(
 @app.get("/api/temp/fix-comision-toro-hcel0107")
 def fix_comision_toro_hcel0107(session: Session = Depends(get_session)):
     from datetime import date
-    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica == "HC-EL-0107")).first()
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica.contains("EL-0107"))).first()
+    if not paciente:
+        paciente = session.exec(select(Paciente).where(Paciente.historia_clinica.contains("EL -0107"))).first()
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente HC-EL-0107 no encontrado")
     atenciones = session.exec(
