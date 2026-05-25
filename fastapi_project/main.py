@@ -2699,6 +2699,29 @@ def reporte_resumen_financiero(
 
 
 
+# TEMP: eliminar atencion Rafaela Garcia HC-EL-0589 23/05/2026 — borrar después de usar
+@app.get("/api/temp/eliminar-atencion-hcel0589-23may")
+def eliminar_atencion_hcel0589(session: Session = Depends(get_session)):
+    from datetime import date
+    paciente = session.exec(select(Paciente).where(Paciente.historia_clinica.contains("EL-0589"))).first()
+    if not paciente:
+        paciente = session.exec(select(Paciente).where(Paciente.historia_clinica.contains("EL -0589"))).first()
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente HC-EL-0589 no encontrado")
+    atenciones = session.exec(
+        select(Atencion)
+        .where(Atencion.paciente_id == paciente.id)
+        .where(func.date(Atencion.fecha) == date(2026, 5, 23))
+    ).all()
+    if not atenciones:
+        raise HTTPException(status_code=404, detail="No se encontró atención del 23/05/2026 para HC-EL-0589")
+    ids_eliminados = []
+    for at in atenciones:
+        ids_eliminados.append(at.id)
+        session.delete(at)
+    session.commit()
+    return {"ok": True, "atenciones_eliminadas": ids_eliminados, "paciente": paciente.nombres + " " + (paciente.apellidos or "")}
+
 @app.get("/api/reportes/ortodoncia")
 def get_ortodoncia_seguimiento(
     session: Session = Depends(get_session),
