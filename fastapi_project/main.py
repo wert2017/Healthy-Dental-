@@ -2700,9 +2700,7 @@ def reporte_resumen_financiero(
 
 # TEMP: fix comision HC-EL-0107 Cntrl Ortodoncia 23/05/2026 — borrar después de usar
 @app.get("/api/temp/fix-comision-toro-hcel0107")
-def fix_comision_toro_hcel0107(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Solo admin")
+def fix_comision_toro_hcel0107(session: Session = Depends(get_session)):
     from datetime import date
     paciente = session.exec(select(Paciente).where(Paciente.historia_clinica == "HC-EL-0107")).first()
     if not paciente:
