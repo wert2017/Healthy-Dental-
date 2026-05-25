@@ -171,6 +171,20 @@
             </div>
         </div>
 
+        <!-- Fondos de referencia -->
+        <div v-if="data.totales && (data.fondo_caja > 0 || data.fondo_banco > 0)" style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 18px;display:flex;align-items:center;gap:10px;">
+                <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;">Fondo Caja</span>
+                <span style="font-size:16px;font-weight:800;color:#059669;">${{ fmt(data.fondo_caja) }}</span>
+                <span style="font-size:11px;color:#9ca3af;">referencia</span>
+            </div>
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 18px;display:flex;align-items:center;gap:10px;">
+                <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;">Fondo Banco</span>
+                <span style="font-size:16px;font-weight:800;color:#2563eb;">${{ fmt(data.fondo_banco) }}</span>
+                <span style="font-size:11px;color:#9ca3af;">referencia</span>
+            </div>
+        </div>
+
         <!-- Tabla hojas de cargo -->
         <div class="section">
             <div class="section-head">
@@ -300,7 +314,7 @@
             const _td = new Date(); const today = `${_td.getFullYear()}-${String(_td.getMonth()+1).padStart(2,'0')}-${String(_td.getDate()).padStart(2,'0')}`
             const startDate   = ref(today)
             const endDate     = ref(today)
-            const data        = ref({ filas: [], totales: null, abonos_generados: [], abonos_normalizados: {}, total_abonos_generados: 0, real_caja: null })
+            const data        = ref({ filas: [], totales: null, abonos_generados: [], abonos_normalizados: {}, total_abonos_generados: 0, real_caja: null, fondo_caja: 0, fondo_banco: 0 })
             const isLoading   = ref(false)
 
             const fmt = (v) => Number(v || 0).toFixed(2)

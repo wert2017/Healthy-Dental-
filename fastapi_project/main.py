@@ -426,8 +426,8 @@ class DoctorAdmin(ModelView, model=Doctor):
         return request.cookies.get("user_role") == "admin"
 
 class SucursalAdmin(ModelView, model=Sucursal):
-    column_list = [Sucursal.nombre, Sucursal.direccion]
-    form_columns = [Sucursal.nombre, Sucursal.direccion]
+    column_list = [Sucursal.nombre, Sucursal.direccion, Sucursal.fondo_caja, Sucursal.fondo_banco]
+    form_columns = [Sucursal.nombre, Sucursal.direccion, Sucursal.fondo_caja, Sucursal.fondo_banco]
     icon = "fa-solid fa-building"
 
     def is_accessible(self, request: Request) -> bool:
@@ -3082,6 +3082,10 @@ def get_cuadre_diario(
     if not user.sucursal_id:
         raise HTTPException(status_code=400, detail="Usuario sin sucursal asignada")
 
+    sucursal = session.get(Sucursal, user.sucursal_id)
+    fondo_caja  = float(sucursal.fondo_caja)  if sucursal and sucursal.fondo_caja  else 0.0
+    fondo_banco = float(sucursal.fondo_banco) if sucursal and sucursal.fondo_banco else 0.0
+
     today = datetime.now().date()
 
     if start_date:
@@ -3202,6 +3206,8 @@ def get_cuadre_diario(
         "abonos_normalizados": abonos_normalizados,
         "total_abonos_generados": round(sum(float(h.monto) for h in abonos_gen), 2),
         "real_caja": real_caja,
+        "fondo_caja": fondo_caja,
+        "fondo_banco": fondo_banco,
     }
 
 

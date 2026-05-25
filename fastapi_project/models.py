@@ -9,6 +9,8 @@ class Sucursal(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     nombre: str = Field(unique=True)
     direccion: Optional[str] = None
+    fondo_caja: Decimal = Field(default=Decimal("0"), max_digits=10, decimal_places=2)
+    fondo_banco: Decimal = Field(default=Decimal("0"), max_digits=10, decimal_places=2)
 
     doctores: List["Doctor"] = Relationship(back_populates="sucursal")
 
