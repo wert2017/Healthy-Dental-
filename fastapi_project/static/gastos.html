@@ -222,6 +222,17 @@
                 </div>
             </div>
 
+            <!-- Botón registrar gasto para recepción -->
+            <div v-if="role === 'recepcion'" class="mb-4">
+                <button @click="showModal = true"
+                    class="bg-emerald-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-emerald-400 transition transform active:scale-95 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Registrar Gasto
+                </button>
+            </div>
+
             <!-- Expenses List -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="bg-slate-50/50 p-4 border-b border-slate-100 flex flex-col gap-4">
