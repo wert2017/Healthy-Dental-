@@ -3285,6 +3285,67 @@ def list_gastos(
         
     return session.exec(query.offset(skip).limit(size)).all()
 
+class GastoUpdateSchema(BaseModel):
+    descripcion: Optional[str] = None
+    monto: Optional[Decimal] = None
+    metodo_pago: Optional[str] = None
+    categoria: Optional[str] = None
+    responsable: Optional[str] = None
+    fecha: Optional[datetime] = None
+
+@app.put("/api/gastos/{gasto_id}")
+def update_gasto(
+    gasto_id: int,
+    data: GastoUpdateSchema,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    gasto = session.get(Gasto, gasto_id)
+    if not gasto:
+        raise HTTPException(status_code=404, detail="Gasto no encontrado")
+
+    # Verificar que el gasto pertenece a la misma sucursal
+    if gasto.sucursal_id != user.sucursal_id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para editar este gasto")
+
+    # BLOQUEO: solo se puede editar si el gasto es del mismo día (antes de las 00:00 del día siguiente)
+    # El admin puede editar siempre
+    if user.role != "admin":
+        hoy = datetime.now().date()
+        fecha_gasto = gasto.fecha.date() if gasto.fecha else None
+        if fecha_gasto != hoy:
+            raise HTTPException(
+                status_code=403,
+                detail="Este gasto ya no se puede editar. Solo se permiten cambios el mismo día del registro (hasta las 00:00)."
+            )
+
+    # Aplicar cambios
+    if data.descripcion is not None:
+        gasto.descripcion = data.descripcion
+    if data.monto is not None:
+        gasto.monto = data.monto
+    if data.metodo_pago is not None:
+        gasto.metodo_pago = data.metodo_pago
+    if data.categoria is not None:
+        gasto.categoria = data.categoria
+    if data.responsable is not None:
+        gasto.responsable = data.responsable
+    if data.fecha is not None:
+        # También validar que la nueva fecha no sea de otro día (excepto admin)
+        if user.role != "admin":
+            hoy = datetime.now().date()
+            if data.fecha.date() != hoy:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Solo puedes registrar gastos con fecha de hoy."
+                )
+        gasto.fecha = data.fecha
+
+    session.add(gasto)
+    session.commit()
+    session.refresh(gasto)
+    return gasto
+
 @app.get("/api/gastos/balances")
 def get_gastos_balances(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     """

@@ -280,6 +280,7 @@
                                 <th class="px-6 py-4 font-semibold text-right">Monto</th>
                                 <th class="px-6 py-4 font-semibold">Responsable</th>
                                 <th class="px-6 py-4 font-semibold">Registrado por</th>
+                                <th class="px-6 py-4 font-semibold text-center">Acción</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-sm">
@@ -302,9 +303,23 @@
                                 </td>
                                 <td class="px-6 py-4 text-slate-700">{{ g.responsable || '-' }}</td>
                                 <td class="px-6 py-4 text-slate-500 italic">{{ g.usuario?.username || 'Sistema' }}</td>
+                                <!-- COLUMNA ACCIÓN -->
+                                <td class="px-6 py-4 text-center">
+                                    <button v-if="isGastoEditable(g)"
+                                        @click="openEditModal(g)"
+                                        class="inline-flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold px-3 py-1.5 rounded-lg text-xs transition transform active:scale-95"
+                                        title="Editar gasto">
+                                        ✏️ Editar
+                                    </button>
+                                    <span v-else
+                                        class="inline-flex items-center gap-1 bg-slate-100 text-slate-400 font-medium px-3 py-1.5 rounded-lg text-xs cursor-not-allowed"
+                                        title="Bloqueado: solo se puede editar el mismo día del registro">
+                                        🔒 Cerrado
+                                    </span>
+                                </td>
                             </tr>
                             <tr v-if="gastos.length === 0">
-                                <td colspan="7" class="px-6 py-12 text-center text-slate-400 italic">No se encontraron
+                                <td colspan="8" class="px-6 py-12 text-center text-slate-400 italic">No se encontraron
                                     gastos en este periodo</td>
                             </tr>
                         </tbody>
@@ -399,6 +414,91 @@
                     <button type="submit"
                         class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 mt-4">
                         Guardar Registro
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Editar Gasto -->
+        <div v-if="showEditModal"
+            class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div
+                class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all animate-in fade-in zoom-in duration-200">
+                <div class="bg-amber-500 px-6 py-4 flex justify-between items-center">
+                    <h3 class="text-white font-bold text-lg">✏️ Editar Gasto</h3>
+                    <button @click="showEditModal = false"
+                        class="bg-amber-400/50 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm transition font-bold shadow-sm">
+                        CERRAR (X)
+                    </button>
+                </div>
+                <form @submit.prevent="saveEditGasto" class="p-6 space-y-4">
+                    <!-- Fecha -->
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Fecha del Gasto</label>
+                        <input type="datetime-local" v-model="editForm.fecha"
+                            class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-400 outline-none"
+                            :max="editMaxFecha">
+                        <p v-if="role !== 'admin'" class="text-xs text-slate-400 mt-1">Solo puedes usar la fecha de hoy.</p>
+                    </div>
+                    <!-- Descripción -->
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Descripción / Motivo</label>
+                        <input type="text" v-model="editForm.descripcion" required
+                            class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-400 outline-none"
+                            placeholder="Papelería, Alquiler, etc.">
+                    </div>
+                    <!-- Responsable -->
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Responsable del Gasto</label>
+                        <select v-model="editForm.responsable" required
+                            class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-400 outline-none bg-white">
+                            <option value="" disabled>Seleccione un responsable...</option>
+                            <option v-for="u in usuarios" :key="u.id" :value="u.username">{{ u.username }}</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- Monto -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Monto ($)</label>
+                            <input type="number" step="0.01" v-model="editForm.monto" required
+                                class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-400 outline-none">
+                        </div>
+                        <!-- Categoría -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
+                            <select v-model="editForm.categoria"
+                                class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-400 outline-none bg-white">
+                                <option v-for="cat in categoriasGasto" :key="cat.id" :value="cat.nombre">{{ cat.nombre }}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Método de Pago -->
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2 text-center">Forma de Pago</label>
+                        <div class="grid grid-cols-3 gap-4">
+                            <button type="button" @click="editForm.metodo_pago = 'EFECTIVO'"
+                                :class="editForm.metodo_pago === 'EFECTIVO' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-100' : 'bg-white border-slate-200 text-slate-500'"
+                                class="p-4 rounded-2xl border-2 font-bold transition flex flex-col items-center gap-1">
+                                <span class="text-2xl">💵</span>
+                                <span class="text-xs uppercase">Efectivo</span>
+                            </button>
+                            <button type="button" @click="editForm.metodo_pago = 'TRANSFERENCIA'"
+                                :class="editForm.metodo_pago === 'TRANSFERENCIA' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100' : 'bg-white border-slate-200 text-slate-500'"
+                                class="p-4 rounded-2xl border-2 font-bold transition flex flex-col items-center gap-1">
+                                <span class="text-2xl">🏦</span>
+                                <span class="text-xs uppercase">Transf.</span>
+                            </button>
+                            <button type="button" @click="editForm.metodo_pago = 'TARJETA'"
+                                :class="editForm.metodo_pago === 'TARJETA' ? 'bg-purple-50 border-purple-500 text-purple-700 ring-2 ring-purple-100' : 'bg-white border-slate-200 text-slate-500'"
+                                class="p-4 rounded-2xl border-2 font-bold transition flex flex-col items-center gap-1">
+                                <span class="text-2xl">💳</span>
+                                <span class="text-xs uppercase">Tarjeta</span>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-amber-500 text-white font-bold py-3 rounded-xl hover:bg-amber-600 transition shadow-lg mt-4">
+                        💾 Guardar Cambios
                     </button>
                 </form>
             </div>
@@ -790,7 +890,7 @@
     </div>
 
     <script>
-        const { createApp, ref, onMounted } = Vue
+        const { createApp, ref, onMounted, computed } = Vue
 
         createApp({
             setup() {
@@ -843,6 +943,87 @@
                     responsable: '',
                     descripcion: 'Transferencia de fondos interna'
                 })
+
+                // Estado para editar gasto
+                const showEditModal = ref(false)
+                const editingGastoId = ref(null)
+                const editForm = ref({
+                    descripcion: '',
+                    responsable: '',
+                    monto: 0,
+                    metodo_pago: 'EFECTIVO',
+                    categoria: '',
+                    fecha: ''
+                })
+
+                // Hora máxima permitida para editar (23:59 de hoy)
+                const editMaxFecha = computed(() => {
+                    const hoy = new Date()
+                    const yyyy = hoy.getFullYear()
+                    const mm = String(hoy.getMonth() + 1).padStart(2, '0')
+                    const dd = String(hoy.getDate()).padStart(2, '0')
+                    return `${yyyy}-${mm}-${dd}T23:59`
+                })
+
+                // Determina si un gasto es editable (mismo día, antes de las 00:00 del día siguiente)
+                const isGastoEditable = (gasto) => {
+                    if (role === 'admin') return true // admin siempre puede editar
+                    if (!gasto.fecha) return false
+                    const fechaGasto = new Date(gasto.fecha)
+                    const hoy = new Date()
+                    return (
+                        fechaGasto.getFullYear() === hoy.getFullYear() &&
+                        fechaGasto.getMonth() === hoy.getMonth() &&
+                        fechaGasto.getDate() === hoy.getDate()
+                    )
+                }
+
+                const openEditModal = (gasto) => {
+                    editingGastoId.value = gasto.id
+                    // Convertir fecha ISO a formato datetime-local
+                    let fechaLocal = ''
+                    if (gasto.fecha) {
+                        const d = new Date(gasto.fecha)
+                        const yyyy = d.getFullYear()
+                        const mm = String(d.getMonth() + 1).padStart(2, '0')
+                        const dd = String(d.getDate()).padStart(2, '0')
+                        const hh = String(d.getHours()).padStart(2, '0')
+                        const min = String(d.getMinutes()).padStart(2, '0')
+                        fechaLocal = `${yyyy}-${mm}-${dd}T${hh}:${min}`
+                    }
+                    editForm.value = {
+                        descripcion: gasto.descripcion || '',
+                        responsable: gasto.responsable || '',
+                        monto: gasto.monto || 0,
+                        metodo_pago: gasto.metodo_pago || 'EFECTIVO',
+                        categoria: gasto.categoria || 'GENERAL',
+                        fecha: fechaLocal
+                    }
+                    showEditModal.value = true
+                }
+
+                const saveEditGasto = async () => {
+                    try {
+                        const payload = {
+                            descripcion: editForm.value.descripcion,
+                            monto: parseFloat(editForm.value.monto),
+                            metodo_pago: editForm.value.metodo_pago,
+                            categoria: editForm.value.categoria,
+                            responsable: editForm.value.responsable,
+                        }
+                        // Incluir fecha solo si fue modificada
+                        if (editForm.value.fecha) {
+                            payload.fecha = new Date(editForm.value.fecha).toISOString()
+                        }
+                        await axios.put(`/api/gastos/${editingGastoId.value}`, payload)
+                        showEditModal.value = false
+                        fetchGastos()
+                        fetchBalances()
+                        Swal.fire('¡Guardado!', 'El gasto fue actualizado correctamente.', 'success')
+                    } catch (e) {
+                        Swal.fire('Error', e.response?.data?.detail || e.message, 'error')
+                    }
+                }
 
                 const nominaForm = ref({
                     empleado_id: null,
@@ -1483,7 +1664,9 @@
                     openNominaModal, procesarNomina, pagarSeleccionados, procesarNominaAll, procesarRetiro,
                     showTransferModal, transferForm, procesarTransferencia,
                     searchQuery, debounceFetch, filterCategoria, filterMetodo, filterUsuarioId,
-                    categoriasGasto
+                    categoriasGasto,
+                    // Editar gasto
+                    showEditModal, editForm, editMaxFecha, openEditModal, saveEditGasto, isGastoEditable
                 }
             }
         }).mount('#app')
