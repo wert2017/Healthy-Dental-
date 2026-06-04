@@ -3002,6 +3002,7 @@ def read_root():
 
 
 RECEPCION_EDIT_HOURS = 48
+GASTO_EDIT_HOURS = 48  # Horas permitidas para editar un gasto (recepcion y recepcion)
 
 def check_recepcion_time_limit(atencion: Atencion, user: User):
     """For recepcion users, blocks edits/deletes on atenciones older than RECEPCION_EDIT_HOURS."""
@@ -3308,16 +3309,16 @@ def update_gasto(
     if gasto.sucursal_id != user.sucursal_id:
         raise HTTPException(status_code=403, detail="No tienes permiso para editar este gasto")
 
-    # BLOQUEO: solo se puede editar si el gasto es del mismo día (antes de las 00:00 del día siguiente)
-    # El admin puede editar siempre
+    # BLOQUEO: recepcion solo puede editar dentro de GASTO_EDIT_HOURS horas desde el registro
+    # El admin puede editar siempre (sin límite de tiempo)
     if user.role != "admin":
-        hoy = datetime.now().date()
-        fecha_gasto = gasto.fecha.date() if gasto.fecha else None
-        if fecha_gasto != hoy:
-            raise HTTPException(
-                status_code=403,
-                detail="Este gasto ya no se puede editar. Solo se permiten cambios el mismo día del registro (hasta las 00:00)."
-            )
+        if gasto.fecha:
+            elapsed = datetime.now() - gasto.fecha
+            if elapsed.total_seconds() > GASTO_EDIT_HOURS * 3600:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Este gasto ya no se puede editar. Solo se permiten cambios dentro de las primeras {GASTO_EDIT_HOURS} horas del registro."
+                )
 
     # Aplicar cambios
     if data.descripcion is not None:

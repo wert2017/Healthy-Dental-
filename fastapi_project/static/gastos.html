@@ -308,12 +308,15 @@
                                     <button v-if="isGastoEditable(g)"
                                         @click="openEditModal(g)"
                                         class="inline-flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold px-3 py-1.5 rounded-lg text-xs transition transform active:scale-95"
-                                        title="Editar gasto">
+                                        :title="gastoTiempoEstado(g)">
                                         ✏️ Editar
+                                        <span v-if="role !== 'admin'" class="text-amber-500 font-normal">
+                                            ({{ gastoTiempoEstado(g) }})
+                                        </span>
                                     </button>
                                     <span v-else
                                         class="inline-flex items-center gap-1 bg-slate-100 text-slate-400 font-medium px-3 py-1.5 rounded-lg text-xs cursor-not-allowed"
-                                        title="Bloqueado: solo se puede editar el mismo día del registro">
+                                        :title="gastoTiempoEstado(g)">
                                         🔒 Cerrado
                                     </span>
                                 </td>
@@ -965,17 +968,31 @@
                     return `${yyyy}-${mm}-${dd}T23:59`
                 })
 
-                // Determina si un gasto es editable (mismo día, antes de las 00:00 del día siguiente)
+                // Horas máximas para editar un gasto (debe coincidir con el backend)
+                const GASTO_EDIT_HOURS = 48
+
+                // Determina si un gasto es editable según las horas transcurridas
                 const isGastoEditable = (gasto) => {
                     if (role === 'admin') return true // admin siempre puede editar
                     if (!gasto.fecha) return false
                     const fechaGasto = new Date(gasto.fecha)
-                    const hoy = new Date()
-                    return (
-                        fechaGasto.getFullYear() === hoy.getFullYear() &&
-                        fechaGasto.getMonth() === hoy.getMonth() &&
-                        fechaGasto.getDate() === hoy.getDate()
-                    )
+                    const ahora = new Date()
+                    const diffHoras = (ahora - fechaGasto) / (1000 * 60 * 60)
+                    return diffHoras <= GASTO_EDIT_HOURS
+                }
+
+                // Retorna el texto con horas restantes o tiempo transcurrido
+                const gastoTiempoEstado = (gasto) => {
+                    if (role === 'admin') return 'Admin: sin límite'
+                    if (!gasto.fecha) return 'Sin fecha'
+                    const fechaGasto = new Date(gasto.fecha)
+                    const ahora = new Date()
+                    const diffHoras = (ahora - fechaGasto) / (1000 * 60 * 60)
+                    if (diffHoras <= GASTO_EDIT_HOURS) {
+                        const restantes = Math.ceil(GASTO_EDIT_HOURS - diffHoras)
+                        return `Editable: ${restantes}h restantes`
+                    }
+                    return `Cerrado: hace ${Math.floor(diffHoras)}h`
                 }
 
                 const openEditModal = (gasto) => {
@@ -1666,7 +1683,7 @@
                     searchQuery, debounceFetch, filterCategoria, filterMetodo, filterUsuarioId,
                     categoriasGasto,
                     // Editar gasto
-                    showEditModal, editForm, editMaxFecha, openEditModal, saveEditGasto, isGastoEditable
+                    showEditModal, editForm, editMaxFecha, openEditModal, saveEditGasto, isGastoEditable, gastoTiempoEstado
                 }
             }
         }).mount('#app')
