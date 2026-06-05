@@ -149,8 +149,8 @@
         </header>
 
         <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <!-- Balances (solo admin) -->
-            <div v-if="role === 'admin'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+            <!-- Balances (solo admin y recepcion) -->
+            <div v-if="role === 'admin' || role === 'recepcion'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
                 <!-- Caja Efectivo -->
                 <div class="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-emerald-500 relative overflow-hidden">
                     <p class="text-xs font-semibold text-emerald-600 mb-1 uppercase tracking-wider">💵 Caja Física</p>
@@ -201,7 +201,7 @@
                             0).toFixed(2) }}</span>
                     </div>
 
-                    <button @click="openNominaModal" v-if="role === 'admin'"
+                    <button @click="openNominaModal" v-if="role === 'admin' || role === 'recepcion'"
                         class="w-full mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-2 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm shadow-md">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -212,7 +212,7 @@
                     </button>
 
                     <!-- NUEVO: Botón de Transferencia Interna -->
-                    <button @click="showTransferModal = true" v-if="role === 'admin'"
+                    <button @click="showTransferModal = true" v-if="role === 'admin' || role === 'recepcion'"
                         class="w-full mt-2 bg-white text-slate-700 border border-slate-200 font-bold py-2 rounded-xl hover:bg-slate-50 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm shadow-sm">
                         <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -221,17 +221,6 @@
                         Transferencia Interna
                     </button>
                 </div>
-            </div>
-
-            <!-- Botón registrar gasto para recepción -->
-            <div v-if="role === 'recepcion'" class="mb-4">
-                <button @click="showModal = true"
-                    class="bg-emerald-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-emerald-400 transition transform active:scale-95 flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                    </svg>
-                    Registrar Gasto
-                </button>
             </div>
 
             <!-- Expenses List -->

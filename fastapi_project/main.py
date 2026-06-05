@@ -3828,8 +3828,8 @@ class RetiroSociosSchema(BaseModel):
 @app.post("/api/nomina/retiro-socios")
 def retiro_socios(data: RetiroSociosSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     """ Endpoint for admins to withdraw net profits """
-    if user.role != "admin":
-         raise HTTPException(status_code=403, detail="Solo los administradores pueden registrar retiros de socios")
+    if user.role not in ("admin", "recepcion"):
+         raise HTTPException(status_code=403, detail="Solo los administradores y recepcionistas pueden registrar retiros de socios")
          
     if not user.sucursal_id:
          raise HTTPException(status_code=400, detail="Sin sucursal asignada")
