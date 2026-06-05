@@ -2250,7 +2250,8 @@ def reporte_doctores(
         .options(
             selectinload(AtencionDetalle.doctor),
             selectinload(AtencionDetalle.tratamiento),
-            selectinload(AtencionDetalle.atencion)
+            selectinload(AtencionDetalle.atencion).selectinload(Atencion.pagos),
+            selectinload(AtencionDetalle.atencion).selectinload(Atencion.detalles)
         )
         .order_by(Atencion.fecha.asc())
     )
@@ -2268,16 +2269,28 @@ def reporte_doctores(
 
     filas = []
     for d in detalles:
-        valor_trat   = float(d.total_calculado)
+        valor_trat_total = float(d.total_calculado)
+        
+        # Calculate proportional collected value based on attention payments
+        fraction = 1.0
+        if d.atencion:
+            total_atencion_val = float(d.atencion.total_atencion_valor)
+            total_pagado_val = float(d.atencion.total_pagado)
+            if total_atencion_val > 0:
+                fraction = min(total_pagado_val / total_atencion_val, 1.0)
+            else:
+                fraction = 0.0
+                
+        valor_cobrado = round(valor_trat_total * fraction, 2)
         pct          = float(d.porcentaje_comision)
-        val_comision = round(valor_trat * pct / 100, 2)
+        val_comision = round(valor_cobrado * pct / 100, 2)
         val_pagado   = round(float(d.comision_pagada_monto or 0), 2)
         pendiente    = round(val_comision - val_pagado, 2)
         filas.append({
             "fecha":               d.atencion.fecha.strftime("%Y-%m-%d") if d.atencion else "",
             "doctor":              f"{d.doctor.nombres} {d.doctor.apellidos}" if d.doctor else "—",
             "tratamiento":         d.tratamiento.nombre if d.tratamiento else "—",
-            "valor_cancelado":     valor_trat,
+            "valor_cancelado":     valor_cobrado,
             "pct_comision":        pct,
             "valor_comision":      val_comision,
             "valor_comision_pagada": val_pagado,
