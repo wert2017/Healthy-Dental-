@@ -969,11 +969,11 @@
                 })
 
                 // Horas máximas para editar un gasto (debe coincidir con el backend)
-                const GASTO_EDIT_HOURS = 48
+                const GASTO_EDIT_HOURS = 24
 
                 // Determina si un gasto es editable según las horas transcurridas
                 const isGastoEditable = (gasto) => {
-                    if (role === 'admin') return true // admin siempre puede editar
+                    if (role.value === 'admin') return true // admin siempre puede editar
                     if (!gasto.fecha) return false
                     const fechaGasto = new Date(gasto.fecha)
                     const ahora = new Date()
@@ -983,7 +983,7 @@
 
                 // Retorna el texto con horas restantes o tiempo transcurrido
                 const gastoTiempoEstado = (gasto) => {
-                    if (role === 'admin') return 'Admin: sin límite'
+                    if (role.value === 'admin') return 'Admin: sin límite'
                     if (!gasto.fecha) return 'Sin fecha'
                     const fechaGasto = new Date(gasto.fecha)
                     const ahora = new Date()

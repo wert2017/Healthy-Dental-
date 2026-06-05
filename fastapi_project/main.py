@@ -3002,7 +3002,7 @@ def read_root():
 
 
 RECEPCION_EDIT_HOURS = 48
-GASTO_EDIT_HOURS = 48  # Horas permitidas para editar un gasto (recepcion y recepcion)
+GASTO_EDIT_HOURS = 24  # Horas permitidas para editar un gasto (recepcion)
 
 def check_recepcion_time_limit(atencion: Atencion, user: User):
     """For recepcion users, blocks edits/deletes on atenciones older than RECEPCION_EDIT_HOURS."""
