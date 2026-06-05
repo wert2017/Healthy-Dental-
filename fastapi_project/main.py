@@ -22,14 +22,14 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.responses import RedirectResponse
 import uvicorn
 from typing import List, Optional
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, time
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 import secrets
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
-from wtforms import SelectField
+from wtforms import SelectField, DecimalField
 import wtforms
 
 import locale
@@ -289,6 +289,19 @@ def doctor_dashboard_page():
      return FileResponse("static/doctor_dashboard.html") 
 
 
+class SafeDecimalField(DecimalField):
+    def process_formdata(self, valuelist):
+        if valuelist:
+            val = valuelist[0].strip()
+            if not val:
+                self.data = Decimal("0.0")
+            else:
+                try:
+                    self.data = Decimal(val)
+                except (InvalidOperation, ValueError) as e:
+                    self.data = None
+                    raise ValueError(self.gettext('Not a valid decimal value.')) from e
+
 # --- ADMIN VIEWS ---
 class PacienteAdmin(ModelView, model=Paciente):
     name = "Paciente"
@@ -317,7 +330,8 @@ class PacienteAdmin(ModelView, model=Paciente):
     # Restrict choices for Dropdowns
     form_overrides = {
         "tipo_identificacion": SelectField,
-        "sexo": SelectField
+        "sexo": SelectField,
+        "saldo_favor": SafeDecimalField
     }
     form_widget_args = {}
     form_args = {
@@ -345,6 +359,10 @@ class PacienteAdmin(ModelView, model=Paciente):
             "validators": [wtforms.validators.Optional()]
         },
         "telefono": {
+            "validators": [wtforms.validators.Optional()]
+        },
+        "saldo_favor": {
+            "default": Decimal("0.0"),
             "validators": [wtforms.validators.Optional()]
         }
     }
