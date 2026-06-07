@@ -127,6 +127,7 @@ def on_startup():
         "ALTER TABLE paciente ADD COLUMN edad INTEGER;",
         "ALTER TABLE paciente ADD COLUMN ciudad VARCHAR;",
         "ALTER TABLE historialabono ADD COLUMN atencion_id INTEGER REFERENCES atencion(id);",
+        "ALTER TABLE gasto ADD COLUMN socio_id INTEGER REFERENCES socio(id);",
     ]
     for sql in migrations:
         try:
