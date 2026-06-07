@@ -138,6 +138,7 @@
         <div class="tabs">
             <button class="tab-btn" :class="{ active: tab === 'resultados' }" @click="tab = 'resultados'">Resultados</button>
             <button class="tab-btn" :class="{ active: tab === 'tratamientos' }" @click="tab = 'tratamientos'">Tratamientos en Curso</button>
+            <button class="tab-btn" :class="{ active: tab === 'socios' }" @click="tab = 'socios'">Utilidades y Socios</button>
         </div>
 
         <!-- ===== TAB CUADRE DIARIO ===== -->
@@ -555,6 +556,100 @@
 
         </div>
 
+        <!-- ===== TAB UTILIDADES Y SOCIOS ===== -->
+        <div v-show="tab === 'socios'">
+            <div class="section-desc" style="margin-bottom:12px; color:#6b7280; font-size: 14px;">
+                Cálculo del libro mayor de utilidades y anticipos de cada socio de la clínica.
+            </div>
+
+            <!-- Filtros -->
+            <div class="filter-bar" style="margin-bottom: 20px;">
+                <div class="filter-group">
+                    <label>Año</label>
+                    <select v-model="socioYear" class="select-input" style="padding:6px 12px; border-radius:6px; border:1px solid #d1d5db; background:#fff;">
+                        <option v-for="y in yearsList" :key="y" :value="y">{{ y }}</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Mes</label>
+                    <select v-model="socioMonth" class="select-input" style="padding:6px 12px; border-radius:6px; border:1px solid #d1d5db; background:#fff;">
+                        <option v-for="m in 12" :key="m" :value="m">{{ getMonthName(m) }}</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" @click="loadSociosReport" :disabled="isLoadingSocios">
+                    <div v-if="isLoadingSocios" class="spin"></div>
+                    {{ isLoadingSocios ? 'Cargando...' : 'Generar' }}
+                </button>
+            </div>
+
+            <!-- Tarjetas resumen de utilidades -->
+            <div v-if="sociosData" class="summary-bar" style="margin-bottom:24px;">
+                <div class="sc" style="background:#f0fdf4; border: 1px solid #bbf7d0; border-radius:10px;">
+                    <div class="sc-label" style="color:#166534; font-weight:700;">Utilidad Total a Repartir</div>
+                    <div class="sc-value" style="color:#166534; font-size:26px; font-weight:800;">${{ fmt(sociosData.utilidad_clinica) }}</div>
+                    <div class="sc-sub">Ingresos Cobrados - Gastos Operativos</div>
+                </div>
+                <div class="sc" style="background:#fef2f2; border: 1px solid #fecaca; border-radius:10px;">
+                    <div class="sc-label" style="color:#991b1b; font-weight:700;">Total Anticipos / Retiros</div>
+                    <div class="sc-value" style="color:#991b1b; font-size:26px; font-weight:800;">${{ fmt(sociosData.total_anticipos) }}</div>
+                    <div class="sc-sub">Extraídos del periodo</div>
+                </div>
+                <div class="sc" style="background:#f0fdfa; border: 1px solid #ccfbf1; border-radius:10px;">
+                    <div class="sc-label" style="color:#0f766e; font-weight:700;">Ingresos Cobrados</div>
+                    <div class="sc-value" style="color:#0f766e; font-size:24px; font-weight:800;">${{ fmt(sociosData.ingresos_cobrados) }}</div>
+                    <div class="sc-sub">Sin contar abonos (dinero neto)</div>
+                </div>
+                <div class="sc" style="background:#fffbeb; border: 1px solid #fef3c7; border-radius:10px;">
+                    <div class="sc-label" style="color:#854d0e; font-weight:700;">Gastos Operativos</div>
+                    <div class="sc-value" style="color:#854d0e; font-size:24px; font-weight:800;">${{ fmt(sociosData.gastos_operativos) }}</div>
+                    <div class="sc-sub">Gastos excluyendo retiros de socios</div>
+                </div>
+            </div>
+
+            <!-- Tabla del Libro Mayor de Socios -->
+            <div class="section" v-if="sociosData">
+                <div class="section-head">
+                    <span class="section-title">Distribución y Libro Mayor por Socio</span>
+                    <span class="section-desc">Detalle consolidado de saldos acumulados e historial</span>
+                </div>
+                <div class="section-body" style="overflow-x:auto;">
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th>Socio</th>
+                                <th class="c">% Acciones</th>
+                                <th class="r">Saldo Inicial Acumulado</th>
+                                <th class="r" style="color:#166534;">(+) Utilidad del Mes</th>
+                                <th class="r" style="color:#b91c1c;">(-) Anticipos del Mes</th>
+                                <th class="r">(=) Saldo Total Acumulado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="s in sociosData.socios || []" :key="s.socio_id">
+                                <td style="font-weight:700; color:#1e293b;">{{ s.nombre }}</td>
+                                <td class="c" style="font-weight:600; color:#475569;">{{ s.porcentaje }}%</td>
+                                <td class="r" :style="s.saldo_inicial < 0 ? 'color:#b91c1c; font-weight:600;' : 'color:#475569;'">
+                                    ${{ fmt(s.saldo_inicial) }}
+                                </td>
+                                <td class="r" style="color:#166534; font-weight:600;">
+                                    +${{ fmt(s.utilidad_mes) }}
+                                </td>
+                                <td class="r" style="color:#b91c1c; font-weight:600;">
+                                    -${{ fmt(s.anticipos_mes) }}
+                                </td>
+                                <td class="r" :style="s.saldo_acumulado < 0 ? 'background:#fef2f2; color:#b91c1c; font-weight:700;' : 'background:#f0fdf4; color:#166534; font-weight:700;'">
+                                    ${{ fmt(s.saldo_acumulado) }}
+                                </td>
+                            </tr>
+                            <tr v-if="!sociosData.socios?.length">
+                                <td colspan="6" class="empty">No hay socios activos configurados para este periodo.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -593,6 +688,40 @@
             const cuadreEndDate   = ref(today)
             const cuadreData      = ref({ filas: [], totales: null, abonos_generados: [], abonos_por_metodo: {}, total_abonos_generados: 0 })
             const isLoadingCuadre = ref(false)
+
+            // Socio Report
+            const currentYear = new Date().getFullYear()
+            const currentMonth = new Date().getMonth() + 1
+            const socioYear = ref(currentYear)
+            const socioMonth = ref(currentMonth)
+            const sociosData = ref(null)
+            const isLoadingSocios = ref(false)
+            const yearsList = ref([])
+            for (let y = 2024; y <= currentYear + 2; y++) {
+                yearsList.value.push(y)
+            }
+
+            const loadSociosReport = async () => {
+                isLoadingSocios.value = true
+                try {
+                    const res = await axios.get('/api/reportes/distribucion-utilidades', {
+                        params: {
+                            anio: socioYear.value,
+                            mes: socioMonth.value
+                        }
+                    })
+                    sociosData.value = res.data
+                } catch (e) {
+                    alert(e.response?.data?.detail || "Error al cargar el reporte de socios")
+                } finally {
+                    isLoadingSocios.value = false
+                }
+            }
+
+            const getMonthName = (m) => {
+                const names = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+                return names[m - 1]
+            }
 
             const loadCuadre = async () => {
                 isLoadingCuadre.value = true
@@ -877,6 +1006,7 @@
                 loadCuadre()
                 loadResumen()
                 loadTratReport()
+                loadSociosReport()
             })
 
             return {
@@ -888,7 +1018,9 @@
                 sucursalesList, selectedImportSucursal,
                 fmt, loadResumen, loadTratReport,
                 tratStartDate, tratEndDate, tratTratamientoId, tratData, isLoadingTrat,
-                exportMasterReport, importExcel
+                exportMasterReport, importExcel,
+                // Socio Report variables & methods
+                socioYear, socioMonth, sociosData, isLoadingSocios, yearsList, loadSociosReport, getMonthName
             }
         }
     }).mount('#app')

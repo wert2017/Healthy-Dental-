@@ -293,6 +293,27 @@ class CategoriaGasto(SQLModel, table=True):
         return self.nombre
 
 
+class Socio(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nombre: str
+    porcentaje_base: Decimal = Field(max_digits=5, decimal_places=2, default=0.00)
+    saldo_inicial_utilidades: Decimal = Field(max_digits=10, decimal_places=2, default=0.00)
+    activo: bool = Field(default=True)
+
+    def __str__(self):
+        return self.nombre
+
+
+class SocioParticipacion(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    socio_id: int = Field(foreign_key="socio.id")
+    anio: int
+    mes: int
+    porcentaje: Decimal = Field(max_digits=5, decimal_places=2)
+
+    socio: Optional[Socio] = Relationship()
+
+
 class Gasto(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     fecha: datetime = Field(default_factory=datetime.now)
@@ -304,6 +325,8 @@ class Gasto(SQLModel, table=True):
     
     sucursal_id: int = Field(foreign_key="sucursal.id")
     usuario_id: int = Field(foreign_key="user.id")
+    socio_id: Optional[int] = Field(default=None, foreign_key="socio.id")
     
     sucursal: Optional[Sucursal] = Relationship()
     usuario: Optional[User] = Relationship()
+    socio: Optional[Socio] = Relationship()

@@ -10,7 +10,7 @@ except AttributeError:
 from fastapi import FastAPI, Depends, HTTPException, Query, status, Request, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import engine, create_db_and_tables, get_session
-from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto
+from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto, Socio, SocioParticipacion
 from sqlmodel import Field, Session, SQLModel, select, create_engine, Relationship
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -592,6 +592,28 @@ class CategoriaGastoAdmin(ModelView, model=CategoriaGasto):
     def is_accessible(self, request):
         return request.cookies.get("user_role") == "admin"
 
+
+class SocioAdmin(ModelView, model=Socio):
+    name = "Socio"
+    name_plural = "Socios"
+    column_list = ["id", "nombre", "porcentaje_base", "saldo_inicial_utilidades", "activo"]
+    form_columns = ["nombre", "porcentaje_base", "saldo_inicial_utilidades", "activo"]
+    icon = "fa-solid fa-people-group"
+
+    def is_accessible(self, request):
+        return request.cookies.get("user_role") == "admin"
+
+
+class SocioParticipacionAdmin(ModelView, model=SocioParticipacion):
+    name = "Participación de Socio"
+    name_plural = "Participaciones de Socios"
+    column_list = ["id", "socio", "anio", "mes", "porcentaje"]
+    form_columns = ["socio", "anio", "mes", "porcentaje"]
+    icon = "fa-solid fa-chart-pie"
+
+    def is_accessible(self, request):
+        return request.cookies.get("user_role") == "admin"
+
 class MovimientosLink(BaseView):
     name = "Movimientos de Inventario"
     icon = "fa-solid fa-truck-ramp-box"
@@ -708,6 +730,8 @@ admin.add_view(UserAdmin)
 admin.add_view(MovimientosLink)
 admin.add_view(RecetaAdmin)
 admin.add_view(CategoriaGastoAdmin)
+admin.add_view(SocioAdmin)
+admin.add_view(SocioParticipacionAdmin)
 
 # --- CATEGORÍAS DE GASTO ---
 @app.get("/api/categorias-gasto")
@@ -2729,7 +2753,176 @@ def reporte_resumen_financiero(
     }
 
 
+@app.get("/api/reportes/distribucion-utilidades")
+def get_distribucion_utilidades(
+    anio: int = Query(..., description="Año del reporte"),
+    mes: int = Query(..., description="Mes del reporte (1-12)"),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role not in ["admin", "recepcion"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos para ver reportes financieros")
 
+    if not user.sucursal_id:
+        raise HTTPException(status_code=400, detail="El usuario no tiene una sucursal asignada")
+
+    # Load all partners (both active and inactive to compute historical balances correctly)
+    socios = session.exec(select(Socio).order_by(Socio.nombre)).all()
+    if not socios:
+        return {
+            "anio": anio,
+            "mes": mes,
+            "utilidad_clinica": 0.0,
+            "total_anticipos": 0.0,
+            "ingresos_cobrados": 0.0,
+            "gastos_operativos": 0.0,
+            "socios": []
+        }
+
+    # Find earliest activity in database (Pago or Gasto) to start ledger calculation
+    min_pago = session.exec(select(func.min(Pago.fecha)).join(Atencion).where(Atencion.sucursal_id == user.sucursal_id)).first()
+    min_gasto = session.exec(select(func.min(Gasto.fecha)).where(Gasto.sucursal_id == user.sucursal_id)).first()
+    
+    dates = [d for d in [min_pago, min_gasto] if d is not None]
+    if dates:
+        earliest = min(dates)
+        start_y = earliest.year
+        start_m = earliest.month
+    else:
+        start_y = anio
+        start_m = mes
+
+    # Cap the start date loop at the requested year/month
+    if start_y > anio or (start_y == anio and start_m > mes):
+        start_y = anio
+        start_m = mes
+
+    # Ledger running balances initialized with starting balance
+    running_balances = {s.id: Decimal(str(s.saldo_inicial_utilidades)) for s in socios}
+
+    cur_y = start_y
+    cur_m = start_m
+
+    # Report specifics for the requested month
+    report_socios = []
+    utilidad_clinica_final = Decimal("0.00")
+    total_anticipos_final = Decimal("0.00")
+    ingresos_cobrados_final = Decimal("0.00")
+    gastos_operativos_final = Decimal("0.00")
+
+    while (cur_y < anio) or (cur_y == anio and cur_m <= mes):
+        # Date boundaries for this month
+        start_dt = datetime(cur_y, cur_m, 1)
+        if cur_m == 12:
+            end_dt = datetime(cur_y + 1, 1, 1)
+        else:
+            end_dt = datetime(cur_y, cur_m + 1, 1)
+
+        # 1. Monthly collected income (Ingresos Cobrados)
+        q_pagos = (
+            select(func.sum(Pago.monto))
+            .join(Atencion)
+            .where(Atencion.sucursal_id == user.sucursal_id)
+            .where(Pago.forma_pago != 'AB')
+            .where(Pago.fecha >= start_dt)
+            .where(Pago.fecha < end_dt)
+        )
+        pagos_raw = session.exec(q_pagos).first()
+        total_cobrado_m = Decimal(str(pagos_raw)) if pagos_raw is not None else Decimal("0.00")
+
+        # 2. Operating expenses (excluding RETIRO SOCIOS)
+        q_gastos = (
+            select(func.sum(Gasto.monto))
+            .where(Gasto.sucursal_id == user.sucursal_id)
+            .where(Gasto.categoria != "RETIRO SOCIOS")
+            .where(Gasto.fecha >= start_dt)
+            .where(Gasto.fecha < end_dt)
+        )
+        gastos_raw = session.exec(q_gastos).first()
+        total_gastos_m = Decimal(str(gastos_raw)) if gastos_raw is not None else Decimal("0.00")
+
+        # Net Profit of the clinic for this month
+        utilidad_neta_m = total_cobrado_m - total_gastos_m
+
+        # Record target month metrics
+        if cur_y == anio and cur_m == mes:
+            utilidad_clinica_final = utilidad_neta_m
+            ingresos_cobrados_final = total_cobrado_m
+            gastos_operativos_final = total_gastos_m
+
+        # Calculate per-partner details
+        for s in socios:
+            # Get participation percentage for this month
+            q_part = (
+                select(SocioParticipacion)
+                .where(SocioParticipacion.socio_id == s.id)
+                .where(SocioParticipacion.anio == cur_y)
+                .where(SocioParticipacion.mes == cur_m)
+            )
+            part = session.exec(q_part).first()
+            pct = part.porcentaje if part is not None else Decimal(str(s.porcentaje_base))
+
+            # Profit share for this month
+            utilidad_socio_m = utilidad_neta_m * (pct / Decimal("100.00"))
+
+            # Withdrawals / Advances in this month
+            q_ret = (
+                select(func.sum(Gasto.monto))
+                .where(Gasto.sucursal_id == user.sucursal_id)
+                .where(Gasto.categoria == "RETIRO SOCIOS")
+                .where(Gasto.socio_id == s.id)
+                .where(Gasto.fecha >= start_dt)
+                .where(Gasto.fecha < end_dt)
+            )
+            ret_raw = session.exec(q_ret).first()
+            ret_m = Decimal(str(ret_raw)) if ret_raw is not None else Decimal("0.00")
+
+            if cur_y == anio and cur_m == mes:
+                total_anticipos_final += ret_m
+                
+                beg_bal = running_balances[s.id]
+                end_bal = beg_bal + utilidad_socio_m - ret_m
+                
+                report_socios.append({
+                    "socio_id": s.id,
+                    "nombre": s.nombre,
+                    "porcentaje": float(pct),
+                    "saldo_inicial": float(round(beg_bal, 2)),
+                    "utilidad_mes": float(round(utilidad_socio_m, 2)),
+                    "anticipos_mes": float(round(ret_m, 2)),
+                    "saldo_acumulado": float(round(end_bal, 2))
+                })
+                
+                # Update running balance
+                running_balances[s.id] = end_bal
+            else:
+                # Accumulate historical changes
+                running_balances[s.id] = running_balances[s.id] + utilidad_socio_m - ret_m
+
+        # Increment calendar month
+        if cur_m == 12:
+            cur_y += 1
+            cur_m = 1
+        else:
+            cur_m += 1
+
+    # Filter final report list to only show active partners OR inactive partners who have a non-zero final balance
+    filtered_report = []
+    for r in report_socios:
+        s_obj = next((s for s in socios if s.id == r["socio_id"]), None)
+        is_active = s_obj.activo if s_obj else False
+        if is_active or r["saldo_acumulado"] != 0.0 or r["anticipos_mes"] != 0.0 or r["utilidad_mes"] != 0.0:
+            filtered_report.append(r)
+
+    return {
+        "anio": anio,
+        "mes": mes,
+        "utilidad_clinica": float(round(utilidad_clinica_final, 2)),
+        "total_anticipos": float(round(total_anticipos_final, 2)),
+        "ingresos_cobrados": float(round(ingresos_cobrados_final, 2)),
+        "gastos_operativos": float(round(gastos_operativos_final, 2)),
+        "socios": filtered_report
+    }
 
 
 @app.get("/api/reportes/ortodoncia")
@@ -3819,11 +4012,19 @@ def pagar_nomina_seleccion(data: PagoNominaSeleccionSchema, session: Session = D
     session.commit()
     return {"message": f"{len(data.detalles)} tratamiento(s) pagado(s) a {empleado_nombre}", "total_pagado": float(total_entregado)}
 
+@app.get("/api/nomina/socios")
+def list_socios(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "recepcion"):
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+    socios = session.exec(select(Socio).where(Socio.activo == True).order_by(Socio.nombre)).all()
+    return [{"id": s.id, "nombre": s.nombre, "porcentaje_base": float(s.porcentaje_base)} for s in socios]
+
 class RetiroSociosSchema(BaseModel):
     monto: float
     metodo_pago: str # 'EFECTIVO' or 'TRANSFERENCIA'
     descripcion: str
     responsable: Optional[str] = None
+    socio_id: int
 
 @app.post("/api/nomina/retiro-socios")
 def retiro_socios(data: RetiroSociosSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
@@ -3841,6 +4042,10 @@ def retiro_socios(data: RetiroSociosSchema, session: Session = Depends(get_sessi
     if not sucursal:
         raise HTTPException(status_code=400, detail="Sucursal no encontrada")
         
+    socio = session.get(Socio, data.socio_id)
+    if not socio or not socio.activo:
+        raise HTTPException(status_code=400, detail="Socio no encontrado o inactivo")
+        
     balances = get_gastos_balances(session=session, user=user)
     monto_dec = Decimal(str(data.monto))
     
@@ -3855,18 +4060,19 @@ def retiro_socios(data: RetiroSociosSchema, session: Session = Depends(get_sessi
          
     gasto = Gasto(
         fecha=datetime.now(),
-        descripcion=f"Retiro de Socios / Utilidades: {data.descripcion}",
+        descripcion=f"Retiro de Socio ({socio.nombre}): {data.descripcion}",
         monto=Decimal(data.monto),
         metodo_pago=data.metodo_pago,
         categoria="RETIRO SOCIOS",
         responsable=data.responsable or user.username,
         sucursal_id=user.sucursal_id,
-        usuario_id=user.id
+        usuario_id=user.id,
+        socio_id=data.socio_id
     )
     session.add(gasto)
     session.commit()
     return {"message": "Retiro registrado exitosamente como Gasto"}
-    
+
 class TransferenciaInternaSchema(BaseModel):
     desde: str
     hacia: str

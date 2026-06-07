@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:8000/docs\" -TimeoutSec 3 -UseBasicParsing; $r.StatusCode } catch { \"No hay servidor en puerto 8000\" })",
+      "PowerShell($env:DATABASE_URL)",
+      "Read(//c/HD/**)",
+      "PowerShell(railway --version 2>$null)",
+      "PowerShell(if \\($?\\) { \"Railway CLI instalado\" } else { \"Railway CLI no instalado\" })",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('main.py'\\).read\\(\\)\\); print\\('Sintaxis OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('main.py', encoding='utf-8'\\).read\\(\\)\\); print\\('Sintaxis OK'\\)\")",
+      "Bash(python manage.py makemigrations atenciones --name=\"add_observaciones_to_atencion_detalle\")"
+    ]
+  }
+}
