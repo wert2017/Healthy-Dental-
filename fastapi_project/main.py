@@ -2729,9 +2729,57 @@ def reporte_resumen_financiero(
         cat = g.categoria or "GENERAL"
         cat_map[cat] = cat_map.get(cat, 0.0) + float(g.monto)
 
-    gastos_por_categoria = [{"categoria": k, "total": round(v, 2)} for k, v in cat_map.items()]
+    # Exclude RETIRO SOCIOS from operating expenses list and subtotal
+    gastos_operativos_map = {k: v for k, v in cat_map.items() if k != "RETIRO SOCIOS"}
+    gastos_por_categoria = [{"categoria": k, "total": round(v, 2)} for k, v in gastos_operativos_map.items()]
     gastos_por_categoria.sort(key=lambda x: x["total"], reverse=True)
     total_gastos = round(sum(g["total"] for g in gastos_por_categoria), 2)
+
+    # Load partners and aggregate withdrawals for the period
+    socios = session.exec(select(Socio).where(Socio.activo == True).order_by(Socio.nombre)).all()
+    retiros_socios = []
+    total_retiros = 0.0
+    for s in socios:
+        q_ret = (
+            select(func.sum(Gasto.monto))
+            .where(Gasto.sucursal_id == user.sucursal_id)
+            .where(Gasto.categoria == "RETIRO SOCIOS")
+            .where(Gasto.socio_id == s.id)
+        )
+        if start_dt:
+            q_ret = q_ret.where(Gasto.fecha >= start_dt)
+        if end_dt:
+            q_ret = q_ret.where(Gasto.fecha < end_dt)
+        ret_val = session.exec(q_ret).first()
+        ret_monto = float(ret_val) if ret_val is not None else 0.0
+        
+        retiros_socios.append({
+            "socio_id": s.id,
+            "nombre": s.nombre,
+            "monto": round(ret_monto, 2)
+        })
+        total_retiros += ret_monto
+        
+    # Also handle any legacy/orphan RETIRO SOCIOS where socio_id was not set (if any)
+    q_orphan = (
+        select(func.sum(Gasto.monto))
+        .where(Gasto.sucursal_id == user.sucursal_id)
+        .where(Gasto.categoria == "RETIRO SOCIOS")
+        .where(Gasto.socio_id == None)
+    )
+    if start_dt:
+        q_orphan = q_orphan.where(Gasto.fecha >= start_dt)
+    if end_dt:
+        q_orphan = q_orphan.where(Gasto.fecha < end_dt)
+    orphan_val = session.exec(q_orphan).first()
+    orphan_monto = float(orphan_val) if orphan_val is not None else 0.0
+    if orphan_monto > 0.01:
+        retiros_socios.append({
+            "socio_id": 0,
+            "nombre": "Retiros Sin Socio (Legacy)",
+            "monto": round(orphan_monto, 2)
+        })
+        total_retiros += orphan_monto
 
     return {
         "ingresos": {
@@ -2744,13 +2792,15 @@ def reporte_resumen_financiero(
             "total": total_gastos,
             "sueldo_fijo": round(cat_map.get("SUELDO FIJO", 0.0), 2),
             "comisiones": round(cat_map.get("COMISIONES", 0.0), 2),
-            # NÓMINA kept for records entered manually or migrated from older data
             "nomina_legacy": round(cat_map.get("NÓMINA", 0.0), 2),
             "insumos": round(cat_map.get("INSUMOS", 0.0), 2),
             "servicios_basicos": round(cat_map.get("SERVICIOS BÁSICOS", 0.0), 2),
             "por_categoria": gastos_por_categoria
         },
-        "balance": round(total_cobrado - total_gastos, 2)
+        "balance": round(total_cobrado - total_gastos, 2),
+        "retiros_socios": [r for r in retiros_socios if r["monto"] > 0],
+        "total_retiros": round(total_retiros, 2),
+        "resultado_neto": round(total_cobrado - total_gastos - total_retiros, 2)
     }
 
 

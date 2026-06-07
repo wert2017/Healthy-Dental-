@@ -366,15 +366,41 @@
                                 <td class="r sub">${{ fmt(resumen.gastos?.total) }}</td>
                             </tr>
 
-                            <!-- RESULTADO -->
+                            <!-- RESULTADO OPERATIVO -->
                             <tr>
                                 <td :class="(resumen.balance || 0) >= 0 ? 'result-pos' : 'result-neg'">
-                                    Resultado
+                                    Resultado Operativo
                                 </td>
                                 <td class="r" :class="(resumen.balance || 0) >= 0 ? 'result-pos' : 'result-neg'">
                                     ${{ fmt(resumen.balance) }}
                                 </td>
                             </tr>
+
+                            <!-- DISTRIBUCIÓN DE UTILIDADES A SOCIOS -->
+                            <template v-if="resumen.retiros_socios && resumen.retiros_socios.length">
+                                <tr>
+                                    <td class="lbl">Utilidades Entregadas a Socios</td>
+                                    <td></td>
+                                </tr>
+                                <tr v-for="s in resumen.retiros_socios" :key="s.socio_id">
+                                    <td class="ind" style="padding-left:18px;">Anticipo: {{ s.nombre }}</td>
+                                    <td class="r" style="color:#dc2626;">-${{ fmt(s.monto) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="sub">Total Utilidades Entregadas</td>
+                                    <td class="r sub" style="color:#dc2626;">-${{ fmt(resumen.total_retiros) }}</td>
+                                </tr>
+                                
+                                <!-- RESULTADO NETO REMANENTE -->
+                                <tr>
+                                    <td :class="(resumen.resultado_neto || 0) >= 0 ? 'result-pos' : 'result-neg'">
+                                        Resultado Neto Remanente
+                                    </td>
+                                    <td class="r" :class="(resumen.resultado_neto || 0) >= 0 ? 'result-pos' : 'result-neg'">
+                                        ${{ fmt(resumen.resultado_neto) }}
+                                    </td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
                 </div>
