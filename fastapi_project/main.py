@@ -2735,11 +2735,41 @@ def reporte_resumen_financiero(
     gastos_por_categoria.sort(key=lambda x: x["total"], reverse=True)
     total_gastos = round(sum(g["total"] for g in gastos_por_categoria), 2)
 
-    # Load partners and aggregate withdrawals for the period
+    # Load partners and aggregate utility sharing details
     socios = session.exec(select(Socio).where(Socio.activo == True).order_by(Socio.nombre)).all()
-    retiros_socios = []
+    distribucion_socios = []
     total_retiros = 0.0
+    total_correspondiente = 0.0
+
+    # Determine if it's a single month request
+    check_year = None
+    check_month = None
+    if start_dt and end_dt:
+        real_end = end_dt - timedelta(days=1)
+        if start_dt.year == real_end.year and start_dt.month == real_end.month:
+            check_year = start_dt.year
+            check_month = start_dt.month
+
+    balance_clinica = float(total_cobrado - total_gastos)
+
     for s in socios:
+        # Determine percentage for the period
+        pct = float(s.porcentaje_base)
+        if check_year and check_month:
+            q_sp = (
+                select(SocioParticipacion)
+                .where(SocioParticipacion.socio_id == s.id)
+                .where(SocioParticipacion.anio == check_year)
+                .where(SocioParticipacion.mes == check_month)
+            )
+            sp = session.exec(q_sp).first()
+            if sp:
+                pct = float(sp.porcentaje)
+
+        # Corresponding utility share for this period
+        util_corr = balance_clinica * (pct / 100.0)
+
+        # Actual withdrawals during this period
         q_ret = (
             select(func.sum(Gasto.monto))
             .where(Gasto.sucursal_id == user.sucursal_id)
@@ -2752,14 +2782,21 @@ def reporte_resumen_financiero(
             q_ret = q_ret.where(Gasto.fecha < end_dt)
         ret_val = session.exec(q_ret).first()
         ret_monto = float(ret_val) if ret_val is not None else 0.0
-        
-        retiros_socios.append({
+
+        pendiente = util_corr - ret_monto
+
+        distribucion_socios.append({
             "socio_id": s.id,
             "nombre": s.nombre,
-            "monto": round(ret_monto, 2)
+            "porcentaje": pct,
+            "utilidad_correspondiente": round(util_corr, 2),
+            "monto_retirado": round(ret_monto, 2),
+            "pendiente_periodo": round(pendiente, 2)
         })
+
         total_retiros += ret_monto
-        
+        total_correspondiente += util_corr
+
     # Also handle any legacy/orphan RETIRO SOCIOS where socio_id was not set (if any)
     q_orphan = (
         select(func.sum(Gasto.monto))
@@ -2774,10 +2811,13 @@ def reporte_resumen_financiero(
     orphan_val = session.exec(q_orphan).first()
     orphan_monto = float(orphan_val) if orphan_val is not None else 0.0
     if orphan_monto > 0.01:
-        retiros_socios.append({
+        distribucion_socios.append({
             "socio_id": 0,
             "nombre": "Retiros Sin Socio (Legacy)",
-            "monto": round(orphan_monto, 2)
+            "porcentaje": 0.0,
+            "utilidad_correspondiente": 0.0,
+            "monto_retirado": round(orphan_monto, 2),
+            "pendiente_periodo": round(-orphan_monto, 2)
         })
         total_retiros += orphan_monto
 
@@ -2798,9 +2838,10 @@ def reporte_resumen_financiero(
             "por_categoria": gastos_por_categoria
         },
         "balance": round(total_cobrado - total_gastos, 2),
-        "retiros_socios": [r for r in retiros_socios if r["monto"] > 0],
+        "distribucion_socios": distribucion_socios,
         "total_retiros": round(total_retiros, 2),
-        "resultado_neto": round(total_cobrado - total_gastos - total_retiros, 2)
+        "total_correspondiente": round(total_correspondiente, 2),
+        "utilidad_pendiente": round(balance_clinica - total_retiros, 2)
     }
 
 
