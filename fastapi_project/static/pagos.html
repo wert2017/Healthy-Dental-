@@ -65,6 +65,12 @@
                         :class="isActive('/static/pagos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
                         CxC / Abonos
                     </a>
+                    <!-- Calendario -->
+                    <a href="/static/calendario.html"
+                        class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
+                        :class="isActive('/static/calendario.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
+                        Calendario 📅
+                    </a>
                     <!-- Gastos -->
                     <a v-if="role !== 'doctor'" href="/gastos"
                         class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"

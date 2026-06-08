@@ -10,7 +10,7 @@ except AttributeError:
 from fastapi import FastAPI, Depends, HTTPException, Query, status, Request, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import engine, create_db_and_tables, get_session
-from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto, Socio, SocioParticipacion
+from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto, Socio, SocioParticipacion, Cita, GoogleCalendarConfig
 from sqlmodel import Field, Session, SQLModel, select, create_engine, Relationship
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -4360,6 +4360,230 @@ def secret_patch_db(session: Session = Depends(get_session)):
         session.commit()
         
     return {"status": "ok", "patched_pacientes": count, "sucursal_id": sucursal.id}
+
+
+
+
+
+# --- CALENDAR ENDPOINTS (PHASE 1) ---
+
+class CitaCreateSchema(BaseModel):
+    fecha_hora_inicio: datetime
+    fecha_hora_fin: datetime
+    paciente_id: Optional[int] = None
+    doctor_id: int
+    motivo: Optional[str] = None
+    estado: Optional[str] = "PENDIENTE"
+
+class CitaUpdateSchema(BaseModel):
+    fecha_hora_inicio: Optional[datetime] = None
+    fecha_hora_fin: Optional[datetime] = None
+    paciente_id: Optional[int] = None
+    doctor_id: Optional[int] = None
+    motivo: Optional[str] = None
+    estado: Optional[str] = None
+
+@app.post("/api/calendario/citas")
+def create_cita(data: CitaCreateSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "recepcion", "doctor"):
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+    if not user.sucursal_id:
+        raise HTTPException(status_code=400, detail="El usuario no tiene una sucursal asignada")
+        
+    doctor = session.get(Doctor, data.doctor_id)
+    if not doctor or not doctor.activo:
+        raise HTTPException(status_code=400, detail="Doctor no encontrado o inactivo")
+        
+    if data.paciente_id:
+        paciente = session.get(Paciente, data.paciente_id)
+        if not paciente or not paciente.activo:
+            raise HTTPException(status_code=400, detail="Paciente no encontrado o inactivo")
+            
+    if data.fecha_hora_inicio >= data.fecha_hora_fin:
+        raise HTTPException(status_code=400, detail="La fecha de inicio debe ser anterior a la de fin")
+        
+    # Validar solapamientos
+    overlap = session.exec(
+        select(Cita)
+        .where(Cita.doctor_id == data.doctor_id)
+        .where(Cita.estado != "CANCELADA")
+        .where(Cita.fecha_hora_inicio < data.fecha_hora_fin)
+        .where(Cita.fecha_hora_fin > data.fecha_hora_inicio)
+    ).first()
+    if overlap:
+        raise HTTPException(status_code=400, detail="El doctor ya tiene una cita programada en ese horario")
+        
+    cita = Cita(
+        fecha_hora_inicio=data.fecha_hora_inicio,
+        fecha_hora_fin=data.fecha_hora_fin,
+        paciente_id=data.paciente_id,
+        doctor_id=data.doctor_id,
+        sucursal_id=user.sucursal_id,
+        motivo=data.motivo,
+        estado=data.estado or "PENDIENTE"
+    )
+    session.add(cita)
+    session.commit()
+    session.refresh(cita)
+    
+    return {"message": "Cita creada con éxito", "cita_id": cita.id}
+
+@app.get("/api/calendario/citas")
+def list_citas(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    doctor_id: Optional[int] = Query(None),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role not in ("admin", "recepcion", "doctor"):
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+    if not user.sucursal_id:
+        return []
+        
+    query = (
+        select(Cita)
+        .where(Cita.sucursal_id == user.sucursal_id)
+        .options(selectinload(Cita.paciente), selectinload(Cita.doctor))
+    )
+    
+    if doctor_id:
+        query = query.where(Cita.doctor_id == doctor_id)
+        
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.where(Cita.fecha_hora_inicio >= start_dt)
+        except ValueError:
+            pass
+            
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            query = query.where(Cita.fecha_hora_inicio < end_dt)
+        except ValueError:
+            pass
+            
+    citas = session.exec(query).all()
+    
+    return [{
+        "id": c.id,
+        "fecha_hora_inicio": c.fecha_hora_inicio.isoformat(),
+        "fecha_hora_fin": c.fecha_hora_fin.isoformat(),
+        "motivo": c.motivo,
+        "estado": c.estado,
+        "paciente": {
+            "id": c.paciente.id,
+            "nombres": c.paciente.nombres,
+            "apellidos": c.paciente.apellidos,
+            "telefono": c.paciente.telefono,
+            "historia_clinica": c.paciente.historia_clinica
+        } if c.paciente else None,
+        "doctor": {
+            "id": c.doctor.id,
+            "nombres": c.doctor.nombres,
+            "apellidos": c.doctor.apellidos
+        } if c.doctor else None
+    } for c in citas]
+
+@app.put("/api/calendario/citas/{cita_id}")
+def update_cita(
+    cita_id: int,
+    data: CitaUpdateSchema,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role not in ("admin", "recepcion", "doctor"):
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+        
+    cita = session.get(Cita, cita_id)
+    if not cita or cita.sucursal_id != user.sucursal_id:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+        
+    if data.doctor_id is not None:
+        doctor = session.get(Doctor, data.doctor_id)
+        if not doctor or not doctor.activo:
+            raise HTTPException(status_code=400, detail="Doctor no encontrado o inactivo")
+        cita.doctor_id = data.doctor_id
+        
+    if data.paciente_id is not None:
+        paciente = session.get(Paciente, data.paciente_id)
+        if not paciente or not paciente.activo:
+            raise HTTPException(status_code=400, detail="Paciente no encontrado o inactivo")
+        cita.paciente_id = data.paciente_id
+        
+    if data.fecha_hora_inicio is not None:
+        cita.fecha_hora_inicio = data.fecha_hora_inicio
+    if data.fecha_hora_fin is not None:
+        cita.fecha_hora_fin = data.fecha_hora_fin
+        
+    if cita.fecha_hora_inicio >= cita.fecha_hora_fin:
+        raise HTTPException(status_code=400, detail="La fecha de inicio debe ser anterior a la de fin")
+        
+    # Validar solapamientos (excluyendo la misma cita)
+    overlap = session.exec(
+        select(Cita)
+        .where(Cita.doctor_id == cita.doctor_id)
+        .where(Cita.id != cita.id)
+        .where(Cita.estado != "CANCELADA")
+        .where(Cita.fecha_hora_inicio < cita.fecha_hora_fin)
+        .where(Cita.fecha_hora_fin > cita.fecha_hora_inicio)
+    ).first()
+    if overlap:
+        raise HTTPException(status_code=400, detail="El doctor ya tiene una cita programada en ese horario")
+        
+    if data.motivo is not None:
+        cita.motivo = data.motivo
+    if data.estado is not None:
+        cita.estado = data.estado
+        
+    session.add(cita)
+    session.commit()
+    return {"message": "Cita actualizada con éxito"}
+
+@app.delete("/api/calendario/citas/{cita_id}")
+def delete_cita(
+    cita_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role not in ("admin", "recepcion", "doctor"):
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+        
+    cita = session.get(Cita, cita_id)
+    if not cita or cita.sucursal_id != user.sucursal_id:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+        
+    session.delete(cita)
+    session.commit()
+    return {"message": "Cita eliminada con éxito"}
+
+@app.get("/api/calendario/disponibilidad")
+def get_disponibilidad(
+    doctor_id: int,
+    fecha: str,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role not in ("admin", "recepcion", "doctor"):
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+    try:
+        dt = datetime.strptime(fecha, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Usar YYYY-MM-DD")
+        
+    start_day = datetime(dt.year, dt.month, dt.day, 0, 0, 0)
+    end_day = datetime(dt.year, dt.month, dt.day, 23, 59, 59)
+    
+    citas = session.exec(
+        select(Cita)
+        .where(Cita.doctor_id == doctor_id)
+        .where(Cita.estado != "CANCELADA")
+        .where(Cita.fecha_hora_inicio >= start_day)
+        .where(Cita.fecha_hora_inicio <= end_day)
+    ).all()
+    
+    return [{"inicio": c.fecha_hora_inicio.isoformat(), "fin": c.fecha_hora_fin.isoformat(), "paciente": f"{c.paciente.nombres} {c.paciente.apellidos}" if c.paciente else "S/N"} for c in citas]
 
 
 # --- END API ROUTES ---

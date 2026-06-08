@@ -26,6 +26,7 @@ def create_db_and_tables():
     migrations = [
         "ALTER TABLE sucursal ADD COLUMN IF NOT EXISTS fondo_caja NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE sucursal ADD COLUMN IF NOT EXISTS fondo_banco NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE doctor ADD COLUMN IF NOT EXISTS google_calendar_id VARCHAR(255) DEFAULT NULL",
     ]
     with engine.connect() as conn:
         for sql in migrations:

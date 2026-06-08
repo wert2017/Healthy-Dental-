@@ -26,11 +26,13 @@ class Doctor(SQLModel, table=True):
     telefono: Optional[str] = None
     email: Optional[str] = None
     activo: bool = True
+    google_calendar_id: Optional[str] = Field(default=None)
     
     sucursal_id: Optional[int] = Field(default=None, foreign_key="sucursal.id")
     sucursal: Optional[Sucursal] = Relationship(back_populates="doctores")
 
     atenciones: List["Atencion"] = Relationship(back_populates="doctor")
+    citas: List["Cita"] = Relationship(back_populates="doctor")
 
     def __str__(self):
         return f"Dr. {self.nombres} {self.apellidos}"
@@ -61,6 +63,7 @@ class Paciente(SQLModel, table=True):
     atenciones: List["Atencion"] = Relationship(back_populates="paciente", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     tratamientos_en_curso: List["TratamientoEnCurso"] = Relationship(back_populates="paciente", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     historial_abonos: List["HistorialAbono"] = Relationship(back_populates="paciente", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    citas: List["Cita"] = Relationship(back_populates="paciente", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     
     @property
     def nombre_mostrar(self):
@@ -333,3 +336,30 @@ class Gasto(SQLModel, table=True):
     sucursal: Optional[Sucursal] = Relationship()
     usuario: Optional[User] = Relationship()
     socio: Optional[Socio] = Relationship()
+
+
+class Cita(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    fecha_hora_inicio: datetime = Field(index=True)
+    fecha_hora_fin: datetime
+    paciente_id: Optional[int] = Field(default=None, foreign_key="paciente.id")
+    doctor_id: int = Field(foreign_key="doctor.id")
+    sucursal_id: int = Field(foreign_key="sucursal.id")
+    motivo: Optional[str] = None
+    estado: str = Field(default="PENDIENTE") # PENDIENTE, CONFIRMADA, ATENDIDA, CANCELADA
+    google_event_id: Optional[str] = Field(default=None)
+    fecha_creacion: datetime = Field(default_factory=datetime.now)
+
+    paciente: Optional[Paciente] = Relationship(back_populates="citas")
+    doctor: Optional[Doctor] = Relationship(back_populates="citas")
+    sucursal: Optional[Sucursal] = Relationship()
+
+
+class GoogleCalendarConfig(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    sucursal_id: int = Field(foreign_key="sucursal.id")
+    access_token: str
+    refresh_token: str
+    token_expiry: datetime
+
+    sucursal: Optional[Sucursal] = Relationship()
