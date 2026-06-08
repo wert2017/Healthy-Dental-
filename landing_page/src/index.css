@@ -1,15 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  --color-dentist-light: #F0F9FF;
-  --color-dentist-blue: #0EA5E9;
-  --color-dentist-dark: #0369A1;
-  --color-dentist-turquoise: #2DD4BF;
-  --color-dentist-accent: #0D9488;
+  --color-dentist-light: #F8FAFC;
+  --color-dentist-blue: #4F46E5;
+  --color-dentist-dark: #3730A3;
+  --color-dentist-turquoise: #10B981;
+  --color-dentist-accent: #059669;
+  --color-dentist-purple: #8B5CF6;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 :root {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   scroll-behavior: smooth;
 }
 

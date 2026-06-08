@@ -299,6 +299,9 @@ class Socio(SQLModel, table=True):
     porcentaje_base: Decimal = Field(max_digits=5, decimal_places=2, default=0.00)
     saldo_inicial_utilidades: Decimal = Field(max_digits=10, decimal_places=2, default=0.00)
     activo: bool = Field(default=True)
+    
+    sucursal_id: Optional[int] = Field(default=None, foreign_key="sucursal.id")
+    sucursal: Optional[Sucursal] = Relationship()
 
     def __str__(self):
         return self.nombre

@@ -597,8 +597,8 @@ class CategoriaGastoAdmin(ModelView, model=CategoriaGasto):
 class SocioAdmin(ModelView, model=Socio):
     name = "Socio"
     name_plural = "Socios"
-    column_list = ["id", "nombre", "porcentaje_base", "saldo_inicial_utilidades", "activo"]
-    form_columns = ["nombre", "porcentaje_base", "saldo_inicial_utilidades", "activo"]
+    column_list = ["id", "nombre", "sucursal", "porcentaje_base", "saldo_inicial_utilidades", "activo"]
+    form_columns = ["nombre", "sucursal", "porcentaje_base", "saldo_inicial_utilidades", "activo"]
     icon = "fa-solid fa-people-group"
 
     def is_accessible(self, request):
@@ -2736,7 +2736,11 @@ def reporte_resumen_financiero(
     total_gastos = round(sum(g["total"] for g in gastos_por_categoria), 2)
 
     # Load partners and aggregate utility sharing details
-    socios = session.exec(select(Socio).where(Socio.activo == True).order_by(Socio.nombre)).all()
+    from sqlmodel import or_
+    query = select(Socio).where(Socio.activo == True)
+    if user.sucursal_id:
+        query = query.where(or_(Socio.sucursal_id == user.sucursal_id, Socio.sucursal_id == None))
+    socios = session.exec(query.order_by(Socio.nombre)).all()
     distribucion_socios = []
     total_retiros = 0.0
     total_correspondiente = 0.0
@@ -2859,7 +2863,11 @@ def get_distribucion_utilidades(
         raise HTTPException(status_code=400, detail="El usuario no tiene una sucursal asignada")
 
     # Load all partners (both active and inactive to compute historical balances correctly)
-    socios = session.exec(select(Socio).order_by(Socio.nombre)).all()
+    from sqlmodel import or_
+    query = select(Socio)
+    if user.sucursal_id:
+        query = query.where(or_(Socio.sucursal_id == user.sucursal_id, Socio.sucursal_id == None))
+    socios = session.exec(query.order_by(Socio.nombre)).all()
     if not socios:
         return {
             "anio": anio,
@@ -4108,7 +4116,11 @@ def pagar_nomina_seleccion(data: PagoNominaSeleccionSchema, session: Session = D
 def list_socios(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     if user.role not in ("admin", "recepcion"):
         raise HTTPException(status_code=403, detail="No tiene permisos")
-    socios = session.exec(select(Socio).where(Socio.activo == True).order_by(Socio.nombre)).all()
+    from sqlmodel import or_
+    query = select(Socio).where(Socio.activo == True)
+    if user.sucursal_id:
+        query = query.where(or_(Socio.sucursal_id == user.sucursal_id, Socio.sucursal_id == None))
+    socios = session.exec(query.order_by(Socio.nombre)).all()
     return [{"id": s.id, "nombre": s.nombre, "porcentaje_base": float(s.porcentaje_base)} for s in socios]
 
 class RetiroSociosSchema(BaseModel):

@@ -7,7 +7,7 @@ import Medibot from './components/Medibot'
 
 function App() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#F0F7FF]/40">
       <Header />
       <main>
         <Hero />
