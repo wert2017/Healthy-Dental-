@@ -435,6 +435,8 @@ class PacienteAdmin(ModelView, model=Paciente):
                 model.historia_clinica = f"HC-{prefix}-{new_number:04d}"
 
 class DoctorAdmin(ModelView, model=Doctor):
+    name = "Doctor"
+    name_plural = "Doctores"
     column_list = [Doctor.apellidos, Doctor.nombres, Doctor.cedula, Doctor.sucursal, Doctor.activo]
     form_columns = [Doctor.nombres, Doctor.apellidos, Doctor.cedula, Doctor.telefono, Doctor.email, Doctor.sucursal, Doctor.activo]
 
@@ -443,6 +445,23 @@ class DoctorAdmin(ModelView, model=Doctor):
     
     def is_visible(self, request: Request) -> bool:
         return request.cookies.get("user_role") == "admin"
+
+    def list_query(self, request: Request):
+        stmt = super().list_query(request)
+        sucursal_id = int(request.cookies.get("sucursal_id", "1"))
+        stmt = stmt.where(Doctor.sucursal_id == sucursal_id)
+        return stmt
+
+    def count_query(self, request: Request):
+        stmt = super().count_query(request)
+        sucursal_id = int(request.cookies.get("sucursal_id", "1"))
+        stmt = stmt.where(Doctor.sucursal_id == sucursal_id)
+        return stmt
+
+    async def on_model_change(self, data, model, is_created, request: Request):
+        admin_sucursal_id = int(request.cookies.get("sucursal_id", "1"))
+        if is_created and not model.sucursal_id:
+            model.sucursal_id = admin_sucursal_id
 
 class SucursalAdmin(ModelView, model=Sucursal):
     column_list = [Sucursal.nombre, Sucursal.direccion, Sucursal.fondo_caja, Sucursal.fondo_banco]
@@ -603,6 +622,23 @@ class SocioAdmin(ModelView, model=Socio):
 
     def is_accessible(self, request):
         return request.cookies.get("user_role") == "admin"
+
+    def list_query(self, request: Request):
+        stmt = super().list_query(request)
+        sucursal_id = int(request.cookies.get("sucursal_id", "1"))
+        stmt = stmt.where(Socio.sucursal_id == sucursal_id)
+        return stmt
+
+    def count_query(self, request: Request):
+        stmt = super().count_query(request)
+        sucursal_id = int(request.cookies.get("sucursal_id", "1"))
+        stmt = stmt.where(Socio.sucursal_id == sucursal_id)
+        return stmt
+
+    async def on_model_change(self, data, model, is_created, request: Request):
+        admin_sucursal_id = int(request.cookies.get("sucursal_id", "1"))
+        if is_created and not model.sucursal_id:
+            model.sucursal_id = admin_sucursal_id
 
 
 class SocioParticipacionAdmin(ModelView, model=SocioParticipacion):
@@ -1126,13 +1162,10 @@ async def importar_pacientes_excel(file: UploadFile = File(...), sucursal_id: Op
         raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
 @app.get("/api/doctores")
 def list_doctores(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """List active doctors, filtered by the user's sucursal if they are not an admin."""
-    query = select(Doctor).where(Doctor.activo == True)
-    if user.role != "admin" and user.sucursal_id:
-        # Include doctors assigned to the user's sucursal AND doctors with no sucursal (global)
-        query = query.where(
-            (Doctor.sucursal_id == user.sucursal_id) | (Doctor.sucursal_id == None)
-        )
+    """List active doctors, filtered strictly by the user's sucursal."""
+    if not user.sucursal_id:
+        return []
+    query = select(Doctor).where(Doctor.activo == True).where(Doctor.sucursal_id == user.sucursal_id)
     return session.exec(query).all()
 
 @app.get("/api/vendedores")
@@ -1189,9 +1222,6 @@ def terminar_atencion_clinica(atencion_id: int, session: Session = Depends(get_s
     session.commit()
     return {"status": "ok", "estado": "REALIZADO"}
 
-@app.get("/api/doctores")
-def get_doctores(session: Session = Depends(get_session)):
-    return session.exec(select(Doctor).where(Doctor.activo == True)).all()
 
 # ... (omitted get_dashboard_atenciones, get_atencion_detail, add_detalle, delete_detalle, update_detalle, sync_pagos, delete_atencion) ...
 
@@ -1252,28 +1282,6 @@ def solicitar_revision_atencion(atencion_id: int, session: Session = Depends(get
     session.commit()
     return {"message": "Solicitud de revisión enviada a Recepción", "estado": "POR_REVISAR"}
 
-@app.post("/api/atenciones/{atencion_id}/terminar")
-def terminar_atencion_clinica(atencion_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """
-    Doctor finishes clinical part. Status -> REALIZADO.
-    Does NOT deduct stock yet (Reconciliation does that).
-    Does NOT process payments.
-    """
-    atencion = session.get(Atencion, atencion_id)
-    if not atencion:
-        raise HTTPException(status_code=404, detail="Atención no encontrada")
-    
-    if atencion.validado:
-        raise HTTPException(status_code=400, detail="Atención ya validada")
-
-    atencion.estado = "REALIZADO"
-    session.add(atencion)
-    session.commit()
-    return {"status": "ok", "estado": "REALIZADO"}
-
-@app.get("/api/doctores")
-def get_doctores(session: Session = Depends(get_session)):
-    return session.exec(select(Doctor).where(Doctor.activo == True)).all()
 
 @app.get("/api/atenciones/global")
 def get_global_atenciones(
