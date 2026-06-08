@@ -738,7 +738,10 @@ admin.add_view(SocioParticipacionAdmin)
 @app.get("/api/categorias-gasto")
 def list_categorias_gasto(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     cats = session.exec(
-        select(CategoriaGasto).where(CategoriaGasto.activo == True).order_by(CategoriaGasto.nombre)
+        select(CategoriaGasto)
+        .where(CategoriaGasto.activo == True)
+        .where(CategoriaGasto.nombre != "RETIRO SOCIOS")
+        .order_by(CategoriaGasto.nombre)
     ).all()
     return [{"id": c.id, "nombre": c.nombre} for c in cats]
 
@@ -3586,6 +3589,7 @@ def list_gastos(
     query = (
         select(Gasto)
         .where(Gasto.sucursal_id == user.sucursal_id)
+        .where(Gasto.categoria != "RETIRO SOCIOS")
         .options(selectinload(Gasto.usuario))
         .order_by(Gasto.fecha.desc())
     )
@@ -4176,6 +4180,67 @@ def retiro_socios(data: RetiroSociosSchema, session: Session = Depends(get_sessi
     session.add(gasto)
     session.commit()
     return {"message": "Retiro registrado exitosamente como Gasto"}
+
+@app.get("/api/nomina/retiros-historial")
+def list_retiros_socios(
+    socio_id: Optional[int] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role not in ["admin", "recepcion"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+    if not user.sucursal_id:
+        return []
+    
+    query = (
+        select(Gasto)
+        .where(Gasto.sucursal_id == user.sucursal_id)
+        .where(Gasto.categoria == "RETIRO SOCIOS")
+        .options(selectinload(Gasto.socio), selectinload(Gasto.usuario))
+        .order_by(Gasto.fecha.desc())
+    )
+    
+    if socio_id:
+        query = query.where(Gasto.socio_id == socio_id)
+    if start_date:
+        query = query.where(Gasto.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
+    if end_date:
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        query = query.where(Gasto.fecha < end_dt)
+        
+    retiros = session.exec(query).all()
+    return [{
+        "id": r.id,
+        "fecha": r.fecha.isoformat(),
+        "descripcion": r.descripcion,
+        "monto": float(r.monto),
+        "metodo_pago": r.metodo_pago,
+        "responsable": r.responsable,
+        "socio": {
+            "id": r.socio.id,
+            "nombre": r.socio.nombre
+        } if r.socio else None,
+        "usuario": r.usuario.username if r.usuario else None
+    } for r in retiros]
+
+@app.delete("/api/nomina/retiro-socios/{gasto_id}")
+def delete_retiro_socio(
+    gasto_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role not in ["admin"]:
+        raise HTTPException(status_code=403, detail="Solo los administradores pueden eliminar retiros de socios")
+    
+    gasto = session.get(Gasto, gasto_id)
+    if not gasto or gasto.categoria != "RETIRO SOCIOS" or gasto.sucursal_id != user.sucursal_id:
+        raise HTTPException(status_code=404, detail="Retiro no encontrado")
+        
+    session.delete(gasto)
+    session.commit()
+    return {"message": "Retiro eliminado exitosamente"}
 
 class TransferenciaInternaSchema(BaseModel):
     desde: str

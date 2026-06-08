@@ -752,74 +752,159 @@
                     </div>
 
                     <!-- TAB ADMIN SOCIOS -->
-                    <div v-show="nominaTab === 'admin'" class="max-w-xl mx-auto">
-                        <div
-                            class="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl p-6 shadow-sm mb-6 text-center">
-                            <h4 class="text-sm font-bold text-indigo-400 uppercase tracking-wider mb-1">Caja Libre
-                                Disponible</h4>
-                            <p class="text-3xl font-black text-indigo-700">${{ (balances.efectivo +
-                                balances.transferencia).toFixed(2) }}</p>
-                            <p class="text-xs text-indigo-500 mt-2">Este valor representa el total en efectivo y bancos
-                                descontando todos los gastos registrados.</p>
-                        </div>
+                    <div v-show="nominaTab === 'admin'" class="space-y-6">
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                            <!-- Left column: form and current balance -->
+                            <div class="lg:col-span-4 space-y-6">
+                                <div
+                                    class="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl p-6 shadow-sm text-center">
+                                    <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">Caja Libre Disponible</h4>
+                                    <p class="text-2xl font-black text-indigo-700">${{ (balances.efectivo + balances.transferencia).toFixed(2) }}</p>
+                                    <p class="text-[11px] text-indigo-500 mt-1">Total en efectivo y bancos sin retiros.</p>
+                                </div>
 
-                        <div
-                            class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col items-center placeholder-slate-400 text-slate-800">
-                            <h4 class="text-lg font-bold text-slate-800 w-full mb-4 border-b pb-2 text-left">Registrar
-                                Retiro de Utilidad</h4>
-                            <form @submit.prevent="procesarRetiro" class="space-y-4 w-full text-left">
-                                <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-1">Socio</label>
-                                    <select v-model="retiroForm.socio_id" required
-                                        class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
-                                        <option :value="null" disabled>Seleccione un socio...</option>
-                                        <option v-for="s in socios" :key="s.id" :value="s.id">{{ s.nombre }}</option>
-                                    </select>
+                                <div
+                                    class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col placeholder-slate-400 text-slate-800">
+                                    <h4 class="text-base font-bold text-slate-800 w-full mb-3 border-b pb-2">Registrar Retiro</h4>
+                                    <form @submit.prevent="procesarRetiro" class="space-y-3 text-left">
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-600 mb-1">Socio</label>
+                                            <select v-model="retiroForm.socio_id" required
+                                                class="w-full px-3 py-1.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm">
+                                                <option :value="null" disabled>Seleccione un socio...</option>
+                                                <option v-for="s in socios" :key="s.id" :value="s.id">{{ s.nombre }}</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-600 mb-1">Descripción</label>
+                                            <input type="text" v-model="retiroForm.descripcion" required
+                                                class="w-full px-3 py-1.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-600 mb-1">Responsable</label>
+                                            <select v-model="retiroForm.responsable" required
+                                                class="w-full px-3 py-1.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm">
+                                                <option value="" disabled>Seleccione un responsable...</option>
+                                                <option v-for="u in usuarios" :key="u.id" :value="u.username">{{ u.username }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <button type="button" @click="retiroForm.metodo_pago = 'EFECTIVO'"
+                                                :class="retiroForm.metodo_pago === 'EFECTIVO' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-2' : 'bg-white border-slate-200 text-slate-500'"
+                                                class="py-2 rounded-lg border flex flex-col justify-center items-center gap-0.5 font-bold transition text-xs">
+                                                <span>💵</span><span>Efectivo</span>
+                                            </button>
+                                            <button type="button" @click="retiroForm.metodo_pago = 'TRANSFERENCIA'"
+                                                :class="retiroForm.metodo_pago === 'TRANSFERENCIA' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-2' : 'bg-white border-slate-200 text-slate-500'"
+                                                class="py-2 rounded-lg border flex flex-col justify-center items-center gap-0.5 font-bold transition text-xs">
+                                                <span>🏦</span><span>Banco</span>
+                                            </button>
+                                            <button type="button" @click="retiroForm.metodo_pago = 'TARJETA'"
+                                                :class="retiroForm.metodo_pago === 'TARJETA' ? 'bg-purple-50 border-purple-500 text-purple-700 ring-2' : 'bg-white border-slate-200 text-slate-500'"
+                                                class="py-2 rounded-lg border flex flex-col justify-center items-center gap-0.5 font-bold transition text-xs">
+                                                <span>💳</span><span>Tarjeta</span>
+                                            </button>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-600 mb-1">Monto ($)</label>
+                                            <input type="number" step="0.01" max="999999" v-model="retiroForm.monto" required
+                                                class="w-full text-center text-lg font-bold px-3 py-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-indigo-700 bg-indigo-50">
+                                        </div>
+                                        <button type="submit"
+                                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg shadow-md transition transform active:scale-95 text-sm mt-1">
+                                            Confirmar retiro
+                                        </button>
+                                    </form>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-1">Motivo /
-                                        Descripción</label>
-                                    <input type="text" v-model="retiroForm.descripcion" required
-                                        class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+
+                            <!-- Right column: withdrawal history with filtering -->
+                            <div class="lg:col-span-8 space-y-4">
+                                <!-- Filters and Summary Card -->
+                                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-4">
+                                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                        <h4 class="text-base font-bold text-slate-800">Historial de Retiros de Utilidad</h4>
+                                        <div class="bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shrink-0">
+                                            <span>💰</span> Total Filtrado: ${{ retirosSocios.reduce((acc, curr) => acc + curr.monto, 0).toFixed(2) }}
+                                        </div>
+                                    </div>
+
+                                    <!-- Filter Form -->
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        <div>
+                                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Socio</label>
+                                            <select v-model="filterRetiroSocioId" @change="fetchRetirosHistorial"
+                                                class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none bg-white">
+                                                <option :value="null">Todos los Socios</option>
+                                                <option v-for="s in socios" :key="s.id" :value="s.id">{{ s.nombre }}</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Desde</label>
+                                            <input type="date" v-model="filterRetiroStartDate" @change="fetchRetirosHistorial"
+                                                class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none bg-slate-50">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Hasta</label>
+                                            <input type="date" v-model="filterRetiroEndDate" @change="fetchRetirosHistorial"
+                                                class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none bg-slate-50">
+                                        </div>
+                                    </div>
+
+                                    <div class="flex justify-end gap-2 text-xs">
+                                        <button @click="filterRetiroSocioId = null; filterRetiroStartDate = ''; filterRetiroEndDate = ''; fetchRetirosHistorial()"
+                                            class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition font-medium">
+                                            Limpiar Filtros
+                                        </button>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-1">Responsable del
-                                        Retiro</label>
-                                    <select v-model="retiroForm.responsable" required
-                                        class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
-                                        <option value="" disabled>Seleccione un responsable...</option>
-                                        <option v-for="u in usuarios" :key="u.id" :value="u.username">{{ u.username }}
-                                        </option>
-                                    </select>
+
+                                <!-- History Table -->
+                                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                                    <div class="overflow-x-auto max-h-[350px]">
+                                        <table class="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr class="text-slate-400 text-[10px] uppercase tracking-widest bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
+                                                    <th class="px-4 py-3 font-semibold">Fecha</th>
+                                                    <th class="px-4 py-3 font-semibold">Socio</th>
+                                                    <th class="px-4 py-3 font-semibold">Descripción</th>
+                                                    <th class="px-4 py-3 font-semibold">Método</th>
+                                                    <th class="px-4 py-3 font-semibold text-right">Monto</th>
+                                                    <th class="px-4 py-3 font-semibold">Responsable</th>
+                                                    <th v-if="role === 'admin'" class="px-4 py-3 font-semibold text-center">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-100 text-xs text-slate-700">
+                                                <tr v-if="retirosSocios.length === 0">
+                                                    <td colspan="7" class="px-4 py-8 text-center text-slate-400 italic">No se encontraron registros de retiro.</td>
+                                                </tr>
+                                                <tr v-for="r in retirosSocios" :key="r.id" class="hover:bg-slate-50/50 transition">
+                                                    <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ formatDate(r.fecha) }}</td>
+                                                    <td class="px-4 py-3 font-bold text-indigo-700 whitespace-nowrap">{{ r.socio?.nombre || 'Socio' }}</td>
+                                                    <td class="px-4 py-3 truncate max-w-[150px]" :title="r.descripcion">{{ r.descripcion }}</td>
+                                                    <td class="px-4 py-3 whitespace-nowrap">
+                                                        <span v-if="r.metodo_pago === 'EFECTIVO'" class="text-emerald-600 font-medium">💵 Ef.</span>
+                                                        <span v-else-if="r.metodo_pago === 'TRANSFERENCIA'" class="text-blue-600 font-medium">🏦 Ban.</span>
+                                                        <span v-else-if="r.metodo_pago === 'TARJETA'" class="text-purple-600 font-medium">💳 Tar.</span>
+                                                        <span v-else class="text-gray-600 font-medium">{{ r.metodo_pago }}</span>
+                                                    </td>
+                                                    <td class="px-4 py-3 text-right font-black text-rose-600 whitespace-nowrap">
+                                                        -${{ Number(r.monto || 0).toFixed(2) }}
+                                                    </td>
+                                                    <td class="px-4 py-3 truncate max-w-[100px]" :title="r.responsable">{{ r.responsable || '-' }}</td>
+                                                    <td v-if="role === 'admin'" class="px-4 py-3 text-center whitespace-nowrap">
+                                                        <button @click="eliminarRetiro(r.id)"
+                                                            class="inline-flex items-center justify-center p-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg text-xs transition transform active:scale-95"
+                                                            title="Eliminar retiro">
+                                                            🗑️
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                                <div class="grid grid-cols-3 gap-4">
-                                    <button type="button" @click="retiroForm.metodo_pago = 'EFECTIVO'"
-                                        :class="retiroForm.metodo_pago === 'EFECTIVO' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-2' : 'bg-white border-slate-200 text-slate-500'"
-                                        class="p-4 rounded-xl border flex flex-col justify-center items-center gap-1 font-bold transition">
-                                        <span class="text-xl">💵</span><span class="text-xs">Efectivo</span>
-                                    </button>
-                                    <button type="button" @click="retiroForm.metodo_pago = 'TRANSFERENCIA'"
-                                        :class="retiroForm.metodo_pago === 'TRANSFERENCIA' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-2' : 'bg-white border-slate-200 text-slate-500'"
-                                        class="p-4 rounded-xl border flex flex-col justify-center items-center gap-1 font-bold transition">
-                                        <span class="text-xl">🏦</span><span class="text-xs">Banco</span>
-                                    </button>
-                                    <button type="button" @click="retiroForm.metodo_pago = 'TARJETA'"
-                                        :class="retiroForm.metodo_pago === 'TARJETA' ? 'bg-purple-50 border-purple-500 text-purple-700 ring-2' : 'bg-white border-slate-200 text-slate-500'"
-                                        class="p-4 rounded-xl border flex flex-col justify-center items-center gap-1 font-bold transition">
-                                        <span class="text-xl">💳</span><span class="text-xs">Tarjeta</span>
-                                    </button>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-1">Monto a Retirar
-                                        ($)</label>
-                                    <input type="number" step="0.01" max="999999" v-model="retiroForm.monto" required
-                                        class="w-full text-center text-xl font-bold px-4 py-3 rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-indigo-700 bg-indigo-50">
-                                </div>
-                                <button type="submit"
-                                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition transform active:scale-95 mt-2">
-                                    Confirmar retiro
-                                </button>
-                            </form>
+                            </div>
                         </div>
                     </div>
 
@@ -1066,6 +1151,55 @@
                     }
                 }
 
+                const retirosSocios = ref([])
+                const filterRetiroSocioId = ref(null)
+                const filterRetiroStartDate = ref('')
+                const filterRetiroEndDate = ref('')
+
+                const fetchRetirosHistorial = async () => {
+                    try {
+                        const res = await axios.get('/api/nomina/retiros-historial', {
+                            params: {
+                                socio_id: filterRetiroSocioId.value || null,
+                                start_date: filterRetiroStartDate.value || null,
+                                end_date: filterRetiroEndDate.value || null
+                            }
+                        })
+                        retirosSocios.value = res.data
+                    } catch (e) {
+                        console.error("Error fetching retiros:", e)
+                    }
+                }
+
+                const eliminarRetiro = async (id) => {
+                    const confirm = await Swal.fire({
+                        title: '¿Estás seguro?',
+                        text: "Esta acción eliminará el registro de retiro y reintegrará los fondos a la caja de la clínica.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    })
+                    
+                    if (confirm.isConfirmed) {
+                        try {
+                            await axios.delete(`/api/nomina/retiro-socios/${id}`)
+                            Swal.fire(
+                                '¡Eliminado!',
+                                'El retiro ha sido eliminado.',
+                                'success'
+                            )
+                            fetchRetirosHistorial()
+                            fetchBalances()
+                            fetchGastos()
+                        } catch (e) {
+                            Swal.fire('Error', e.response?.data?.detail || e.message, 'error')
+                        }
+                    }
+                }
+
                 if (!token) window.location.href = '/login'
                 axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
@@ -1162,6 +1296,8 @@
                 const openNominaModal = () => {
                     showNominaModal.value = true
                     fetchNominaPendientes()
+                    fetchRetirosHistorial()
+                    fetchSocios()
                 }
 
                 const procesarNomina = async (empleado, tipo) => {
@@ -1613,7 +1749,7 @@
                         retiroForm.value.socio_id = null
                         fetchGastos()
                         fetchBalances()
-                        showNominaModal.value = false
+                        fetchRetirosHistorial()
                     } catch (e) {
                         Swal.fire('Error', e.response?.data?.detail || e.message, 'error')
                     }
@@ -1689,6 +1825,8 @@
                 return {
                     role, sucursalId, sucursalNombre, showModal, gastos, balances, startDate, endDate, form, usuarios,
                     showNominaModal, nominaTab, pendientesNomina, retiroForm, socios,
+                    retirosSocios, filterRetiroSocioId, filterRetiroStartDate, filterRetiroEndDate,
+                    fetchRetirosHistorial, eliminarRetiro,
                     filterNominaStartDate, filterNominaEndDate, selectedNominaDoctorId, selectedNominaSecretariaId,
                     selectedDetalles, isDetalleSelected, getSelectedCountForDoc, getSelectedTotalForDoc, toggleDetalle, toggleAllDetalles,
                     fetchGastos, saveGasto, logout, formatDate, isActive, fetchNominaPendientes,
