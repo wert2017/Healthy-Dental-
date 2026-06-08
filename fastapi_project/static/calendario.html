@@ -516,8 +516,8 @@
                     const endLocalStr = `${formCita.value.fecha}T${formCita.value.hora_fin}`;
 
                     const payload = {
-                        fecha_hora_inicio: new Date(startLocalStr).toISOString(),
-                        fecha_hora_fin: new Date(endLocalStr).toISOString(),
+                        fecha_hora_inicio: startLocalStr,
+                        fecha_hora_fin: endLocalStr,
                         paciente_id: formCita.value.paciente_id,
                         doctor_id: Number(formCita.value.doctor_id),
                         motivo: formCita.value.motivo || '',
@@ -643,8 +643,8 @@
                         eventDrop: async function (info) {
                             const event = info.event;
                             const payload = {
-                                fecha_hora_inicio: event.start.toISOString(),
-                                fecha_hora_fin: (event.end || new Date(event.start.getTime() + 60*60*1000)).toISOString(),
+                                fecha_hora_inicio: formatToLocalDatetime(event.start),
+                                fecha_hora_fin: formatToLocalDatetime(event.end || new Date(event.start.getTime() + 60*60*1000)),
                                 doctor_id: event.extendedProps.doctor?.id,
                                 paciente_id: event.extendedProps.paciente?.id,
                                 estado: event.extendedProps.estado,
@@ -662,8 +662,8 @@
                         eventResize: async function (info) {
                             const event = info.event;
                             const payload = {
-                                fecha_hora_inicio: event.start.toISOString(),
-                                fecha_hora_fin: event.end.toISOString(),
+                                fecha_hora_inicio: formatToLocalDatetime(event.start),
+                                fecha_hora_fin: formatToLocalDatetime(event.end),
                                 doctor_id: event.extendedProps.doctor?.id,
                                 paciente_id: event.extendedProps.paciente?.id,
                                 estado: event.extendedProps.estado,
