@@ -154,29 +154,106 @@
         <!-- Main Workspace -->
         <main class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                
-                <!-- Left Control Panel -->
+                        <!-- Left Control Panel -->
                 <div class="lg:col-span-3 space-y-6">
                     
-                    <!-- Doctor Selector Card -->
-                    <div class="bg-white rounded-xl p-5 shadow-sm">
-                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Agenda por Doctor</h3>
-                        <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1">Filtrar Agenda</label>
-                                <select v-model="filterDoctorId" @change="refetchEvents"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
-                                    <option :value="null">Todas las Agendas</option>
-                                    <option v-for="d in doctores" :key="d.id" :value="d.id">
-                                        Dr. {{ d.nombres }} {{ d.apellidos }}
-                                    </option>
-                                </select>
-                            </div>
+                    <!-- Sidebar Controls Card -->
+                    <div class="bg-white rounded-xl p-5 shadow-sm space-y-4">
+                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2">Controles de Agenda</h3>
+                        
+                        <!-- Doctor Filter -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Filtrar por Doctor</label>
+                            <select v-model="filterDoctorId" @change="refetchEvents"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option :value="null">Todas las Agendas</option>
+                                <option v-for="d in doctores" :key="d.id" :value="d.id">
+                                    Dr. {{ d.nombres }} {{ d.apellidos }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Date Navigation / Filter -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Ir a Fecha</label>
+                            <input type="date" v-model="quickJumpDate" @change="jumpToDate"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
                             
-                            <button @click="openCreateModal"
-                                class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl text-sm transition transform active:scale-95 shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2">
-                                <span>➕</span> Agendar Nueva Cita
-                            </button>
+                            <div class="grid grid-cols-3 gap-1 mt-2">
+                                <button type="button" @click="changeView('dayGridMonth')" 
+                                    :class="currentView === 'dayGridMonth' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                                    class="px-2 py-1.5 rounded-lg text-[11px] font-semibold transition text-center">
+                                    Mes
+                                </button>
+                                <button type="button" @click="changeView('timeGridWeek')"
+                                    :class="currentView === 'timeGridWeek' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                                    class="px-2 py-1.5 rounded-lg text-[11px] font-semibold transition text-center">
+                                    Semana
+                                </button>
+                                <button type="button" @click="changeView('timeGridDay')"
+                                    :class="currentView === 'timeGridDay' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                                    class="px-2 py-1.5 rounded-lg text-[11px] font-semibold transition text-center">
+                                    Día
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Search Box -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Buscar Cita</label>
+                            <div class="relative">
+                                <input type="text" v-model="searchQuery" @input="refetchEvents"
+                                    class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-gray-400"
+                                    placeholder="Nombre, notas...">
+                                <span class="absolute left-2.5 top-2 text-sm text-gray-400">🔍</span>
+                            </div>
+                        </div>
+
+                        <!-- Create Button -->
+                        <button @click="openCreateModal"
+                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition transform active:scale-95 shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2">
+                            <span>➕</span> Agendar Nueva Cita
+                        </button>
+                    </div>
+
+                    <!-- Legends Card -->
+                    <div class="bg-white rounded-xl p-5 shadow-sm space-y-4">
+                        <!-- Doctors Legend -->
+                        <div>
+                            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 pb-1 border-b border-gray-50">Colores por Doctor</h4>
+                            <div class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                                <div class="flex items-center gap-2 text-xs">
+                                    <span class="w-3 h-3 rounded-full shrink-0 border border-black/5 bg-slate-400"></span>
+                                    <span class="text-gray-700 truncate">Sin Doctor Asignado</span>
+                                </div>
+                                <div v-for="d in doctores" :key="d.id" class="flex items-center gap-2 text-xs">
+                                    <span class="w-3 h-3 rounded-full shrink-0 border border-black/5" :style="{ backgroundColor: getDoctorColor(d.id) }"></span>
+                                    <span class="text-gray-700 truncate">Dr. {{ d.nombres }} {{ d.apellidos }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Legend -->
+                        <div class="border-t border-gray-100 pt-3">
+                            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 pb-1 border-b border-gray-50">Estados de Cita</h4>
+                            <div class="grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs">
+                                <div class="flex items-center gap-1.5 text-gray-700">
+                                    <span>⏳</span>
+                                    <span>Pendiente</span>
+                                </div>
+                                <div class="flex items-center gap-1.5 text-gray-700">
+                                    <span>✅</span>
+                                    <span>Confirmada</span>
+                                </div>
+                                <div class="flex items-center gap-1.5 text-gray-700">
+                                    <span>🦷</span>
+                                    <span>Atendida</span>
+                                </div>
+                                <div class="flex items-center gap-1.5 text-gray-700">
+                                    <span>❌</span>
+                                    <span>Cancelada</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -197,9 +274,24 @@
                 </div>
 
                 <!-- Calendar Card -->
-                <div class="lg:col-span-9 bg-white rounded-xl p-6 shadow-sm">
+                <div class="lg:col-span-9 bg-white rounded-xl p-6 shadow-sm space-y-4">
+                    <!-- Header with Active Doctor's Name -->
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-3 gap-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                <span>📅</span>
+                                <span>{{ activeDoctorName }}</span>
+                            </h2>
+                            <p class="text-xs text-gray-500">Visualizando citas y horarios de atención de la sucursal</p>
+                        </div>
+                        <!-- Quick indicator of current date range / status -->
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100 self-start sm:self-center">
+                            {{ sucursalNombre }}
+                        </span>
+                    </div>
+
                     <div id="calendar"></div>
-                </div>
+                </div>            </div>
 
             </div>
         </main>
@@ -336,7 +428,7 @@
 
     <!-- Calendar Mount & App Logic -->
     <script>
-        const { createApp, ref, onMounted, nextTick } = Vue;
+        const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
         createApp({
             setup() {
@@ -369,6 +461,59 @@
                 const filterDoctorId = ref(null);
                 const showModal = ref(false);
                 const editingCitaId = ref(null);
+
+                // Quick Navigation, View, and Search Controls
+                const quickJumpDate = ref(new Date().toISOString().substring(0, 10));
+                const searchQuery = ref('');
+                const currentView = ref('timeGridWeek');
+
+                const activeDoctorName = computed(() => {
+                    if (!filterDoctorId.value) {
+                        return "Todas las Agendas";
+                    }
+                    const doc = doctores.value.find(d => d.id === filterDoctorId.value);
+                    return doc ? `Agenda de: Dr. ${doc.nombres} ${doc.apellidos}` : "Todas las Agendas";
+                });
+
+                const doctorColors = [
+                    '#4f46e5', // Indigo
+                    '#10b981', // Emerald
+                    '#f59e0b', // Amber
+                    '#ec4899', // Pink
+                    '#06b6d4', // Cyan
+                    '#8b5cf6', // Violet
+                    '#f43f5e', // Rose
+                    '#14b8a6'  // Teal
+                ];
+
+                const getDoctorColor = (doctorId) => {
+                    if (!doctorId) return '#94a3b8'; // Slate-400
+                    const index = doctorId % doctorColors.length;
+                    return doctorColors[index];
+                };
+
+                const getStatusEmoji = (estado) => {
+                    switch (estado) {
+                        case 'PENDIENTE': return '⏳';
+                        case 'CONFIRMADA': return '✅';
+                        case 'ATENDIDA': return '🦷';
+                        case 'CANCELADA': return '❌';
+                        default: return '📅';
+                    }
+                };
+
+                const jumpToDate = () => {
+                    if (calendar && quickJumpDate.value) {
+                        calendar.gotoDate(quickJumpDate.value);
+                    }
+                };
+
+                const changeView = (viewName) => {
+                    if (calendar) {
+                        calendar.changeView(viewName);
+                        currentView.value = viewName;
+                    }
+                };
 
                 const generateTimeOptions = () => {
                     const options = [];
@@ -562,7 +707,7 @@
                         }
                     }
                 };
-
+ 
                 // FullCalendar triggers
                 const refetchEvents = () => {
                     if (calendar) {
@@ -587,6 +732,12 @@
                             center: 'title',
                             right: 'dayGridMonth,timeGridWeek,timeGridDay'
                         },
+                        datesSet: function (dateInfo) {
+                            currentView.value = dateInfo.view.type;
+                            const activeDate = dateInfo.view.calendar.getDate();
+                            const pad = (num) => String(num).padStart(2, '0');
+                            quickJumpDate.value = `${activeDate.getFullYear()}-${pad(activeDate.getMonth() + 1)}-${pad(activeDate.getDate())}`;
+                        },
                         events: async function (info, successCallback, failureCallback) {
                             try {
                                 const res = await axios.get('/api/calendario/citas', {
@@ -596,20 +747,38 @@
                                         doctor_id: filterDoctorId.value || null
                                     }
                                 });
-                                const events = res.data.map(c => ({
-                                    id: c.id,
-                                    title: c.paciente ? `${c.paciente.nombres} ${c.paciente.apellidos} (${c.motivo || 'Consulta'})` : `${c.motivo || 'Consulta (S/R)'}`,
-                                    start: c.fecha_hora_inicio,
-                                    end: c.fecha_hora_fin,
-                                    extendedProps: {
-                                        motivo: c.motivo,
-                                        estado: c.estado,
-                                        paciente: c.paciente,
-                                        doctor: c.doctor
-                                    },
-                                    backgroundColor: getEventColor(c.estado),
-                                    borderColor: getEventColor(c.estado)
-                                }));
+
+                                let filtered = res.data;
+                                if (searchQuery.value) {
+                                    const q = searchQuery.value.toLowerCase();
+                                    filtered = filtered.filter(c => {
+                                        const pacienteName = c.paciente ? `${c.paciente.nombres} ${c.paciente.apellidos}`.toLowerCase() : '';
+                                        const pacienteIdent = c.paciente?.numero_identificacion?.toLowerCase() || '';
+                                        const motivo = c.motivo?.toLowerCase() || '';
+                                        const docName = c.doctor ? `${c.doctor.nombres} ${c.doctor.apellidos}`.toLowerCase() : '';
+                                        return pacienteName.includes(q) || pacienteIdent.includes(q) || motivo.includes(q) || docName.includes(q);
+                                    });
+                                }
+
+                                const events = filtered.map(c => {
+                                    const emoji = getStatusEmoji(c.estado);
+                                    const docName = c.doctor ? ` (Dr. ${c.doctor.nombres.split(' ')[0]})` : '';
+                                    const patientName = c.paciente ? `${c.paciente.nombres} ${c.paciente.apellidos}` : 'Paciente Nuevo';
+                                    return {
+                                        id: c.id,
+                                        title: `${emoji} ${patientName} - ${c.motivo || 'Sin Notas'}${docName}`,
+                                        start: c.fecha_hora_inicio,
+                                        end: c.fecha_hora_fin,
+                                        extendedProps: {
+                                            motivo: c.motivo,
+                                            estado: c.estado,
+                                            paciente: c.paciente,
+                                            doctor: c.doctor
+                                        },
+                                        backgroundColor: getDoctorColor(c.doctor?.id),
+                                        borderColor: getDoctorColor(c.doctor?.id)
+                                    };
+                                });
                                 successCallback(events);
                             } catch (e) {
                                 console.error(e);
@@ -627,7 +796,7 @@
                             selectedPaciente.value = null;
                             const startStr = formatToLocalDatetime(new Date(info.start));
                             const endStr = formatToLocalDatetime(new Date(info.end));
-
+ 
                             formCita.value = {
                                 fecha: startStr.substring(0, 10),
                                 hora_inicio: startStr.substring(11, 16),
@@ -653,6 +822,7 @@
                             try {
                                 await axios.put(`/api/calendario/citas/${event.id}`, payload);
                                 Swal.fire('¡Reprogramada!', 'La cita se actualizó correctamente.', 'success');
+                                refetchEvents();
                             } catch (e) {
                                 Swal.fire('Error al reprogramar', e.response?.data?.detail || e.message, 'error');
                                 info.revert();
@@ -672,6 +842,7 @@
                             try {
                                 await axios.put(`/api/calendario/citas/${event.id}`, payload);
                                 Swal.fire('¡Éxito!', 'Duración de cita actualizada.', 'success');
+                                refetchEvents();
                             } catch (e) {
                                 Swal.fire('Error', e.response?.data?.detail || e.message, 'error');
                                 info.revert();
@@ -714,7 +885,9 @@
                     selectedPaciente, patientSearchQuery, patientResults,
                     debouncePatientSearch, selectPatient,
                     openCreateModal, closeModal, saveCita, deleteCita, refetchEvents,
-                    timeOptions
+                    timeOptions,
+                    quickJumpDate, searchQuery, currentView, activeDoctorName,
+                    getDoctorColor, getStatusEmoji, jumpToDate, changeView
                 };
             }
         }).mount('#app');
