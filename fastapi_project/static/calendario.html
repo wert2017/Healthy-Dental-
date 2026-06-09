@@ -274,13 +274,14 @@
                 </div>
 
                 <!-- Calendar Card -->
-                <div class="lg:col-span-9 bg-white rounded-xl p-6 shadow-sm space-y-4">
+                <div class="lg:col-span-9 bg-white rounded-xl p-6 shadow-sm space-y-4 border-t-4 transition-all duration-300"
+                    :style="{ borderTopColor: filterDoctorId ? getDoctorColor(filterDoctorId) : '#4f46e5' }">
                     <!-- Header with Active Doctor's Name -->
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-3 gap-2">
                         <div>
                             <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <span>📅</span>
-                                <span>{{ activeDoctorName }}</span>
+                                <span :style="{ color: filterDoctorId ? getDoctorColor(filterDoctorId) : '#4f46e5' }">📅</span>
+                                <span :style="{ color: filterDoctorId ? getDoctorColor(filterDoctorId) : '' }">{{ activeDoctorName }}</span>
                             </h2>
                             <p class="text-xs text-gray-500">Visualizando citas y horarios de atención de la sucursal</p>
                         </div>
@@ -312,6 +313,27 @@
                 <!-- Modal Body (Scrollable) -->
                 <form @submit.prevent="saveCita" class="p-6 space-y-4 overflow-y-auto flex-1 text-slate-800">
                     
+                    <!-- Banner de Doctor Seleccionado -->
+                    <div v-if="formCita.doctor_id" class="p-3 rounded-xl border flex items-center gap-3 transition-all duration-300"
+                        :style="{ 
+                            backgroundColor: getDoctorColor(formCita.doctor_id) + '12', 
+                            borderColor: getDoctorColor(formCita.doctor_id) + '30',
+                            color: getDoctorColor(formCita.doctor_id) 
+                        }">
+                        <span class="text-lg">🩺</span>
+                        <div>
+                            <span class="block text-[9px] uppercase font-bold tracking-wider opacity-75">Doctor / Especialista</span>
+                            <span class="text-sm font-extrabold">{{ getDoctorNameById(formCita.doctor_id) }}</span>
+                        </div>
+                    </div>
+                    <div v-else class="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-3 text-rose-700">
+                        <span class="text-lg">⚠️</span>
+                        <div>
+                            <span class="block text-[9px] uppercase font-bold tracking-wider text-rose-500">Atención</span>
+                            <span class="text-sm font-extrabold">Seleccione un doctor para continuar</span>
+                        </div>
+                    </div>
+
                     <!-- Patient Search & Selection -->
                     <div class="relative">
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Paciente</label>
@@ -492,6 +514,12 @@
                     return doctorColors[index];
                 };
 
+                const getDoctorNameById = (doctorId) => {
+                    if (!doctorId) return 'No seleccionado';
+                    const doc = doctores.value.find(d => d.id === doctorId);
+                    return doc ? `Dr. ${doc.nombres} ${doc.apellidos}` : 'Doctor no encontrado';
+                };
+
                 const getStatusEmoji = (estado) => {
                     switch (estado) {
                         case 'PENDIENTE': return '⏳';
@@ -617,7 +645,7 @@
                         hora_inicio: startStr.substring(11, 16),
                         hora_fin: endStr.substring(11, 16),
                         paciente_id: null,
-                        doctor_id: filterDoctorId.value || (doctores.value.length > 0 ? doctores.value[0].id : null),
+                        doctor_id: filterDoctorId.value || null,
                         motivo: '',
                         estado: 'PENDIENTE'
                     };
@@ -802,7 +830,7 @@
                                 hora_inicio: startStr.substring(11, 16),
                                 hora_fin: endStr.substring(11, 16),
                                 paciente_id: null,
-                                doctor_id: filterDoctorId.value || (doctores.value.length > 0 ? doctores.value[0].id : null),
+                                doctor_id: filterDoctorId.value || null,
                                 motivo: '',
                                 estado: 'PENDIENTE'
                             };
@@ -887,7 +915,8 @@
                     openCreateModal, closeModal, saveCita, deleteCita, refetchEvents,
                     timeOptions,
                     quickJumpDate, searchQuery, currentView, activeDoctorName,
-                    getDoctorColor, getStatusEmoji, jumpToDate, changeView
+                    getDoctorColor, getStatusEmoji, jumpToDate, changeView,
+                    getDoctorNameById
                 };
             }
         }).mount('#app');
