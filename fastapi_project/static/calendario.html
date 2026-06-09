@@ -790,10 +790,19 @@
                                 const events = filtered.map(c => {
                                     const emoji = getStatusEmoji(c.estado);
                                     const docName = c.doctor ? ` (Dr. ${c.doctor.nombres.split(' ')[0]})` : '';
-                                    const patientName = c.paciente ? `${c.paciente.nombres} ${c.paciente.apellidos}` : 'Paciente Nuevo';
+                                    
+                                    let titleText = '';
+                                    if (c.paciente) {
+                                        const patientName = `${c.paciente.nombres} ${c.paciente.apellidos}`;
+                                        titleText = c.motivo ? `${patientName} - ${c.motivo}` : patientName;
+                                    } else if (c.motivo) {
+                                        titleText = c.motivo;
+                                    }
+                                    const eventTitle = titleText ? `${emoji} ${titleText}${docName}` : `${emoji}${docName}`;
+
                                     return {
                                         id: c.id,
-                                        title: `${emoji} ${patientName} - ${c.motivo || 'Sin Notas'}${docName}`,
+                                        title: eventTitle,
                                         start: c.fecha_hora_inicio,
                                         end: c.fecha_hora_fin,
                                         extendedProps: {
