@@ -789,6 +789,14 @@ def list_usuarios(session: Session = Depends(get_session), user: User = Depends(
     # Return minimal data for security
     return [{"id": u.id, "username": u.username} for u in usuarios]
 
+@app.get("/static/calendario.html", response_class=FileResponse)
+def serve_calendar(request: Request):
+    response = FileResponse("static/calendario.html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 # --- STATIC FILES ---
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
