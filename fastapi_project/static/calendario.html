@@ -105,10 +105,13 @@
             white-space: normal !important;
         }
 
-        .fc-event-time {
-            font-weight: 700 !important;
-            color: #475569 !important; /* slate-600 */
-            font-size: 0.7rem !important;
+        .fc-event-time,
+        .fc-event .fc-event-time,
+        .fc .fc-event-time,
+        .fc-timegrid-event-short .fc-event-time {
+            font-weight: 800 !important;
+            color: #0f172a !important; /* slate-900, same as title for high contrast */
+            font-size: 0.78rem !important;
             margin-bottom: 2px;
             display: inline-block;
         }
@@ -790,6 +793,15 @@
                             left: 'prev,next today',
                             center: 'title',
                             right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                        },
+                        eventDidMount: function (info) {
+                            // Style the event time element to be bold and dark slate-900
+                            const timeEl = info.el.querySelector('.fc-event-time');
+                            if (timeEl) {
+                                timeEl.style.setProperty('font-weight', '800', 'important');
+                                timeEl.style.setProperty('color', '#0f172a', 'important');
+                                timeEl.style.setProperty('font-size', '0.78rem', 'important');
+                            }
                         },
                         datesSet: function (dateInfo) {
                             currentView.value = dateInfo.view.type;
