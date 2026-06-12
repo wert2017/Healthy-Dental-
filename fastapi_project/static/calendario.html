@@ -782,26 +782,158 @@
                     const calendarEl = document.getElementById('calendar');
                     if (!calendarEl) return;
 
+                    let tooltipEl = null;
+
+                    const ocultarTooltipCita = () => {
+                        if (tooltipEl) {
+                            tooltipEl.style.opacity = '0';
+                            setTimeout(() => {
+                                if (tooltipEl && tooltipEl.style.opacity === '0') {
+                                    tooltipEl.style.display = 'none';
+                                }
+                            }, 150);
+                        }
+                    };
+
+                    const mostrarTooltipCita = (info) => {
+                        const event = info.event;
+                        const props = event.extendedProps;
+                        
+                        if (!tooltipEl) {
+                            tooltipEl = document.createElement('div');
+                            tooltipEl.id = 'calendar-tooltip';
+                            tooltipEl.style.position = 'absolute';
+                            tooltipEl.style.zIndex = '9999';
+                            tooltipEl.style.backgroundColor = '#ffffff';
+                            tooltipEl.style.borderRadius = '12px';
+                            tooltipEl.style.border = '1px solid #e2e8f0';
+                            tooltipEl.style.boxShadow = '0 25px 50px -12px rgb(0 0 0 / 0.25)';
+                            tooltipEl.style.width = '320px';
+                            tooltipEl.style.pointerEvents = 'none';
+                            tooltipEl.style.transition = 'opacity 0.15s ease-in-out';
+                            tooltipEl.style.opacity = '0';
+                            tooltipEl.style.display = 'none';
+                            document.body.appendChild(tooltipEl);
+                        }
+
+                        const docColor = getDoctorColor(props.doctor?.id);
+                        const docColorBg = docColor + '12';
+                        const estadoEmoji = getStatusEmoji(props.estado);
+                        const estado = props.estado || 'PENDIENTE';
+                        const pacienteName = props.paciente ? `${props.paciente.nombres} ${props.paciente.apellidos}` : 'Paciente sin registrar';
+                        const motivoText = props.motivo || '';
+                        const doctorName = props.doctor ? `Dr. ${props.doctor.nombres} ${props.doctor.apellidos}` : 'Sin doctor';
+                        
+                        const formatEventDateRange = (start, end) => {
+                            const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                            const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+                            const dStart = new Date(start);
+                            const dEnd = new Date(end || start);
+                            
+                            const diaSemana = dias[dStart.getDay()];
+                            const diaMes = dStart.getDate();
+                            const mes = meses[dStart.getMonth()];
+                            const anio = dStart.getFullYear();
+                            
+                            const formatTime = (date) => {
+                                let hours = date.getHours();
+                                const minutes = String(date.getMinutes()).padStart(2, '0');
+                                const ampm = hours >= 12 ? 'PM' : 'AM';
+                                hours = hours % 12;
+                                hours = hours ? hours : 12;
+                                return `${hours}:${minutes} ${ampm}`;
+                            };
+                            return `${diaSemana}, ${diaMes} de ${mes}, ${anio} • ${formatTime(dStart)} - ${formatTime(dEnd)}`;
+                        };
+
+                        const fechaFormateada = formatEventDateRange(event.start, event.end);
+
+                        let pacienteInfoHtml = '';
+                        if (props.paciente) {
+                            pacienteInfoHtml = `
+                                <div style="display: flex; align-items: center; gap: 8px; color: #1e293b; border-top: 1px solid #f1f5f9; padding-top: 8px; margin-top: 4px;">
+                                    <svg style="width: 14px; height: 14px; color: #64748b; flex-shrink: 0;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"/></svg>
+                                    <div style="font-size: 11px; color: #475569;">
+                                        <span style="font-weight: 600; color: #1e293b;">HC:</span> ${props.paciente.historia_clinica || 'N/A'} 
+                                        <span style="margin: 0 4px; color: #cbd5e1;">|</span> 
+                                        <span style="font-weight: 600; color: #1e293b;">CI:</span> ${props.paciente.numero_identificacion || 'N/A'}
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        tooltipEl.innerHTML = `
+                            <div style="border-left: 6px solid ${docColor}; background-color: ${docColorBg}; padding: 12px; border-top-left-radius: 12px; border-top-right-radius: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: ${docColor};">${estadoEmoji} ${estado}</span>
+                                </div>
+                                <h4 style="font-weight: 800; font-size: 14px; color: #0f172a; margin: 0; line-height: 1.3;">${pacienteName}</h4>
+                                ${motivoText ? `<p style="font-size: 11px; color: #475569; margin: 4px 0 0 0; font-weight: 500;">${motivoText}</p>` : ''}
+                            </div>
+                            <div style="padding: 12px; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
+                                <!-- Date / Time -->
+                                <div style="display: flex; align-items: center; gap: 8px; color: #1e293b;">
+                                    <svg style="width: 14px; height: 14px; color: #64748b; flex-shrink: 0;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                                    <span style="font-weight: 600; font-size: 11px;">${fechaFormateada}</span>
+                                </div>
+                                <!-- Doctor -->
+                                <div style="display: flex; align-items: center; gap: 8px; color: #1e293b;">
+                                    <svg style="width: 14px; height: 14px; color: #64748b; flex-shrink: 0;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2Z"/></svg>
+                                    <span style="font-size: 11px;">${doctorName}</span>
+                                </div>
+                                ${pacienteInfoHtml}
+                            </div>
+                        `;
+
+                        tooltipEl.style.display = 'block';
+
+                        const rect = info.el.getBoundingClientRect();
+                        const tooltipWidth = tooltipEl.offsetWidth;
+                        const tooltipHeight = tooltipEl.offsetHeight;
+
+                        let left = rect.left + window.scrollX + (rect.width - tooltipWidth) / 2;
+                        let top = rect.top + window.scrollY - tooltipHeight - 12;
+
+                        if (left < 10) left = 10;
+                        if (left + tooltipWidth > window.innerWidth - 10) {
+                            left = window.innerWidth - tooltipWidth - 10;
+                        }
+
+                        if (rect.top - tooltipHeight - 12 < 0) {
+                            top = rect.bottom + window.scrollY + 12;
+                        }
+
+                        tooltipEl.style.left = `${left}px`;
+                        tooltipEl.style.top = `${top}px`;
+                        
+                        tooltipEl.offsetHeight;
+                        tooltipEl.style.opacity = '1';
+                    };
+
                     calendar = new FullCalendar.Calendar(calendarEl, {
                         locale: 'es',
                         initialView: 'timeGridWeek',
                         slotMinTime: '07:00:00',
                         slotMaxTime: '20:00:00',
                         allDaySlot: false,
+                        displayEventTime: false, // Oculta la hora en el bloque de la cuadrícula
                         editable: true, // Enables drag & drop rescheduling
                         headerToolbar: {
                             left: 'prev,next today',
                             center: 'title',
                             right: 'dayGridMonth,timeGridWeek,timeGridDay'
                         },
-                        eventDidMount: function (info) {
-                            // Style the event time element to be bold and dark slate-900
-                            const timeEl = info.el.querySelector('.fc-event-time');
-                            if (timeEl) {
-                                timeEl.style.setProperty('font-weight', '800', 'important');
-                                timeEl.style.setProperty('color', '#0f172a', 'important');
-                                timeEl.style.setProperty('font-size', '0.78rem', 'important');
-                            }
+                        eventMouseEnter: function (info) {
+                            mostrarTooltipCita(info);
+                        },
+                        eventMouseLeave: function (info) {
+                            ocultarTooltipCita();
+                        },
+                        eventDragStart: function (info) {
+                            ocultarTooltipCita();
+                        },
+                        eventResizeStart: function (info) {
+                            ocultarTooltipCita();
                         },
                         datesSet: function (dateInfo) {
                             currentView.value = dateInfo.view.type;
@@ -868,6 +1000,7 @@
                         },
                         // Click an existing appointment to edit
                         eventClick: function (info) {
+                            ocultarTooltipCita();
                             openEditModal(info.event);
                         },
                         // Select an empty slot to create a new appointment

@@ -128,6 +128,7 @@ def on_startup():
         "ALTER TABLE paciente ADD COLUMN ciudad VARCHAR;",
         "ALTER TABLE historialabono ADD COLUMN atencion_id INTEGER REFERENCES atencion(id);",
         "ALTER TABLE gasto ADD COLUMN socio_id INTEGER REFERENCES socio(id);",
+        "ALTER TABLE doctor ADD COLUMN max_citas_simultaneas INTEGER DEFAULT 2;",
     ]
     for sql in migrations:
         try:
@@ -437,8 +438,14 @@ class PacienteAdmin(ModelView, model=Paciente):
 class DoctorAdmin(ModelView, model=Doctor):
     name = "Doctor"
     name_plural = "Doctores"
-    column_list = [Doctor.apellidos, Doctor.nombres, Doctor.cedula, Doctor.sucursal, Doctor.activo]
-    form_columns = [Doctor.nombres, Doctor.apellidos, Doctor.cedula, Doctor.telefono, Doctor.email, Doctor.sucursal, Doctor.activo]
+    column_list = [Doctor.apellidos, Doctor.nombres, Doctor.cedula, Doctor.sucursal, Doctor.max_citas_simultaneas, Doctor.activo]
+    form_columns = [Doctor.nombres, Doctor.apellidos, Doctor.cedula, Doctor.telefono, Doctor.email, Doctor.sucursal, Doctor.max_citas_simultaneas, Doctor.activo]
+    form_args = {
+        "max_citas_simultaneas": {
+            "label": "Máximo Citas Simultáneas",
+            "default": 2
+        }
+    }
 
     def is_accessible(self, request: Request) -> bool:
         return request.cookies.get("user_role") == "admin"
@@ -3748,7 +3755,7 @@ def get_gastos_balances(session: Session = Depends(get_session), user: User = De
     # --- 4. CALCULATE STRICT BALANCES ---
     balance_efectivo = ingresos["EFECTIVO"] - egresos.get("EFECTIVO", 0)
     balance_transferencia = ingresos["TRANSFERENCIA"] - egresos.get("TRANSFERENCIA", 0)
-    balance_tarjeta = ingresos["TARJETA"] # No expenses in card currently
+    balance_tarjeta = ingresos["TARJETA"] - egresos.get("TARJETA", 0)
     
     return {
         "efectivo": balance_efectivo,
@@ -4419,15 +4426,20 @@ def create_cita(data: CitaCreateSchema, session: Session = Depends(get_session),
         raise HTTPException(status_code=400, detail="La fecha de inicio debe ser anterior a la de fin")
         
     # Validar solapamientos
-    overlap = session.exec(
+    overlaps = session.exec(
         select(Cita)
         .where(Cita.doctor_id == data.doctor_id)
         .where(Cita.estado != "CANCELADA")
         .where(Cita.fecha_hora_inicio < data.fecha_hora_fin)
         .where(Cita.fecha_hora_fin > data.fecha_hora_inicio)
-    ).first()
-    if overlap:
-        raise HTTPException(status_code=400, detail="El doctor ya tiene una cita programada en ese horario")
+    ).all()
+    
+    max_simultaneas = doctor.max_citas_simultaneas if hasattr(doctor, 'max_citas_simultaneas') else 2
+    if len(overlaps) >= max_simultaneas:
+        raise HTTPException(
+            status_code=400,
+            detail=f"El doctor ya tiene el límite de {max_simultaneas} citas simultáneas programadas en ese horario"
+        )
         
     cita = Cita(
         fecha_hora_inicio=data.fecha_hora_inicio,
@@ -4537,16 +4549,23 @@ def update_cita(
         raise HTTPException(status_code=400, detail="La fecha de inicio debe ser anterior a la de fin")
         
     # Validar solapamientos (excluyendo la misma cita)
-    overlap = session.exec(
+    overlaps = session.exec(
         select(Cita)
         .where(Cita.doctor_id == cita.doctor_id)
         .where(Cita.id != cita.id)
         .where(Cita.estado != "CANCELADA")
         .where(Cita.fecha_hora_inicio < cita.fecha_hora_fin)
         .where(Cita.fecha_hora_fin > cita.fecha_hora_inicio)
-    ).first()
-    if overlap:
-        raise HTTPException(status_code=400, detail="El doctor ya tiene una cita programada en ese horario")
+    ).all()
+    
+    # Obtener el doctor para verificar su limite
+    doctor_obj = session.get(Doctor, cita.doctor_id)
+    max_simultaneas = doctor_obj.max_citas_simultaneas if doctor_obj and hasattr(doctor_obj, 'max_citas_simultaneas') else 2
+    if len(overlaps) >= max_simultaneas:
+        raise HTTPException(
+            status_code=400,
+            detail=f"El doctor ya tiene el límite de {max_simultaneas} citas simultáneas programadas en ese horario"
+        )
         
     if data.motivo is not None:
         cita.motivo = data.motivo

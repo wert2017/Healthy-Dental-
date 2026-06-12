@@ -27,8 +27,8 @@
 
         .filter-bar { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 18px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
         .filter-group label { display: block; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
-        input[type=date] { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 9px; font-size: 12px; outline: none; background: #fff; color: #374151; font-family: inherit; height: 32px; }
-        input[type=date]:focus { border-color: #6366f1; }
+        input[type=date], select { border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 9px; font-size: 12px; outline: none; background: #fff; color: #374151; font-family: inherit; height: 32px; }
+        input[type=date]:focus, select:focus { border-color: #6366f1; }
         .btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 16px; height: 32px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: background .12s; white-space: nowrap; }
         .btn-primary { background: #1e40af; color: #fff; }
         .btn-primary:hover { background: #1e3a8a; }
@@ -112,6 +112,15 @@
                 <label>Fecha fin</label>
                 <input type="date" v-model="endDate">
             </div>
+            <div class="filter-group">
+                <label>Método de Pago</label>
+                <select v-model="filterMetodo">
+                    <option value="TODOS">Todos los Métodos</option>
+                    <option value="EFECTIVO">Efectivo 💵</option>
+                    <option value="TRANSFERENCIA">Transferencia 🏦</option>
+                    <option value="TARJETA">Tarjeta 💳</option>
+                </select>
+            </div>
             <button class="btn btn-primary" @click="generar" :disabled="loading">
                 {{ loading ? 'Cargando...' : 'Generar' }}
             </button>
@@ -120,37 +129,37 @@
         <div v-if="!data && !loading" class="status-box">Sin datos — selecciona una fecha y presiona Generar</div>
         <div v-if="loading" class="status-box">Calculando...</div>
 
-        <template v-if="data && !loading">
+        <template v-if="displayData && !loading">
             <!-- Cards resumen -->
             <div class="summary-bar">
-                <div class="sc">
+                <div class="sc" :style="filterMetodo !== 'TODOS' ? 'opacity: 0.5' : ''">
                     <div class="sc-label">Total Trat.</div>
-                    <div class="sc-value">${{ fmt(data.total_trat) }}</div>
+                    <div class="sc-value">${{ fmt(displayData.total_trat) }}</div>
                     <div class="sc-sub">valor generado</div>
                 </div>
-                <div class="sc sc-ef">
+                <div class="sc sc-ef" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'EFECTIVO' ? 'opacity: 0.3' : ''">
                     <div class="sc-label">Efectivo</div>
-                    <div class="sc-value">${{ fmt(data.efectivo) }}</div>
+                    <div class="sc-value">${{ fmt(displayData.efectivo) }}</div>
                     <div class="sc-sub">recibido en caja</div>
                 </div>
-                <div class="sc sc-tf">
+                <div class="sc sc-tf" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'TRANSFERENCIA' ? 'opacity: 0.3' : ''">
                     <div class="sc-label">Transferencia</div>
-                    <div class="sc-value">${{ fmt(data.transferencia) }}</div>
+                    <div class="sc-value">${{ fmt(displayData.transferencia) }}</div>
                     <div class="sc-sub">recibido en banco</div>
                 </div>
-                <div class="sc sc-tc">
+                <div class="sc sc-tc" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'TARJETA' ? 'opacity: 0.3' : ''">
                     <div class="sc-label">Tarjeta</div>
-                    <div class="sc-value">${{ fmt(data.tarjeta) }}</div>
+                    <div class="sc-value">${{ fmt(displayData.tarjeta) }}</div>
                     <div class="sc-sub">recibido en tarjeta</div>
                 </div>
                 <div class="sc">
                     <div class="sc-label">Total Cobrado</div>
-                    <div class="sc-value">${{ fmt(data.total_cobrado) }}</div>
+                    <div class="sc-value">${{ fmt(displayData.total_cobrado) }}</div>
                     <div class="sc-sub">EF + TF + TC</div>
                 </div>
-                <div class="sc sc-cxc">
+                <div class="sc sc-cxc" :style="filterMetodo !== 'TODOS' ? 'opacity: 0.5' : ''">
                     <div class="sc-label">Total CxC</div>
-                    <div class="sc-value">${{ fmt(data.cxc) }}</div>
+                    <div class="sc-value">${{ fmt(displayData.cxc) }}</div>
                     <div class="sc-sub">pendiente de trats.</div>
                 </div>
             </div>
@@ -161,12 +170,12 @@
                 <div class="desglose-item">
                     <span class="dot dot-trat"></span>
                     <span class="desglose-label">Cobros de tratamientos</span>
-                    <span class="desglose-val">${{ fmt(data.cobros_tratamiento) }}</span>
+                    <span class="desglose-val">${{ fmt(displayData.cobros_tratamiento) }}</span>
                 </div>
                 <div class="desglose-item">
                     <span class="dot dot-abono"></span>
                     <span class="desglose-label">Abonos recibidos</span>
-                    <span class="desglose-val">${{ fmt(data.abonos_recibidos) }}</span>
+                    <span class="desglose-val">${{ fmt(displayData.abonos_recibidos) }}</span>
                 </div>
             </div>
 
@@ -177,43 +186,43 @@
                     <thead>
                         <tr>
                             <th>Fecha</th>
-                            <th class="r">Total Trat.</th>
-                            <th class="r">Efectivo</th>
-                            <th class="r">Transf.</th>
-                            <th class="r">Tarjeta</th>
+                            <th class="r" :style="filterMetodo !== 'TODOS' ? 'opacity: 0.5' : ''">Total Trat.</th>
+                            <th class="r" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'EFECTIVO' ? 'opacity: 0.3' : ''">Efectivo</th>
+                            <th class="r" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'TRANSFERENCIA' ? 'opacity: 0.3' : ''">Transf.</th>
+                            <th class="r" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'TARJETA' ? 'opacity: 0.3' : ''">Tarjeta</th>
                             <th class="r">Total Cobrado</th>
-                            <th class="r">CxC</th>
+                            <th class="r" :style="filterMetodo !== 'TODOS' ? 'opacity: 0.5' : ''">CxC</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="d in data.por_dia" :key="d.fecha">
+                        <tr v-for="d in displayData.por_dia" :key="d.fecha">
                             <td style="font-weight:600;">{{ formatFecha(d.fecha) }}</td>
-                            <td class="r">${{ fmt(d.total_trat) }}</td>
-                            <td class="r">
+                            <td class="r" :style="filterMetodo !== 'TODOS' ? 'opacity: 0.5' : ''">${{ fmt(d.total_trat) }}</td>
+                            <td class="r" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'EFECTIVO' ? 'opacity: 0.3' : ''">
                                 ${{ fmt(d.efectivo) }}
                                 <span v-if="d.ab_ef > 0" class="abono-badge">incl. ${{ fmt(d.ab_ef) }} ab.</span>
                             </td>
-                            <td class="r">
+                            <td class="r" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'TRANSFERENCIA' ? 'opacity: 0.3' : ''">
                                 ${{ fmt(d.transferencia) }}
                                 <span v-if="d.ab_tf > 0" class="abono-badge">incl. ${{ fmt(d.ab_tf) }} ab.</span>
                             </td>
-                            <td class="r">
+                            <td class="r" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'TARJETA' ? 'opacity: 0.3' : ''">
                                 ${{ fmt(d.tarjeta) }}
                                 <span v-if="d.ab_tc > 0" class="abono-badge">incl. ${{ fmt(d.ab_tc) }} ab.</span>
                             </td>
                             <td class="r" style="font-weight:700;">${{ fmt(d.total_cobrado) }}</td>
-                            <td class="r" :style="d.cxc > 0 ? 'color:#dc2626;font-weight:600;' : 'color:#16a34a;font-weight:600;'">${{ fmt(d.cxc) }}</td>
+                            <td class="r" :style="d.cxc > 0 ? 'color:#dc2626;font-weight:600;' : 'color:#16a34a;font-weight:600;'" :class="filterMetodo !== 'TODOS' ? 'opacity-50' : ''">${{ fmt(d.cxc) }}</td>
                         </tr>
                     </tbody>
                     <tfoot>
                         <tr>
                             <td>TOTAL</td>
-                            <td class="r">${{ fmt(data.total_trat) }}</td>
-                            <td class="r">${{ fmt(data.efectivo) }}</td>
-                            <td class="r">${{ fmt(data.transferencia) }}</td>
-                            <td class="r">${{ fmt(data.tarjeta) }}</td>
-                            <td class="r">${{ fmt(data.total_cobrado) }}</td>
-                            <td class="r">${{ fmt(data.cxc) }}</td>
+                            <td class="r" :style="filterMetodo !== 'TODOS' ? 'opacity: 0.5' : ''">${{ fmt(displayData.total_trat) }}</td>
+                            <td class="r" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'EFECTIVO' ? 'opacity: 0.3' : ''">${{ fmt(displayData.efectivo) }}</td>
+                            <td class="r" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'TRANSFERENCIA' ? 'opacity: 0.3' : ''">${{ fmt(displayData.transferencia) }}</td>
+                            <td class="r" :style="filterMetodo !== 'TODOS' && filterMetodo !== 'TARJETA' ? 'opacity: 0.3' : ''">${{ fmt(displayData.tarjeta) }}</td>
+                            <td class="r">${{ fmt(displayData.total_cobrado) }}</td>
+                            <td class="r" :style="filterMetodo !== 'TODOS' ? 'opacity: 0.5' : ''">${{ fmt(displayData.cxc) }}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -223,7 +232,7 @@
 </div>
 
 <script>
-const { createApp, ref, onMounted } = Vue;
+const { createApp, ref, onMounted, computed } = Vue;
 
 createApp({
     setup() {
@@ -235,6 +244,8 @@ createApp({
         const today = new Date().toISOString().slice(0, 10);
         const startDate = ref(today);
         const endDate = ref(today);
+        
+        const filterMetodo = ref('TODOS');
 
         const generar = async () => {
             const token = localStorage.getItem('token');
@@ -256,6 +267,80 @@ createApp({
             }
         };
 
+        const displayData = computed(() => {
+            if (!data.value) return null;
+            if (filterMetodo.value === 'TODOS') return data.value;
+
+            const method = filterMetodo.value;
+            const filteredRows = data.value.por_dia.filter(d => {
+                if (method === 'EFECTIVO') return d.efectivo > 0;
+                if (method === 'TRANSFERENCIA') return d.transferencia > 0;
+                if (method === 'TARJETA') return d.tarjeta > 0;
+                return true;
+            }).map(d => {
+                let row_efectivo = d.efectivo;
+                let row_transferencia = d.transferencia;
+                let row_tarjeta = d.tarjeta;
+                let row_total_cobrado = d.total_cobrado;
+
+                if (method === 'EFECTIVO') {
+                    row_transferencia = 0;
+                    row_tarjeta = 0;
+                    row_total_cobrado = d.efectivo;
+                } else if (method === 'TRANSFERENCIA') {
+                    row_efectivo = 0;
+                    row_tarjeta = 0;
+                    row_total_cobrado = d.transferencia;
+                } else if (method === 'TARJETA') {
+                    row_efectivo = 0;
+                    row_transferencia = 0;
+                    row_total_cobrado = d.tarjeta;
+                }
+
+                return {
+                    ...d,
+                    efectivo: row_efectivo,
+                    transferencia: row_transferencia,
+                    tarjeta: row_tarjeta,
+                    total_cobrado: row_total_cobrado
+                };
+            });
+
+            const total_trat = filteredRows.reduce((sum, d) => sum + d.total_trat, 0);
+            const efectivo = method === 'EFECTIVO' ? filteredRows.reduce((sum, d) => sum + d.efectivo, 0) : 0;
+            const transferencia = method === 'TRANSFERENCIA' ? filteredRows.reduce((sum, d) => sum + d.transferencia, 0) : 0;
+            const tarjeta = method === 'TARJETA' ? filteredRows.reduce((sum, d) => sum + d.tarjeta, 0) : 0;
+
+            let cobros_tratamiento = 0;
+            let abonos_recibidos = 0;
+
+            if (method === 'EFECTIVO') {
+                cobros_tratamiento = filteredRows.reduce((sum, d) => sum + (d.efectivo - d.ab_ef), 0);
+                abonos_recibidos = filteredRows.reduce((sum, d) => sum + d.ab_ef, 0);
+            } else if (method === 'TRANSFERENCIA') {
+                cobros_tratamiento = filteredRows.reduce((sum, d) => sum + (d.transferencia - d.ab_tf), 0);
+                abonos_recibidos = filteredRows.reduce((sum, d) => sum + d.ab_tf, 0);
+            } else if (method === 'TARJETA') {
+                cobros_tratamiento = filteredRows.reduce((sum, d) => sum + (d.tarjeta - d.ab_tc), 0);
+                abonos_recibidos = filteredRows.reduce((sum, d) => sum + d.ab_tc, 0);
+            }
+
+            const total_cobrado = efectivo + transferencia + tarjeta;
+            const cxc = filteredRows.reduce((sum, d) => sum + d.cxc, 0);
+
+            return {
+                total_trat,
+                efectivo,
+                transferencia,
+                tarjeta,
+                total_cobrado,
+                cxc,
+                cobros_tratamiento,
+                abonos_recibidos,
+                por_dia: filteredRows
+            };
+        });
+
         const fmt = (v) => (v ?? 0).toFixed(2);
 
         const formatFecha = (iso) => {
@@ -270,7 +355,7 @@ createApp({
             if (role.value !== 'admin') { window.location.href = '/recepcion'; return; }
         });
 
-        return { role, sucursalNombre, loading, data, startDate, endDate, generar, fmt, formatFecha, logout };
+        return { role, sucursalNombre, loading, data, startDate, endDate, filterMetodo, displayData, generar, fmt, formatFecha, logout };
     }
 }).mount('#app');
 </script>

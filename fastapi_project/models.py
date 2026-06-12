@@ -27,6 +27,7 @@ class Doctor(SQLModel, table=True):
     email: Optional[str] = None
     activo: bool = True
     google_calendar_id: Optional[str] = Field(default=None)
+    max_citas_simultaneas: int = Field(default=2, description="Citas simultáneas permitidas")
     
     sucursal_id: Optional[int] = Field(default=None, foreign_key="sucursal.id")
     sucursal: Optional[Sucursal] = Relationship(back_populates="doctores")
