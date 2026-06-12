@@ -81,8 +81,8 @@
 <div id="app">
 
     <header class="topbar">
-        <div class="topbar-header">
-            <div class="topbar-brand">
+        <div class="topbar-header" :style="branchColorStyle">
+            <div class="topbar-brand" :style="{ color: branchTextColor }">
                 <img src="/static/logo.png" alt="Clínica HD">
                 {{ sucursalNombre }}
             </div>
@@ -255,6 +255,30 @@ createApp({
         const role = ref(localStorage.getItem('role') || '');
         const currentUser = ref(localStorage.getItem('full_name') || localStorage.getItem('username') || 'Usuario');
         const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD');
+        const branchColorStyle = computed(() => {
+            const name = sucursalNombre.value ? sucursalNombre.value.toLowerCase() : '';
+            let colors = { bg: '#f1f5f9', border: '#e2e8f0' };
+            if (name.includes('magdalena')) {
+                colors = { bg: '#eff6ff', border: '#bfdbfe' };
+            } else if (name.includes('condado')) {
+                colors = { bg: '#f5f3ff', border: '#ddd6fe' };
+            }
+            return {
+                backgroundColor: colors.bg,
+                borderBottom: `2px solid ${colors.border}`,
+                paddingLeft: '12px',
+                paddingRight: '12px',
+                borderRadius: '8px',
+                marginTop: '6px',
+                marginBottom: '6px'
+            };
+        });
+        const branchTextColor = computed(() => {
+            const name = sucursalNombre.value ? sucursalNombre.value.toLowerCase() : '';
+            if (name.includes('magdalena')) return '#1e40af';
+            if (name.includes('condado')) return '#6b21a8';
+            return '#334155';
+        });
         const loading = ref(false);
         const data = ref(null);
 
@@ -372,7 +396,7 @@ createApp({
             if (role.value !== 'admin') { window.location.href = '/recepcion'; return; }
         });
 
-        return { role, currentUser, sucursalNombre, loading, data, startDate, endDate, filterMetodo, displayData, generar, fmt, formatFecha, logout };
+        return { role, currentUser, sucursalNombre, branchColorStyle, branchTextColor, loading, data, startDate, endDate, filterMetodo, displayData, generar, fmt, formatFecha, logout };
     }
 }).mount('#app');
 </script>

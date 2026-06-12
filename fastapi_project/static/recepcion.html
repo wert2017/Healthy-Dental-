@@ -70,10 +70,10 @@
         <header class="bg-white shadow-sm border-b border-gray-200 mb-8 sticky top-0 z-30">
             <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- Fila 1: Logo + Usuario + Salir -->
-                <div class="flex justify-between items-center h-12 border-b border-gray-100">
+                <div class="flex justify-between items-center h-12 border-b border-gray-100" :style="branchColorStyle">
                     <div class="flex items-center gap-3">
                         <img src="/static/logo.png" alt="Logo Clínica HD" class="h-8 w-auto">
-                        <h1 class="text-sm font-semibold bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
+                        <h1 class="text-sm font-bold" :style="{ color: branchTextColor }">
                             {{ sucursalNombre }}
                         </h1>
                     </div>
@@ -660,6 +660,30 @@
                 const role = ref(localStorage.getItem('role') || 'doctor')
                 const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD')
                 const currentUser = ref(localStorage.getItem('full_name') || localStorage.getItem('username') || 'Usuario')
+                const branchColorStyle = computed(() => {
+                    const name = sucursalNombre.value ? sucursalNombre.value.toLowerCase() : '';
+                    let colors = { bg: '#f1f5f9', border: '#e2e8f0' };
+                    if (name.includes('magdalena')) {
+                        colors = { bg: '#eff6ff', border: '#bfdbfe' };
+                    } else if (name.includes('condado')) {
+                        colors = { bg: '#f5f3ff', border: '#ddd6fe' };
+                    }
+                    return {
+                        backgroundColor: colors.bg,
+                        borderBottom: `2px solid ${colors.border}`,
+                        paddingLeft: '12px',
+                        paddingRight: '12px',
+                        borderRadius: '8px',
+                        marginTop: '6px',
+                        marginBottom: '6px'
+                    };
+                });
+                const branchTextColor = computed(() => {
+                    const name = sucursalNombre.value ? sucursalNombre.value.toLowerCase() : '';
+                    if (name.includes('magdalena')) return '#1e40af';
+                    if (name.includes('condado')) return '#6b21a8';
+                    return '#334155';
+                });
                 const isActive = (path) => window.location.pathname === path;
                 let timeout = null
 
@@ -995,7 +1019,7 @@
                 })
 
                 return {
-                    role, sucursalNombre, currentUser, token, logout, isActive,
+                    role, sucursalNombre, currentUser, branchColorStyle, branchTextColor, token, logout, isActive,
                     groupedAtenciones,
                     searchQuery, pacientes, searchPacientes, debounceSearch, loading,
                     crearAtencion,
