@@ -12,10 +12,11 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background: #cbd5e0; color: #111827; font-size: 13px; line-height: 1.5; }
 
-        .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 30; height: 52px; display: flex; align-items: center; padding: 0 24px; gap: 16px; }
+        .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 30; display: flex; flex-direction: column; align-items: stretch; padding: 0 24px; }
+        .topbar-header { display: flex; justify-content: space-between; align-items: center; height: 48px; border-bottom: 1px solid #f3f4f6; width: 100%; }
         .topbar-brand { font-size: 15px; font-weight: 700; color: #1e40af; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
         .topbar-brand img { height: 30px; }
-        .nav { display: flex; gap: 2px; align-items: center; overflow-x: auto; }
+        .nav { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; padding: 6px 0; }
         .nav a { padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: 500; color: #6b7280; text-decoration: none; white-space: nowrap; }
         .nav a:hover { background: #f3f4f6; color: #111827; }
         .nav a.active { background: #eff6ff; color: #1d4ed8; }
@@ -96,9 +97,19 @@
 <div id="app">
 
     <header class="topbar">
-        <div class="topbar-brand">
-            <img src="/static/logo.png" alt="Clínica HD">
-            {{ sucursalNombre }}
+        <div class="topbar-header">
+            <div class="topbar-brand">
+                <img src="/static/logo.png" alt="Clínica HD">
+                {{ sucursalNombre }}
+            </div>
+            <div>
+                <a href="#" @click.prevent="logout"
+                    style="font-size: 12px; font-weight: 600; color: #ef4444; text-decoration: none; padding: 4px 8px; border-radius: 4px; transition: background-color 0.2s;"
+                    onmouseover="this.style.backgroundColor='#fef2f2'; this.style.color='#b91c1c';"
+                    onmouseout="this.style.backgroundColor='transparent'; this.style.color='#ef4444';">
+                    Salir
+                </a>
+            </div>
         </div>
         <nav class="nav">
             <a href="/recepcion">Recepción</a>
@@ -111,7 +122,6 @@
             <a v-if="role !== 'doctor'" href="/static/doctores.html">Doctores</a>
             <a v-if="role !== 'doctor'" href="/static/ortodoncia.html" class="active">Ortodoncia</a>
             <a v-if="role !== 'recepcion'" href="/recepcion/historial">Historial</a>
-            <a href="#" @click.prevent="logout" class="exit">Salir</a>
         </nav>
     </header>
 
