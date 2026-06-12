@@ -21,6 +21,8 @@
         .nav a:hover { background: #f3f4f6; color: #111827; }
         .nav a.active { background: #eff6ff; color: #1d4ed8; }
         .nav a.exit { color: #dc2626; margin-left: 6px; }
+        .nav-user { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .nav-user span { font-size: 12px; font-weight: 500; color: #374151; white-space: nowrap; }
 
         .page { max-width: 1300px; margin: 0 auto; padding: 20px 24px 48px; }
 
@@ -102,9 +104,13 @@
                 <img src="/static/logo.png" alt="Clínica HD">
                 {{ sucursalNombre }}
             </div>
-            <div>
+            <div class="nav-user">
+                <svg style="width:16px;height:16px;color:#6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <span>{{ currentUser }}</span>
                 <a href="#" @click.prevent="logout"
-                    style="font-size: 12px; font-weight: 600; color: #ef4444; text-decoration: none; padding: 4px 8px; border-radius: 4px; transition: background-color 0.2s;"
+                    style="font-size: 12px; font-weight: 600; color: #ef4444; text-decoration: none; padding: 4px 8px; border-radius: 4px; transition: background-color 0.2s; margin-left: 8px;"
                     onmouseover="this.style.backgroundColor='#fef2f2'; this.style.color='#b91c1c';"
                     onmouseout="this.style.backgroundColor='transparent'; this.style.color='#ef4444';">
                     Salir
@@ -282,6 +288,7 @@ createApp({
         const filterEstado = ref('');
         const filterMesesMin = ref('0');
         const role = ref(localStorage.getItem('role') || '');
+        const currentUser = ref(localStorage.getItem('full_name') || localStorage.getItem('username') || 'Usuario');
         const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD');
 
         const loadData = async () => {
@@ -336,7 +343,7 @@ createApp({
 
         onMounted(loadData);
 
-        return { pacientes, loading, search, filterEstado, filterMesesMin, role, sucursalNombre, counts, filtered, formatDate, estadoLabel, loadData, logout };
+        return { pacientes, loading, search, filterEstado, filterMesesMin, role, currentUser, sucursalNombre, counts, filtered, formatDate, estadoLabel, loadData, logout };
     }
 }).mount('#app');
 </script>
