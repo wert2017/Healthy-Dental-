@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clínica HD - Gestión de Gastos</title>
+    <title>Clínica HD - Gestión de Egresos/Gastos</title>
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -100,9 +100,7 @@
                     <!-- Gastos -->
                     <a v-if="role !== 'doctor'" href="/gastos"
                         class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/gastos') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Gastos
-                    </a>
+                        :class="isActive('/gastos') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">Egresos/Gastos</a>
                     <!-- Administración -->
                     <a v-if="role === 'admin'" href="/admin"
                         class="px-3 py-2 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
@@ -229,11 +227,35 @@
                 </div>
             </div>
 
+            <!-- Totales Filtrados de Gastos (Tarjetas) -->
+            <div v-if="gastos.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- Total Egresos -->
+                <div class="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-rose-500 relative overflow-hidden">
+                    <p class="text-xs font-semibold text-rose-600 mb-1 uppercase tracking-wider">💸 Total Egresos (Filtrado)</p>
+                    <h3 class="text-3xl font-black text-slate-800">-${{ totalEgresosFiltrados }}</h3>
+                    <p class="text-[10px] text-slate-400 mt-1 leading-tight">Suma de egresos según filtros y rango seleccionado</p>
+                </div>
+
+                <!-- Total Ingresos -->
+                <div class="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-emerald-500 relative overflow-hidden">
+                    <p class="text-xs font-semibold text-emerald-600 mb-1 uppercase tracking-wider">📥 Total Ingresos (Filtrado)</p>
+                    <h3 class="text-3xl font-black text-slate-800">+${{ totalIngresosFiltrados }}</h3>
+                    <p class="text-[10px] text-slate-400 mt-1 leading-tight">Suma de ingresos extras y abonos en el período</p>
+                </div>
+
+                <!-- Balance Neto -->
+                <div class="bg-white rounded-2xl p-5 shadow-sm border-l-4 relative overflow-hidden" :class="totalNetoFiltradosEsNegativo ? 'border-rose-500' : 'border-emerald-500'">
+                    <p class="text-xs font-semibold mb-1 uppercase tracking-wider" :class="totalNetoFiltradosEsNegativo ? 'text-rose-600' : 'text-emerald-600'">📊 Balance Neto (Filtrado)</p>
+                    <h3 class="text-3xl font-black text-slate-800">{{ totalNetoFiltradosStr }}</h3>
+                    <p class="text-[10px] text-slate-400 mt-1 leading-tight">Diferencia final (Ingresos menos Egresos) filtrada</p>
+                </div>
+            </div>
+
             <!-- Expenses List -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="bg-slate-50/50 p-4 border-b border-slate-100 flex flex-col gap-4">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <h2 class="text-lg font-bold text-slate-800">Historial de Gastos</h2>
+                        <h2 class="text-lg font-bold text-slate-800">Historial de Egresos/Gastos</h2>
                         <!-- Totales del Historial Filtrado -->
                         <div v-if="gastos.length > 0" class="flex flex-wrap gap-2 text-xs font-semibold">
                             <span class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-100 shadow-sm">

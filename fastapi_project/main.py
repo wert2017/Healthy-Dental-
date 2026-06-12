@@ -276,7 +276,11 @@ def imprimir_atencion_page(atencion_id: int):
 
 @app.get("/gastos", response_class=HTMLResponse)
 def gastos_page():
-    return FileResponse("static/gastos.html")
+    response = FileResponse("static/gastos.html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 @app.get("/cuadre", response_class=HTMLResponse)
 def cuadre_page():
@@ -799,6 +803,22 @@ def list_usuarios(session: Session = Depends(get_session), user: User = Depends(
 @app.get("/static/calendario.html", response_class=FileResponse)
 def serve_calendar(request: Request):
     response = FileResponse("static/calendario.html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+@app.get("/static/gastos.html", response_class=FileResponse)
+def serve_gastos_html(request: Request):
+    response = FileResponse("static/gastos.html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+@app.get("/static/ingresos.html", response_class=FileResponse)
+def serve_ingresos_html(request: Request):
+    response = FileResponse("static/ingresos.html")
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
@@ -3731,12 +3751,15 @@ def get_gastos_balances(session: Session = Depends(get_session), user: User = De
     # --- 2. INCOME FROM WALLET RECHARGES (Recargas Directas) ---
     recargas_query = session.exec(
         select(HistorialAbono.metodo_pago, func.sum(HistorialAbono.monto))
-        .join(User, HistorialAbono.usuario_id == User.id)
-        .where(User.sucursal_id == user.sucursal_id)
+        .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
+        .where(Paciente.sucursal_id == user.sucursal_id)
         .group_by(HistorialAbono.metodo_pago)
     ).all()
     
-    recargas = {row[0]: float(row[1]) for row in recargas_query}
+    recargas = {}
+    for row in recargas_query:
+        method = (row[0] or "").upper()
+        recargas[method] = recargas.get(method, 0.0) + float(row[1])
 
     # Add Recharges to gross income
     ingresos["EFECTIVO"] += recargas.get("EFECTIVO", 0)
@@ -3750,7 +3773,10 @@ def get_gastos_balances(session: Session = Depends(get_session), user: User = De
         .group_by(Gasto.metodo_pago)
     ).all()
     
-    egresos = {row[0]: float(row[1]) for row in egresos_query}
+    egresos = {}
+    for row in egresos_query:
+        method = (row[0] or "").upper()
+        egresos[method] = egresos.get(method, 0.0) + float(row[1])
     
     # --- 4. CALCULATE STRICT BALANCES ---
     balance_efectivo = ingresos["EFECTIVO"] - egresos.get("EFECTIVO", 0)
