@@ -129,6 +129,7 @@ def on_startup():
         "ALTER TABLE historialabono ADD COLUMN atencion_id INTEGER REFERENCES atencion(id);",
         "ALTER TABLE gasto ADD COLUMN socio_id INTEGER REFERENCES socio(id);",
         "ALTER TABLE doctor ADD COLUMN max_citas_simultaneas INTEGER DEFAULT 2;",
+        "ALTER TABLE gasto ADD COLUMN tipo VARCHAR DEFAULT 'EGRESO';",
     ]
     for sql in migrations:
         try:
@@ -2520,6 +2521,22 @@ def reporte_ingresos_mensuales(start_date: str = None, end_date: str = None, ses
                 ingresos_por_mes[mes_key] = 0.0
             ingresos_por_mes[mes_key] += float(match.group(1))
 
+    # 3. Otros Ingresos (registrados como Gasto con tipo='INGRESO')
+    query_otros = select(Gasto).where(Gasto.tipo == "INGRESO")
+    if user.sucursal_id:
+        query_otros = query_otros.where(Gasto.sucursal_id == user.sucursal_id)
+    if start_date:
+        query_otros = query_otros.where(Gasto.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
+    if end_date:
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        query_otros = query_otros.where(Gasto.fecha < end_dt)
+    otros_list = session.exec(query_otros).all()
+    for g in otros_list:
+        mes_key = g.fecha.strftime("%Y-%m")
+        if mes_key not in ingresos_por_mes:
+            ingresos_por_mes[mes_key] = 0.0
+        ingresos_por_mes[mes_key] += float(g.monto)
+
     ingresos_list = [{"mes": k, "total": round(v, 2)} for k, v in sorted(ingresos_por_mes.items())]
 
     # Part 2: Produccion por doctor
@@ -2599,7 +2616,13 @@ def reporte_flujo_caja_global(start_date: str = None, end_date: str = None, sess
         query_gastos = query_gastos.where(Gasto.fecha < end_dt)
         
     gastos = session.exec(query_gastos).all()
-    total_egresos = sum(float(g.monto) for g in gastos)
+    
+    # Separar egresos de otros ingresos
+    otros_ingresos = sum(float(g.monto) for g in gastos if g.tipo == "INGRESO")
+    egresos_operativos = sum(float(g.monto) for g in gastos if g.tipo != "INGRESO")
+    
+    total_ingresos += otros_ingresos
+    total_egresos = egresos_operativos
     
     saldo_neto = total_ingresos - total_egresos
     
@@ -2760,10 +2783,20 @@ def reporte_resumen_financiero(
     if end_dt:
         q_pagos = q_pagos.where(Pago.fecha < end_dt)
     pagos = session.exec(q_pagos).all()
-    total_cobrado = round(sum(float(p.monto) for p in pagos), 2)
+    
+    # Obtener otros ingresos (tipo='INGRESO')
+    q_otros = select(Gasto).where(Gasto.sucursal_id == user.sucursal_id).where(Gasto.tipo == "INGRESO")
+    if start_dt:
+        q_otros = q_otros.where(Gasto.fecha >= start_dt)
+    if end_dt:
+        q_otros = q_otros.where(Gasto.fecha < end_dt)
+    otros_ingresos = session.exec(q_otros).all()
+    total_otros = sum(float(g.monto) for g in otros_ingresos)
+    
+    total_cobrado = round(sum(float(p.monto) for p in pagos) + total_otros, 2)
 
-    # 3. Gastos por categoría
-    q_gastos = select(Gasto).where(Gasto.sucursal_id == user.sucursal_id)
+    # 3. Gastos por categoría (excluyendo tipo='INGRESO')
+    q_gastos = select(Gasto).where(Gasto.sucursal_id == user.sucursal_id).where((Gasto.tipo == "EGRESO") | (Gasto.tipo == None))
     if start_dt:
         q_gastos = q_gastos.where(Gasto.fecha >= start_dt)
     if end_dt:
@@ -3591,6 +3624,7 @@ def create_gasto(
     metodo_pago: str = Form(...), # EFECTIVO, TRANSFERENCIA
     categoria: str = Form("GENERAL"),
     responsable: Optional[str] = Form(None),
+    tipo: str = Form("EGRESO"), # EGRESO, INGRESO
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user)
 ):
@@ -3603,6 +3637,7 @@ def create_gasto(
         metodo_pago=metodo_pago,
         categoria=categoria,
         responsable=responsable,
+        tipo=tipo,
         sucursal_id=user.sucursal_id,
         usuario_id=user.id
     )
@@ -3619,6 +3654,7 @@ def list_gastos(
     categoria: Optional[str] = None,
     metodo_pago: Optional[str] = None,
     usuario_id: Optional[int] = None,
+    tipo: Optional[str] = None,
     page: int = 1,
     size: int = 50,
     session: Session = Depends(get_session),
@@ -3655,6 +3691,9 @@ def list_gastos(
     if usuario_id:
         query = query.where(Gasto.usuario_id == usuario_id)
         
+    if tipo:
+        query = query.where(Gasto.tipo == tipo)
+        
     return session.exec(query.offset(skip).limit(size)).all()
 
 class GastoUpdateSchema(BaseModel):
@@ -3664,6 +3703,7 @@ class GastoUpdateSchema(BaseModel):
     categoria: Optional[str] = None
     responsable: Optional[str] = None
     fecha: Optional[datetime] = None
+    tipo: Optional[str] = None
 
 @app.put("/api/gastos/{gasto_id}")
 def update_gasto(
@@ -3712,6 +3752,8 @@ def update_gasto(
                     detail="Solo puedes registrar gastos con fecha de hoy."
                 )
         gasto.fecha = data.fecha
+    if data.tipo is not None:
+        gasto.tipo = data.tipo
 
     session.add(gasto)
     session.commit()
@@ -3770,6 +3812,7 @@ def get_gastos_balances(session: Session = Depends(get_session), user: User = De
     egresos_query = session.exec(
         select(Gasto.metodo_pago, func.sum(Gasto.monto))
         .where(Gasto.sucursal_id == user.sucursal_id)
+        .where((Gasto.tipo == "EGRESO") | (Gasto.tipo == None))
         .group_by(Gasto.metodo_pago)
     ).all()
     
@@ -3777,6 +3820,24 @@ def get_gastos_balances(session: Session = Depends(get_session), user: User = De
     for row in egresos_query:
         method = (row[0] or "").upper()
         egresos[method] = egresos.get(method, 0.0) + float(row[1])
+
+    # --- 3.5. GENERAL INCOMES (Otros Ingresos) ---
+    otros_ingresos_query = session.exec(
+        select(Gasto.metodo_pago, func.sum(Gasto.monto))
+        .where(Gasto.sucursal_id == user.sucursal_id)
+        .where(Gasto.tipo == "INGRESO")
+        .group_by(Gasto.metodo_pago)
+    ).all()
+
+    otros_ingresos = {}
+    for row in otros_ingresos_query:
+        method = (row[0] or "").upper()
+        otros_ingresos[method] = otros_ingresos.get(method, 0.0) + float(row[1])
+
+    # Add general incomes to gross income
+    ingresos["EFECTIVO"] += otros_ingresos.get("EFECTIVO", 0)
+    ingresos["TRANSFERENCIA"] += otros_ingresos.get("TRANSFERENCIA", 0)
+    ingresos["TARJETA"] += otros_ingresos.get("TARJETA", 0)
     
     # --- 4. CALCULATE STRICT BALANCES ---
     balance_efectivo = ingresos["EFECTIVO"] - egresos.get("EFECTIVO", 0)

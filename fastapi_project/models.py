@@ -329,6 +329,7 @@ class Gasto(SQLModel, table=True):
     metodo_pago: str # EFECTIVO, TRANSFERENCIA
     categoria: Optional[str] = "GENERAL"
     responsable: Optional[str] = None # Name of the person who made the expense
+    tipo: Optional[str] = Field(default="EGRESO")
     
     sucursal_id: int = Field(foreign_key="sucursal.id")
     usuario_id: int = Field(foreign_key="user.id")
