@@ -827,6 +827,8 @@
                     if (!calendarEl) return;
 
                     let tooltipEl = null;
+                    let clickCount = 0;
+                    let clickTimer = null;
 
                     const ocultarTooltipCita = () => {
                         if (tooltipEl) {
@@ -1059,6 +1061,22 @@
                         select: function (info) {
                             lastSelectionInfo.value = info;
                         },
+                        dateClick: function (info) {
+                            clickCount++;
+                            if (clickCount === 1) {
+                                clickTimer = setTimeout(function () {
+                                    clickCount = 0;
+                                }, 300); // 300ms window for double-click
+                            } else if (clickCount === 2) {
+                                clearTimeout(clickTimer);
+                                clickCount = 0;
+                                const selection = lastSelectionInfo.value || {
+                                    start: info.date,
+                                    end: new Date(info.date.getTime() + 30 * 60 * 1000)
+                                };
+                                openCreateModalFromSelection(selection);
+                            }
+                        },
                         // Drag & Drop event rescheduling
                         eventDrop: async function (info) {
                             const event = info.event;
@@ -1102,17 +1120,6 @@
                     });
 
                     calendar.render();
-
-                    // Add double-click event listener to calendar slots
-                    calendarEl.addEventListener('dblclick', function (e) {
-                        // Ignore if we double-clicked an event card or toolbar or headers
-                        if (e.target.closest('.fc-event, .fc-toolbar, .fc-col-header-cell')) {
-                            return;
-                        }
-                        if (lastSelectionInfo.value) {
-                            openCreateModalFromSelection(lastSelectionInfo.value);
-                        }
-                    });
                 };
 
                 // Check URL query parameters for pre-filled patient info
