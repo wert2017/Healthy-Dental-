@@ -375,7 +375,7 @@
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Paciente</label>
                         <div v-if="selectedPaciente" class="flex justify-between items-center bg-indigo-50 border border-indigo-200 rounded-lg p-2 text-sm">
                             <div>
-                                <span class="font-bold text-indigo-900">{{ selectedPaciente.nombres }} {{ selectedPaciente.apellidos }}</span>
+                                <span class="font-bold text-indigo-900 text-[11px]">{{ selectedPaciente.nombres }} {{ selectedPaciente.apellidos }}</span>
                                 <span class="block text-[10px] text-indigo-500">HC: {{ selectedPaciente.historia_clinica }}</span>
                             </div>
                             <button type="button" @click="selectedPaciente = null; formCita.paciente_id = null; patientSearchQuery = ''" class="text-red-500 hover:text-red-700 font-bold px-2 text-xs">Cambiar</button>
