@@ -115,6 +115,10 @@
             margin-bottom: 2px;
             display: inline-block;
         }
+
+        .fc-highlight {
+            background-color: rgba(6, 182, 212, 0.45) !important; /* Cyan-500 with 45% opacity */
+        }
     </style>
 </head>
 
@@ -596,6 +600,9 @@
                     if (calendar) {
                         calendar.changeView(viewName);
                         currentView.value = viewName;
+                        if (lastSelectionInfo.value) {
+                            calendar.select(lastSelectionInfo.value.start, lastSelectionInfo.value.end);
+                        }
                     }
                 };
 
@@ -1064,7 +1071,16 @@
                         select: function (info) {
                             lastSelectionInfo.value = info;
                             if (calendar) {
-                                calendar.gotoDate(info.start);
+                                const currentDate = calendar.getDate();
+                                const d1 = new Date(info.start);
+                                const isSameDay = currentDate.getFullYear() === d1.getFullYear() &&
+                                                  currentDate.getMonth() === d1.getMonth() &&
+                                                  currentDate.getDate() === d1.getDate();
+                                if (!isSameDay) {
+                                    calendar.gotoDate(info.start);
+                                    // re-select to keep selection active
+                                    calendar.select(info.start, info.end);
+                                }
                             }
                         },
                         dateClick: function (info) {
