@@ -627,6 +627,7 @@
                     estado: 'PENDIENTE'
                 });
 
+                const lastSelectionInfo = ref(null);
                 const selectedPaciente = ref(null);
                 const patientSearchQuery = ref('');
                 const patientResults = ref([]);
@@ -706,6 +707,27 @@
                         estado: 'PENDIENTE'
                     };
                     showModal.value = true;
+                };
+
+                const openCreateModalFromSelection = (info) => {
+                    editingCitaId.value = null;
+                    selectedPaciente.value = null;
+                    const startStr = formatToLocalDatetime(new Date(info.start));
+                    const endStr = formatToLocalDatetime(new Date(info.end));
+
+                    formCita.value = {
+                        fecha: startStr.substring(0, 10),
+                        hora_inicio: startStr.substring(11, 16),
+                        hora_fin: endStr.substring(11, 16),
+                        paciente_id: null,
+                        doctor_id: filterDoctorId.value || null,
+                        motivo: '',
+                        estado: 'PENDIENTE'
+                    };
+                    showModal.value = true;
+                    if (calendar) {
+                        calendar.unselect();
+                    }
                 };
 
                 const openEditModal = (event) => {
@@ -1032,24 +1054,10 @@
                             ocultarTooltipCita();
                             openEditModal(info.event);
                         },
-                        // Select an empty slot to create a new appointment
+                        // Select an empty slot to store selection info
                         selectable: true,
                         select: function (info) {
-                            editingCitaId.value = null;
-                            selectedPaciente.value = null;
-                            const startStr = formatToLocalDatetime(new Date(info.start));
-                            const endStr = formatToLocalDatetime(new Date(info.end));
- 
-                            formCita.value = {
-                                fecha: startStr.substring(0, 10),
-                                hora_inicio: startStr.substring(11, 16),
-                                hora_fin: endStr.substring(11, 16),
-                                paciente_id: null,
-                                doctor_id: filterDoctorId.value || null,
-                                motivo: '',
-                                estado: 'PENDIENTE'
-                            };
-                            showModal.value = true;
+                            lastSelectionInfo.value = info;
                         },
                         // Drag & Drop event rescheduling
                         eventDrop: async function (info) {
@@ -1094,6 +1102,17 @@
                     });
 
                     calendar.render();
+
+                    // Add double-click event listener to calendar slots
+                    calendarEl.addEventListener('dblclick', function (e) {
+                        // Ignore if we double-clicked an event card or toolbar or headers
+                        if (e.target.closest('.fc-event, .fc-toolbar, .fc-col-header-cell')) {
+                            return;
+                        }
+                        if (lastSelectionInfo.value) {
+                            openCreateModalFromSelection(lastSelectionInfo.value);
+                        }
+                    });
                 };
 
                 // Check URL query parameters for pre-filled patient info
@@ -1131,7 +1150,7 @@
                     timeOptions,
                     quickJumpDate, searchQuery, currentView, activeDoctorName,
                     getDoctorColor, getStatusEmoji, jumpToDate, changeView,
-                    getDoctorNameById
+                    getDoctorNameById, openCreateModalFromSelection, lastSelectionInfo
                 };
             }
         }).mount('#app');
