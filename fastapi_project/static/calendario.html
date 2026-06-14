@@ -1055,11 +1055,17 @@
                         eventClick: function (info) {
                             ocultarTooltipCita();
                             openEditModal(info.event);
+                            if (calendar && info.event.start) {
+                                calendar.gotoDate(info.event.start);
+                            }
                         },
                         // Select an empty slot to store selection info
                         selectable: true,
                         select: function (info) {
                             lastSelectionInfo.value = info;
+                            if (calendar) {
+                                calendar.gotoDate(info.start);
+                            }
                         },
                         dateClick: function (info) {
                             clickCount++;
