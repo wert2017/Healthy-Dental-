@@ -1344,12 +1344,15 @@ def get_global_atenciones(
 
         # Apply search filter at DB level so pagination doesn't hide results
         if search:
-            s = f"%{search}%"
-            query = query.join(Paciente, Atencion.paciente_id == Paciente.id).where(
-                Paciente.nombres.ilike(s) |
-                Paciente.apellidos.ilike(s) |
-                Paciente.numero_identificacion.ilike(s)
-            )
+            terms = search.strip().split()
+            query = query.join(Paciente, Atencion.paciente_id == Paciente.id)
+            for term in terms:
+                t = f"%{term}%"
+                query = query.where(
+                    Paciente.nombres.ilike(t) |
+                    Paciente.apellidos.ilike(t) |
+                    Paciente.numero_identificacion.ilike(t)
+                )
 
         # Apply Date Filters at DB level for efficiency
         if start_date:
@@ -1365,7 +1368,9 @@ def get_global_atenciones(
             except ValueError:
                 pass
 
-        atenciones = session.exec(query.offset(skip).limit(size)).all()
+        # Fetch all matched records from the DB to avoid the pagination-then-filter bug when status is active.
+        # Pagination (offset & limit) is applied to the post-filtered list in Python.
+        atenciones = session.exec(query).all()
 
         results = []
         for a in atenciones:
@@ -1391,7 +1396,9 @@ def get_global_atenciones(
                 "estado": a.estado
             })
 
-        return results
+        # Apply pagination (skip & limit) in Python on the filtered list
+        paginated_results = results[skip : skip + size]
+        return paginated_results
     except Exception as e:
         import traceback
         traceback.print_exc()
