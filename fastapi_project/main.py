@@ -3009,11 +3009,25 @@ def get_distribucion_utilidades(
         pagos_raw = session.exec(q_pagos).first()
         total_cobrado_m = Decimal(str(pagos_raw)) if pagos_raw is not None else Decimal("0.00")
 
-        # 2. Operating expenses (excluding RETIRO SOCIOS)
+        # 1.1 Otros ingresos directos (tipo='INGRESO')
+        q_otros = (
+            select(func.sum(Gasto.monto))
+            .where(Gasto.sucursal_id == user.sucursal_id)
+            .where(Gasto.tipo == "INGRESO")
+            .where(Gasto.fecha >= start_dt)
+            .where(Gasto.fecha < end_dt)
+        )
+        otros_raw = session.exec(q_otros).first()
+        total_otros_m = Decimal(str(otros_raw)) if otros_raw is not None else Decimal("0.00")
+
+        total_cobrado_m = total_cobrado_m + total_otros_m
+
+        # 2. Operating expenses (excluding RETIRO SOCIOS and excluding tipo='INGRESO')
         q_gastos = (
             select(func.sum(Gasto.monto))
             .where(Gasto.sucursal_id == user.sucursal_id)
             .where(Gasto.categoria != "RETIRO SOCIOS")
+            .where((Gasto.tipo == "EGRESO") | (Gasto.tipo == None))
             .where(Gasto.fecha >= start_dt)
             .where(Gasto.fecha < end_dt)
         )
