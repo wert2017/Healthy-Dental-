@@ -332,7 +332,7 @@
                                     </div>
                                 </div>
 
-                                <div v-if="!atencion.validado && !isDoctor && !editLocked"
+                                <div v-if="(!atencion.validado || isAdmin) && !isDoctor && !editLocked"
                                     class="bg-blue-50/30 p-4 rounded-xl border border-blue-100 mb-6">
                                     <h3 class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-3">
                                         Agregar
@@ -462,13 +462,13 @@
                                                 <td class="px-4 py-3 text-sm text-right font-bold text-gray-800">${{
                                                     (parseFloat(d.total) || 0).toFixed(2) }}</td>
                                                 <td class="px-6 py-3 text-right">
-                                                    <button v-if="!atencion.validado && !isDoctor && !editLocked"
+                                                    <button v-if="(!atencion.validado || isAdmin) && !isDoctor && !editLocked"
                                                         @click="startEditing(d)"
                                                         class="text-blue-500 hover:text-blue-700 transition mr-2"
                                                         title="Editar">
                                                         ✎
                                                     </button>
-                                                    <button v-if="!atencion.validado && !isDoctor && !editLocked"
+                                                    <button v-if="(!atencion.validado || isAdmin) && !isDoctor && !editLocked"
                                                         @click="deleteDetalle(d)"
                                                         class="text-red-400 hover:text-red-600 transition"
                                                         title="Eliminar tratamiento">
@@ -520,7 +520,7 @@
                                                         <span
                                                             class="absolute left-2 top-2 text-gray-400 text-sm">$</span>
                                                         <input v-model.number="payments.efectivo"
-                                                            :disabled="atencion.validado" @input="debouncedSync"
+                                                            :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
                                                             type="number" step="0.01"
                                                             class="input-clean pl-6 h-10 text-base font-bold text-gray-700 w-full bg-white">
                                                     </div>
@@ -532,7 +532,7 @@
                                                         <span
                                                             class="absolute left-2 top-2 text-gray-400 text-sm">$</span>
                                                         <input v-model.number="payments.transferencia"
-                                                            :disabled="atencion.validado" @input="debouncedSync"
+                                                            :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
                                                             type="number" step="0.01"
                                                             class="input-clean pl-6 h-10 text-base font-bold text-gray-700 w-full bg-white">
                                                     </div>
@@ -544,7 +544,7 @@
                                                         <span
                                                             class="absolute left-2 top-2 text-gray-400 text-sm">$</span>
                                                         <input v-model.number="payments.tarjeta"
-                                                            :disabled="atencion.validado" @input="debouncedSync"
+                                                            :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
                                                             type="number" step="0.01"
                                                             class="input-clean pl-6 h-10 text-base font-bold text-gray-700 w-full bg-white">
                                                     </div>
@@ -560,7 +560,7 @@
                                                         <span
                                                             class="absolute left-2 top-2 text-amber-400 text-sm">$</span>
                                                         <input v-model.number="payments.abono"
-                                                            :disabled="atencion.validado" @input="debouncedSync"
+                                                            :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
                                                             type="number" step="0.01"
                                                             :max="atencion?.paciente?.saldo_favor"
                                                             class="input-clean pl-6 h-10 text-base font-bold text-amber-700 border-amber-200 w-full bg-white focus:ring-amber-500">
@@ -583,7 +583,7 @@
                                             Notas Clínicas / Evolución
                                         </div>
                                         <textarea v-model="atencion.observaciones" @input="debouncedNoteSave"
-                                            :disabled="atencion.validado"
+                                            :disabled="atencion.validado && !isAdmin"
                                             class="flex-1 w-full bg-white border border-blue-200 rounded-lg p-3 text-sm text-gray-700 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none min-h-[200px]"
                                             placeholder="Escriba aquí la evolución del paciente..."></textarea>
                                         <div class="mt-2 text-[10px] text-blue-400 text-right">
@@ -598,7 +598,7 @@
 
                     <!-- Botones de Acción Finales -->
                     <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end gap-4 items-center"
-                        v-if="atencion && !atencion.validado">
+                        v-if="atencion && (!atencion.validado || isAdmin)">
                         <button v-if="isAdmin" @click="eliminarAtencion"
                             class="bg-white border border-red-200 text-red-600 px-6 py-3 rounded-xl hover:bg-red-50 hover:border-red-300 font-bold transition shadow-sm">
                             Eliminar Atención
@@ -688,6 +688,7 @@
                 });
                 const isDoctor = computed(() => role === 'doctor');
                 const isAdmin = computed(() => role === 'admin');
+                const isStaff = computed(() => role === 'admin' || role === 'recepcion');
                 const loggedInDoctorId = ref(localStorage.getItem('user_id'));
                 const savingNotes = ref(false);
 
@@ -826,7 +827,7 @@
                     if (syncTimeout) clearTimeout(syncTimeout);
                     syncTimeout = setTimeout(async () => {
                         try {
-                            await axios.put(`/api/atenciones/${atencionId}/observaciones`, { observaciones: atencion.value.observaciones || '' });
+                            await axios.put(`/api/atenciones/${atencionId}`, { observaciones: atencion.value.observaciones || '' });
                         } catch (e) {
                             console.error('Error guardando notas', e);
                         } finally {
@@ -884,6 +885,7 @@
                 const editingDetailId = ref(null);
 
                 const startEditing = (detail) => {
+                    if (editLocked.value && !isAdmin.value) return;
                     editingDetailId.value = detail.id;
                     const t = tratamientos.value.find(x => x.nombre_tratamiento === detail.nombre_tratamiento || x.id === detail.tratamiento_id);
                     let assignedTo = '';
@@ -952,6 +954,7 @@
                 };
 
                 const deleteDetalle = async (detalle) => {
+                    if (editLocked.value && !isAdmin.value) return;
                     const { isConfirmed } = await Swal.fire({
                         title: '¿Eliminar tratamiento?',
                         html: `<p>¿Confirmas eliminar <b>${detalle.nombre_tratamiento}</b>?</p>
@@ -1054,7 +1057,7 @@
 
                 return {
                     atencion, tratamientos, doctores, vendedores, loading, sessionDoctor,
-                    newDetail, payments, role, sucursalNombre, currentUser, branchColorStyle, branchTextColor, isDoctor, isAdmin, editLocked,
+                    newDetail, payments, role, sucursalNombre, currentUser, branchColorStyle, branchTextColor, isDoctor, isAdmin, isStaff, editLocked,
                     fechaEditable, guardarFecha,
                     savingNotes, editingDetailId,
                     startEditing, cancelEditing, updatePrice, addDetail, deleteDetalle,

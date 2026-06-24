@@ -523,7 +523,7 @@
                                                     </path>
                                                 </svg>
                                             </a>
-                                            <a v-if="!item.validado" :href="'/recepcion/editar/' + item.id"
+                                            <a v-if="!item.validado || role === 'admin'" :href="'/recepcion/editar/' + item.id"
                                                 class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                                                 title="Editar">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor"
@@ -534,7 +534,7 @@
                                                     </path>
                                                 </svg>
                                             </a>
-                                            <button v-if="!item.validado && !isItemLocked(item)" @click="deleteAtencion(item.id)"
+                                            <button v-if="(!item.validado || role === 'admin') && !isItemLocked(item)" @click="deleteAtencion(item.id)"
                                                 class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                                                 title="Eliminar">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor"

@@ -1714,7 +1714,7 @@ def add_detalle(
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
-    if atencion.validado:
+    if atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
     check_recepcion_time_limit(atencion, user)
 
@@ -1750,7 +1750,7 @@ def delete_detalle(
         return {"message": "Detalle no encontrado"}
 
     atencion = session.get(Atencion, detalle.atencion_id)
-    if atencion and atencion.validado:
+    if atencion and atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
     if atencion:
         check_recepcion_time_limit(atencion, user)
@@ -1808,7 +1808,7 @@ def update_detalle(detalle_id: int, data: UpdateDetail, session: Session = Depen
         raise HTTPException(status_code=404, detail="Detalle no encontrado")
 
     atencion = session.get(Atencion, detalle.atencion_id)
-    if atencion and atencion.validado:
+    if atencion and atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
     if atencion:
         check_recepcion_time_limit(atencion, user)
@@ -1855,12 +1855,12 @@ def update_atencion_fecha(atencion_id: int, fecha: str, session: Session = Depen
     return {"message": "Fecha actualizada"}
 
 @app.put("/api/atenciones/{atencion_id}")
-def update_atencion(atencion_id: int, data: UpdateAtencion, session: Session = Depends(get_session)):
+def update_atencion(atencion_id: int, data: UpdateAtencion, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
         
-    if atencion.validado:
+    if atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
 
     if data.observaciones is not None:
@@ -1885,7 +1885,7 @@ def sync_pagos(atencion_id: int, data: PaymentSync, session: Session = Depends(g
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
-    if atencion.validado:
+    if atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
 
     pago_directo = Decimal(str(data.efectivo)) + Decimal(str(data.transferencia)) + Decimal(str(data.tarjeta))
@@ -2182,7 +2182,7 @@ def delete_atencion(atencion_id: int, session: Session = Depends(get_session), u
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
-    if atencion.validado:
+    if atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede eliminar una atención validada")
     check_recepcion_time_limit(atencion, user)
 
