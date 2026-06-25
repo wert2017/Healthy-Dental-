@@ -390,3 +390,23 @@ def update_detalle_tratamiento(request, detalle_id):
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
     return JsonResponse({"success": False, "error": "Método no permitido"})
+
+@csrf_exempt
+@login_required
+def actualizar_observaciones(request, atencion_id):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            obs = data.get('observaciones', '')
+            atencion = get_object_or_404(Atencion, id=atencion_id)
+            
+            if atencion.validado:
+                return JsonResponse({'success': False, 'error': 'Atención cerrada, no se pueden modificar las observaciones.'})
+            
+            atencion.observaciones = obs
+            atencion.save()
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Método no permitido'})
+

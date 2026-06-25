@@ -258,6 +258,19 @@
     </table>
 </div>
 
+<!-- 4. OBSERVACIONES DE LA CONSULTA -->
+<div class="card" style="margin-top: 20px; border-left: 5px solid var(--primary-color);">
+    <h4 style="margin-top: 0; color: var(--primary-color); display: flex; align-items: center; gap: 8px;">
+        📝 Notas Clínicas / Observaciones de la Consulta
+    </h4>
+    <textarea id="observaciones-input" onchange="updateObservaciones({{ atencion.id }}, this)" 
+        placeholder="Escribe aquí las observaciones clínicas, evolución o notas de la consulta..." 
+        style="width: 100%; height: 120px; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-family: inherit; font-size: 0.95em; resize: vertical;"
+        {% if atencion.validado %}disabled{% endif %}>{{ atencion.observaciones }}</textarea>
+    <div id="observaciones-feedback" style="font-size: 0.85em; margin-top: 5px; display: none;"></div>
+</div>
+
+
 
 <script>
     // Función para actualizar pagos (Existente)
@@ -346,6 +359,43 @@
                 cxcCell.style.color = '#28a745';
             }
         }
+    }
+
+    // Función para actualizar observaciones vía AJAX
+    function updateObservaciones(atencionId, textarea) {
+        const feedback = document.getElementById("observaciones-feedback");
+        feedback.style.display = "block";
+        feedback.style.color = "gray";
+        feedback.textContent = "💾 Guardando notas...";
+        textarea.style.backgroundColor = "#e2e3e5";
+
+        fetch(`/recepcion/update_observaciones/${atencionId}/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ observaciones: textarea.value })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                textarea.style.backgroundColor = "#d4edda";
+                feedback.style.color = "green";
+                feedback.textContent = "✓ Notas guardadas exitosamente";
+                setTimeout(() => {
+                    textarea.style.backgroundColor = "";
+                    feedback.style.display = "none";
+                }, 2000);
+            } else {
+                alert("Error al guardar notas: " + data.error);
+                textarea.style.backgroundColor = "#f8d7da";
+                feedback.style.color = "red";
+                feedback.textContent = "❌ Error al guardar";
+            }
+        })
+        .catch(err => {
+            console.error("Error", err);
+            feedback.style.color = "red";
+            feedback.textContent = "❌ Error de conexión";
+        });
     }
 </script>
 
