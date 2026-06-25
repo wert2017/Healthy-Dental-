@@ -574,7 +574,7 @@
                                             </tr>
                                             
                                             <!-- Total Row -->
-                                            <tr class="bg-slate-200 font-bold text-gray-900 border-t border-slate-300">
+                                            <tr class="bg-slate-300 font-bold text-gray-900 border-t-2 border-b-2 border-slate-400/85">
                                                 <!-- (Hora column is covered by rowspan) -->
                                                 <td class="border-r border-gray-200 px-4 py-1.5 text-gray-500 text-right uppercase tracking-wider">Total</td>
                                                 <td class="border-r border-gray-200 px-4 py-1.5"></td>
@@ -593,7 +593,7 @@
                                 </div>
 
                                 <!-- Collapsible Observations Section -->
-                                <div class="border-t border-gray-100 px-5 py-2 bg-gray-50 flex flex-col gap-1">
+                                <div class="border-t border-gray-100 px-5 py-1 bg-gray-50 flex flex-col gap-0.5">
                                     <div class="flex justify-between items-center">
                                         <button @click="toggleObservations(item.id)" 
                                                 class="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 transition focus:outline-none">
@@ -614,12 +614,12 @@
                                     </div>
                                     
                                     <!-- Collapsible Content -->
-                                    <div v-show="expandedObservations[item.id]" class="mt-1 transition-all duration-200">
+                                    <div v-show="expandedObservations[item.id]" class="mt-0.5 transition-all duration-200">
                                         <div v-if="item.observaciones" 
-                                             class="text-xs text-gray-700 bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-line shadow-inner leading-relaxed">
+                                             class="text-xs text-gray-700 bg-white border border-gray-200 rounded-lg py-1.5 px-3 whitespace-pre-line shadow-inner leading-snug">
                                             {{ item.observaciones }}
                                         </div>
-                                        <div v-else class="text-xs text-gray-400 italic bg-white border border-gray-100 border-dashed rounded-lg p-3 text-center">
+                                        <div v-else class="text-[11px] text-gray-400 italic bg-white border border-gray-100 border-dashed rounded-lg py-1 px-3 text-center">
                                             Sin observaciones registradas.
                                         </div>
                                     </div>
