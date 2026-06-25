@@ -580,12 +580,12 @@
                                                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
                                                 </path>
                                             </svg>
-                                            Notas Clínicas / Evolución
+                                            Observaciones
                                         </div>
                                         <textarea v-model="atencion.observaciones" @input="debouncedNoteSave"
                                             :disabled="atencion.validado && !isAdmin"
                                             class="flex-1 w-full bg-white border border-blue-200 rounded-lg p-3 text-sm text-gray-700 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none min-h-[200px]"
-                                            placeholder="Escriba aquí la evolución del paciente..."></textarea>
+                                            placeholder="Escriba aquí las observaciones de la consulta..."></textarea>
                                         <div class="mt-2 text-[10px] text-blue-400 text-right">
                                             {{ savingNotes ? 'Guardando...' : 'Se guarda automáticamente' }}
                                         </div>
