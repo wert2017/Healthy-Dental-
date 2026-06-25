@@ -433,12 +433,13 @@
                         </div>
 
                         <!-- Card List -->
-                        <div class="p-6 bg-gray-50/50 space-y-6">
+                        <div class="p-6 bg-slate-100 space-y-6">
                             <div v-for="item in items" :key="item.id" 
-                                 class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col transition hover:shadow-md">
+                                 class="bg-white rounded-xl shadow-md border border-gray-200 border-l-4 overflow-hidden flex flex-col transition hover:shadow-lg"
+                                 :style="{ borderLeftColor: branchTextColor }">
                                 
                                 <!-- Card Header -->
-                                <div class="bg-white px-6 py-4 flex justify-between items-center border-b border-gray-100 flex-wrap gap-2">
+                                <div class="bg-slate-50/80 px-5 py-2.5 flex justify-between items-center border-b border-gray-200/80 flex-wrap gap-2">
                                     <div class="flex items-center gap-3">
                                         <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -512,14 +513,14 @@
                                     <table class="w-full text-xs text-left border-collapse border-b border-gray-200 min-w-[700px]">
                                         <thead class="bg-gray-50 text-gray-500 uppercase font-semibold text-[10px] tracking-wider border-b border-gray-200">
                                             <tr>
-                                                <th class="border-r border-gray-200 px-4 py-2 text-center" style="width: 70px;">Hora</th>
-                                                <th class="border-r border-gray-200 px-4 py-2">Tratamiento</th>
-                                                <th class="border-r border-gray-200 px-4 py-2">Doctor</th>
-                                                <th class="border-r border-gray-200 px-4 py-2 text-center" style="width: 90px;">Comisión %</th>
-                                                <th class="border-r border-gray-200 px-4 py-2" style="width: 140px;">Formas Pago</th>
-                                                <th class="border-r border-gray-200 px-4 py-2 text-right" style="width: 90px;">Total</th>
-                                                <th class="border-r border-gray-200 px-4 py-2 text-right" style="width: 90px;">Pagado</th>
-                                                <th class="px-4 py-2 text-center" style="width: 120px;">Estado</th>
+                                                <th class="border-r border-gray-200 px-4 py-1 text-center" style="width: 70px;">Hora</th>
+                                                <th class="border-r border-gray-200 px-4 py-1">Tratamiento</th>
+                                                <th class="border-r border-gray-200 px-4 py-1">Doctor</th>
+                                                <th class="border-r border-gray-200 px-4 py-1 text-center" style="width: 90px;">Comisión %</th>
+                                                <th class="border-r border-gray-200 px-4 py-1" style="width: 140px;">Formas Pago</th>
+                                                <th class="border-r border-gray-200 px-4 py-1 text-right" style="width: 90px;">Total</th>
+                                                <th class="border-r border-gray-200 px-4 py-1 text-right" style="width: 90px;">Pagado</th>
+                                                <th class="px-4 py-1 text-center" style="width: 120px;">Estado</th>
                                             </tr>
                                         </thead>
                                         <tbody class="divide-y divide-gray-200 text-gray-700">
@@ -527,16 +528,16 @@
                                             <tr v-for="(row, idx) in getCardRows(item)" :key="idx" class="hover:bg-gray-50/30">
                                                 <!-- Hora (rowspan on the first row) -->
                                                 <td v-if="idx === 0" :rowspan="getCardRows(item).length + 1" 
-                                                    class="border-r border-gray-200 px-4 py-3 text-center font-mono font-bold text-gray-600 text-sm align-middle bg-gray-50/50">
+                                                    class="border-r border-gray-200 px-4 py-1.5 text-center font-mono font-bold text-gray-600 text-sm align-middle bg-gray-50/50">
                                                     {{ item.hora }}
                                                 </td>
                                                 
-                                                <td class="border-r border-gray-200 px-4 py-2.5 font-medium">{{ row.tratamiento }}</td>
-                                                <td class="border-r border-gray-200 px-4 py-2.5">{{ row.doctor }}</td>
-                                                <td class="border-r border-gray-200 px-4 py-2.5 text-center">{{ row.comision }}</td>
-                                                <td class="border-r border-gray-200 px-4 py-2.5 font-mono text-[11px] text-gray-600">{{ row.formasPago }}</td>
-                                                <td class="border-r border-gray-200 px-4 py-2.5 text-right font-semibold">${{ row.total }}</td>
-                                                <td class="border-r border-gray-200 px-4 py-2.5 text-right">
+                                                <td class="border-r border-gray-200 px-4 py-1.5 font-medium">{{ row.tratamiento }}</td>
+                                                <td class="border-r border-gray-200 px-4 py-1.5">{{ row.doctor }}</td>
+                                                <td class="border-r border-gray-200 px-4 py-1.5 text-center">{{ row.comision }}</td>
+                                                <td class="border-r border-gray-200 px-4 py-1.5 font-mono text-[11px] text-gray-600">{{ row.formasPago }}</td>
+                                                <td class="border-r border-gray-200 px-4 py-1.5 text-right font-semibold">${{ row.total }}</td>
+                                                <td class="border-r border-gray-200 px-4 py-1.5 text-right">
                                                     <span :class="row.pagado === 'Al dia' ? 'text-green-600 font-semibold' : 'text-red-500 font-bold'">
                                                         {{ row.pagado }}
                                                     </span>
@@ -544,9 +545,9 @@
                                                 
                                                 <!-- Estado (rowspan on the first row) -->
                                                 <td v-if="idx === 0" :rowspan="getCardRows(item).length + 1" 
-                                                    class="px-4 py-3 text-center align-middle bg-gray-50/30">
+                                                    class="px-4 py-1.5 text-center align-middle bg-gray-50/30">
                                                     <div class="flex flex-col items-center justify-center gap-1">
-                                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm"
+                                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm"
                                                               :class="{
                                                                   'bg-yellow-100 text-yellow-800 border border-yellow-200': !item.validado && item.estado !== 'POR_REVISAR',
                                                                   'bg-green-100 text-green-800 border border-green-200': item.validado,
@@ -557,15 +558,15 @@
                                                         
                                                         <!-- Financial Status Badge inside the card -->
                                                         <span v-if="item.patient_financial_status === 'DEUDA'" 
-                                                              class="text-[9px] font-bold bg-red-100 border border-red-200 text-red-700 px-2 py-0.5 rounded-md mt-1.5 shadow-sm">
+                                                              class="text-[9px] font-bold bg-red-100 border border-red-200 text-red-700 px-2 py-0.5 rounded-md mt-1 shadow-sm">
                                                             Deuda: -${{ Math.abs(item.patient_balance).toFixed(2) }}
                                                         </span>
                                                         <span v-else-if="item.patient_financial_status === 'FAVOR'" 
-                                                              class="text-[9px] font-bold bg-blue-100 border border-blue-200 text-blue-700 px-2 py-0.5 rounded-md mt-1.5 shadow-sm">
+                                                              class="text-[9px] font-bold bg-blue-100 border border-blue-200 text-blue-700 px-2 py-0.5 rounded-md mt-1 shadow-sm">
                                                             Favor: +${{ item.patient_balance.toFixed(2) }}
                                                         </span>
                                                         <span v-else 
-                                                              class="text-[9px] font-bold bg-green-100 border border-green-200 text-green-700 px-2 py-0.5 rounded-md mt-1.5 shadow-sm">
+                                                              class="text-[9px] font-bold bg-green-100 border border-green-200 text-green-700 px-2 py-0.5 rounded-md mt-1 shadow-sm">
                                                             Al día
                                                         </span>
                                                     </div>
@@ -575,12 +576,12 @@
                                             <!-- Total Row -->
                                             <tr class="bg-gray-50 font-bold text-gray-800">
                                                 <!-- (Hora column is covered by rowspan) -->
-                                                <td class="border-r border-gray-200 px-4 py-2.5 text-gray-500 text-right uppercase tracking-wider">Total</td>
-                                                <td class="border-r border-gray-200 px-4 py-2.5"></td>
-                                                <td class="border-r border-gray-200 px-4 py-2.5"></td>
-                                                <td class="border-r border-gray-200 px-4 py-2.5 font-mono text-[11px] text-gray-600">{{ formatPagosSummary(item.pagos) }}</td>
-                                                <td class="border-r border-gray-200 px-4 py-2.5 text-right text-gray-900">${{ (item.total || 0).toFixed(2) }}</td>
-                                                <td class="border-r border-gray-200 px-4 py-2.5 text-right">
+                                                <td class="border-r border-gray-200 px-4 py-1.5 text-gray-500 text-right uppercase tracking-wider">Total</td>
+                                                <td class="border-r border-gray-200 px-4 py-1.5"></td>
+                                                <td class="border-r border-gray-200 px-4 py-1.5"></td>
+                                                <td class="border-r border-gray-200 px-4 py-1.5 font-mono text-[11px] text-gray-600">{{ formatPagosSummary(item.pagos) }}</td>
+                                                <td class="border-r border-gray-200 px-4 py-1.5 text-right text-gray-900">${{ (item.total || 0).toFixed(2) }}</td>
+                                                <td class="border-r border-gray-200 px-4 py-1.5 text-right">
                                                     <span :class="(item.total - item.pagado) <= 0.01 ? 'text-green-600 font-bold' : 'text-red-500 font-extrabold'">
                                                         {{ (item.total - item.pagado) <= 0.01 ? 'Al dia' : `-${(item.total - item.pagado).toFixed(2)}` }}
                                                     </span>
@@ -592,7 +593,7 @@
                                 </div>
 
                                 <!-- Collapsible Observations Section -->
-                                <div class="border-t border-gray-100 px-6 py-2.5 bg-gray-50 flex flex-col gap-1.5">
+                                <div class="border-t border-gray-100 px-5 py-2 bg-gray-50 flex flex-col gap-1">
                                     <div class="flex justify-between items-center">
                                         <button @click="toggleObservations(item.id)" 
                                                 class="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 transition focus:outline-none">
