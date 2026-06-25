@@ -1498,7 +1498,6 @@ def get_dashboard_atenciones(fecha: str = None, session: Session = Depends(get_s
                 "resumen_tratamientos": ", ".join(tratamientos_names) if tratamientos_names else "-",
                 "resumen_doctores": ", ".join(doctors_names) if doctors_names else "-",
                 "resumen_comisiones": ", ".join(comisiones) if comisiones else "-",
-                # Note: Continue mapping
                 "total": a.total_atencion_valor,
                 "pagos": pagos_map,
                 "pagado": sum(pagos_map.values()),
@@ -1506,7 +1505,20 @@ def get_dashboard_atenciones(fecha: str = None, session: Session = Depends(get_s
                 "validado": a.validado,
                 "estado": a.estado,
                 "patient_balance": patient_balance,
-                "patient_financial_status": patient_status
+                "patient_financial_status": patient_status,
+                "observaciones": a.observaciones or "",
+                "detalles": [
+                    {
+                        "id": d.id,
+                        "tratamiento_nombre": d.tratamiento.nombre if d.tratamiento else "-",
+                        "doctor_nombre": (d.doctor.nombres + " " + d.doctor.apellidos) if d.doctor else "-",
+                        "porcentaje_comision": float(d.porcentaje_comision),
+                        "precio_unitario": float(d.precio_unitario),
+                        "cantidad": d.cantidad,
+                        "total": float(d.total_calculado)
+                    }
+                    for d in a.detalles
+                ]
             })
         return results
     except Exception as e:
