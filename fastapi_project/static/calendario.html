@@ -77,7 +77,7 @@
 
         .fc-event {
             cursor: pointer;
-            padding: 2px 4px !important;
+            padding: 4px 6px !important;
             border-radius: 6px !important;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
             border: 1px solid #e2e8f0 !important;
@@ -100,8 +100,8 @@
         .fc-event-title {
             font-weight: 700 !important; /* bold */
             color: #0f172a !important; /* slate-900 */
-            font-size: 0.5rem !important;
-            line-height: 1.15 !important;
+            font-size: 0.7rem !important;
+            line-height: 1.2 !important;
             white-space: normal !important;
         }
 
@@ -111,13 +111,17 @@
         .fc-timegrid-event-short .fc-event-time {
             font-weight: 800 !important;
             color: #0f172a !important; /* slate-900, same as title for high contrast */
-            font-size: 0.5rem !important;
+            font-size: 0.7rem !important;
             margin-bottom: 2px;
             display: inline-block;
         }
 
         .fc-highlight {
             background-color: rgba(6, 182, 212, 0.45) !important; /* Cyan-500 with 45% opacity */
+        }
+
+        .fc .fc-timegrid-slot {
+            height: 2.8rem !important; /* Aumenta el alto de cada celda horaria */
         }
     </style>
 </head>
@@ -126,7 +130,7 @@
     <div id="app">
         <!-- Header Unificado -->
         <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
-            <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="max-w-full mx-auto px-2 sm:px-4 lg:px-4">
                 <!-- Fila 1: Logo + Usuario + Salir -->
                 <div class="flex justify-between items-center h-12 border-b border-gray-100" :style="branchColorStyle">
                     <div class="flex items-center gap-3">
@@ -189,13 +193,13 @@
         </header>
 
         <!-- Main Workspace -->
-        <main class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                        <!-- Left Control Panel -->
-                <div class="lg:col-span-3 space-y-6">
+        <main class="max-w-full mx-auto px-2 sm:px-4 lg:px-4 py-4">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+                <!-- Left Control Panel -->
+                <div class="lg:col-span-3 xl:col-span-2 space-y-6">
                     
                     <!-- Sidebar Controls Card -->
-                    <div class="bg-white rounded-xl p-5 shadow-sm space-y-4">
+                    <div class="bg-white rounded-xl p-4 shadow-sm space-y-4">
                         <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2">Controles de Agenda</h3>
                         
                         <!-- Doctor Filter -->
@@ -254,7 +258,7 @@
                     </div>
 
                     <!-- Legends Card -->
-                    <div class="bg-white rounded-xl p-5 shadow-sm space-y-4">
+                    <div class="bg-white rounded-xl p-4 shadow-sm space-y-4">
                         <!-- Doctors Legend -->
                         <div>
                             <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 pb-1 border-b border-gray-50">Colores por Doctor</h4>
@@ -295,7 +299,7 @@
                     </div>
 
                     <!-- Sync Status Mock Card (Ready for Google Calendar Sync) -->
-                    <div class="bg-white rounded-xl p-5 shadow-sm border border-indigo-50">
+                    <div class="bg-white rounded-xl p-4 shadow-sm border border-indigo-50">
                         <div class="flex items-center gap-2 mb-3">
                             <span class="text-lg">🔄</span>
                             <h3 class="text-sm font-bold text-gray-700">Google Calendar</h3>
@@ -311,7 +315,7 @@
                 </div>
 
                 <!-- Calendar Card -->
-                <div class="lg:col-span-9 bg-white rounded-xl p-6 shadow-sm space-y-4 border-t-4 transition-all duration-300"
+                <div class="lg:col-span-9 xl:col-span-10 bg-white rounded-xl p-4 shadow-sm space-y-4 border-t-4 transition-all duration-300"
                     :style="{ borderTopColor: filterDoctorId ? getDoctorColor(filterDoctorId) : '#4f46e5' }">
                     <!-- Header with Active Doctor's Name -->
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-3 gap-2">
