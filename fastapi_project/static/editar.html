@@ -201,7 +201,7 @@
 
                 <!-- LEFT COLUMN: Patient Info -->
                 <div
-                    class="lg:col-span-3 bg-white rounded-xl shadow-sm p-6 flex flex-col md:flex-row justify-between items-center border-l-4 border-indigo-500">
+                    class="lg:col-span-3 bg-white rounded-xl shadow-sm p-6 flex flex-col md:flex-row justify-between items-center border border-gray-300 border-l-4 border-l-indigo-500">
                     <div>
                         <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">PACIENTE</div>
                         <div class="text-2xl font-bold text-gray-800">{{ atencion.paciente.nombres }} {{
@@ -234,7 +234,7 @@
                 <div class="lg:col-span-3 space-y-6">
 
                     <!-- AGENDAMIENTO & PAGOS & LISTA -->
-                    <div class="bg-white rounded-xl shadow-sm p-6">
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-300">
 
                         <!-- MAIN FLEX LIST -->
                         <div class="flex flex-col gap-8">
@@ -256,9 +256,9 @@
 
                                         <!-- 1. Saldo Favor (Card) - HIDDEN FOR DOCTOR -->
                                         <div v-if="!isDoctor"
-                                            class="bg-amber-50 rounded-xl border border-amber-100 p-3 flex flex-col items-center justify-center shadow-sm">
+                                            class="bg-amber-50 rounded-xl border border-amber-300 p-3 flex flex-col items-center justify-center shadow-sm">
                                             <span
-                                                class="text-[10px] text-amber-500 font-bold uppercase tracking-widest mb-1">Saldo
+                                                class="text-[10px] text-amber-600 font-bold uppercase tracking-widest mb-1">Saldo
                                                 Disponible</span>
                                             <span class="text-xl font-bold"
                                                 :class="remainingWalletBalance < 0 ? 'text-red-600' : 'text-amber-600'">
@@ -268,27 +268,27 @@
 
                                         <!-- 2. Total (Card) - VISIBLE -->
                                         <div
-                                            class="bg-white rounded-xl border border-gray-100 p-3 flex flex-col items-center justify-center shadow-sm">
+                                            class="bg-white rounded-xl border border-gray-300 p-3 flex flex-col items-center justify-center shadow-sm">
                                             <span
-                                                class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Total</span>
+                                                class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Total</span>
                                             <span class="text-xl font-bold text-gray-800" v-if="atencion?.totales">${{
                                                 (atencion.totales.total_atencion || 0).toFixed(2) }}</span>
                                         </div>
 
                                         <!-- 3. Pagado (Card) - VISIBLE -->
                                         <div
-                                            class="bg-emerald-50 rounded-xl border border-emerald-100 p-3 flex flex-col items-center justify-center shadow-sm">
+                                            class="bg-emerald-50 rounded-xl border border-emerald-300 p-3 flex flex-col items-center justify-center shadow-sm">
                                             <span
-                                                class="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mb-1">Pagado</span>
+                                                class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mb-1">Pagado</span>
                                             <span class="text-xl font-bold text-emerald-600" v-if="atencion">${{
                                                 (totalPagado || 0).toFixed(2) }}</span>
                                         </div>
 
                                         <!-- 4. Por Pagar (Card) - HIDDEN FOR DOCTOR -->
                                         <div v-if="!isDoctor"
-                                            class="bg-white rounded-xl border border-gray-100 p-3 flex flex-col items-center justify-center shadow-sm">
+                                            class="bg-white rounded-xl border border-gray-300 p-3 flex flex-col items-center justify-center shadow-sm">
                                             <span
-                                                class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Por
+                                                class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Por
                                                 Pagar</span>
                                             <span class="text-xl font-bold"
                                                 :class="porPagar > 0.01 ? 'text-red-500' : 'text-gray-800'"
@@ -299,7 +299,7 @@
 
                                         <!-- 5. Estado (Card) - HIDDEN FOR DOCTOR -->
                                         <div v-if="!isDoctor"
-                                            class="bg-gray-50 rounded-xl border border-gray-100 p-3 flex flex-col items-center justify-center shadow-sm">
+                                            class="bg-gray-50 rounded-xl border border-gray-300 p-3 flex flex-col items-center justify-center shadow-sm">
                                             <span
                                                 class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Estado
                                                 Global</span>
@@ -333,7 +333,7 @@
                                 </div>
 
                                 <div v-if="(!atencion.validado || isAdmin) && !isDoctor && !editLocked"
-                                    class="bg-blue-50/30 p-4 rounded-xl border border-blue-100 mb-6">
+                                    class="bg-blue-50/30 p-4 rounded-xl border border-blue-300 mb-6">
                                     <h3 class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-3">
                                         Agregar
                                         Nuevo Tratamiento</h3>
@@ -431,7 +431,7 @@
                                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 mt-2">
                                     Tratamientos Aplicados</h3>
                                 <div v-if="atencion.detalles.length > 0"
-                                    class="overflow-hidden border border-gray-200 rounded-lg">
+                                    class="overflow-hidden border border-gray-400 rounded-lg">
                                     <table class="w-full">
                                         <thead class="bg-gray-50">
                                             <tr class="text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -501,7 +501,7 @@
 
                                     <!-- 3. PAYMENTS INPUTS (HIDDEN FOR DOCTOR) -->
                                     <div v-if="!isDoctor"
-                                        class="w-full bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                        class="w-full bg-gray-50 p-4 rounded-xl border border-gray-400">
                                         <div
                                             class="text-xs font-bold text-gray-400 uppercase mb-3 flex items-center gap-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -572,7 +572,7 @@
 
                                     <!-- CLINICAL NOTES / OBSERVATIONS FOR EVERYONE -->
                                     <div
-                                        class="w-full bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex flex-col h-full mt-4">
+                                        class="w-full bg-blue-50/50 p-4 rounded-xl border border-blue-300 flex flex-col h-full mt-4">
                                         <div
                                             class="text-xs font-bold text-blue-500 uppercase mb-3 flex items-center gap-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -584,7 +584,7 @@
                                         </div>
                                         <textarea v-model="atencion.observaciones" @input="debouncedNoteSave"
                                             :disabled="atencion.validado && !isAdmin"
-                                            class="flex-1 w-full bg-white border border-blue-200 rounded-lg p-3 text-sm text-gray-700 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none min-h-[100px]"
+                                            class="flex-1 w-full bg-white border border-blue-400 rounded-lg p-3 text-sm text-gray-700 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none min-h-[100px]"
                                             placeholder="Escriba aquí las observaciones de la consulta..."></textarea>
                                         <div class="mt-2 text-[10px] text-blue-400 text-right">
                                             {{ savingNotes ? 'Guardando...' : 'Se guarda automáticamente' }}
