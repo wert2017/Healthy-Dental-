@@ -3658,6 +3658,7 @@ def create_gasto(
     categoria: str = Form("GENERAL"),
     responsable: Optional[str] = Form(None),
     tipo: str = Form("EGRESO"), # EGRESO, INGRESO
+    fecha: Optional[datetime] = Form(None),
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user)
 ):
@@ -3671,6 +3672,7 @@ def create_gasto(
         categoria=categoria,
         responsable=responsable,
         tipo=tipo,
+        fecha=fecha if fecha is not None else datetime.now(),
         sucursal_id=user.sucursal_id,
         usuario_id=user.id
     )
@@ -3776,14 +3778,6 @@ def update_gasto(
     if data.responsable is not None:
         gasto.responsable = data.responsable
     if data.fecha is not None:
-        # También validar que la nueva fecha no sea de otro día (excepto admin)
-        if user.role != "admin":
-            hoy = datetime.now().date()
-            if data.fecha.date() != hoy:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Solo puedes registrar gastos con fecha de hoy."
-                )
         gasto.fecha = data.fecha
     if data.tipo is not None:
         gasto.tipo = data.tipo
@@ -4051,6 +4045,7 @@ class PagoNominaSchema(BaseModel):
     responsable: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    fecha: Optional[datetime] = None
     
 @app.post("/api/nomina/pagar")
 def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
@@ -4084,7 +4079,7 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
     if Decimal(str(balances["tarjeta"])) < tarjeta_val:
         raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Tarjeta. Disponible: ${balances['tarjeta']}")
         
-    now = datetime.now()
+    now = data.fecha if data.fecha is not None else datetime.now()
     empleado_nombre = "Empleado"
     
     if data.tipo_empleado == 'Doctor':
@@ -4182,6 +4177,7 @@ class PagoNominaSeleccionSchema(BaseModel):
     responsable: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    fecha: Optional[datetime] = None
 
 @app.post("/api/nomina/pagar-seleccion")
 def pagar_nomina_seleccion(data: PagoNominaSeleccionSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
@@ -4209,7 +4205,7 @@ def pagar_nomina_seleccion(data: PagoNominaSeleccionSchema, session: Session = D
     if Decimal(str(balances["tarjeta"])) < tarjeta_val:
         raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Tarjeta. Disponible: ${balances['tarjeta']}")
 
-    now = datetime.now()
+    now = data.fecha if data.fecha is not None else datetime.now()
     empleado_nombre = "Empleado"
     if data.tipo_empleado == 'Doctor':
         doctor = session.get(Doctor, data.empleado_id)
@@ -4276,6 +4272,7 @@ class RetiroSociosSchema(BaseModel):
     descripcion: str
     responsable: Optional[str] = None
     socio_id: int
+    fecha: Optional[datetime] = None
 
 @app.post("/api/nomina/retiro-socios")
 def retiro_socios(data: RetiroSociosSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
@@ -4310,7 +4307,7 @@ def retiro_socios(data: RetiroSociosSchema, session: Session = Depends(get_sessi
         raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Tarjeta. Disponible: ${balances['tarjeta']}")
          
     gasto = Gasto(
-        fecha=datetime.now(),
+        fecha=data.fecha if data.fecha is not None else datetime.now(),
         descripcion=f"Retiro de Socio ({socio.nombre}): {data.descripcion}",
         monto=Decimal(data.monto),
         metodo_pago=data.metodo_pago,

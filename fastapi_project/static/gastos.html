@@ -413,6 +413,11 @@
                 <form @submit.prevent="saveGasto" class="p-6 space-y-4">
                     <div class="grid grid-cols-2 gap-4">
                         <div class="col-span-2">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">{{ form.tipo === 'INGRESO' ? 'Fecha del Ingreso' : 'Fecha del Gasto' }}</label>
+                            <input type="datetime-local" v-model="form.fecha" required
+                                class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div class="col-span-2">
                             <label class="block text-sm font-semibold text-slate-700 mb-1">Descripción / Motivo</label>
                             <input type="text" v-model="form.descripcion" required
                                 class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -493,7 +498,6 @@
                         <input type="datetime-local" v-model="editForm.fecha"
                             class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-400 outline-none"
                             :max="editMaxFecha">
-                        <p v-if="role !== 'admin'" class="text-xs text-slate-400 mt-1">Solo puedes usar la fecha de hoy.</p>
                     </div>
                     <!-- Descripción -->
                     <div>
@@ -830,6 +834,11 @@
                                     <h4 class="text-base font-bold text-slate-800 w-full mb-3 border-b pb-2">Registrar Retiro</h4>
                                     <form @submit.prevent="procesarRetiro" class="space-y-3 text-left">
                                         <div>
+                                            <label class="block text-xs font-semibold text-slate-600 mb-1">Fecha</label>
+                                            <input type="datetime-local" v-model="retiroForm.fecha" required
+                                                class="w-full px-3 py-1.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white">
+                                        </div>
+                                        <div>
                                             <label class="block text-xs font-semibold text-slate-600 mb-1">Socio</label>
                                             <select v-model="retiroForm.socio_id" required
                                                 class="w-full px-3 py-1.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm">
@@ -1073,6 +1082,16 @@
                     return '#334155';
                 });
 
+                const getLocalDatetimeString = () => {
+                    const d = new Date()
+                    const yyyy = d.getFullYear()
+                    const mm = String(d.getMonth() + 1).padStart(2, '0')
+                    const dd = String(d.getDate()).padStart(2, '0')
+                    const hh = String(d.getHours()).padStart(2, '0')
+                    const min = String(d.getMinutes()).padStart(2, '0')
+                    return `${yyyy}-${mm}-${dd}T${hh}:${min}`
+                }
+
                 const showModal = ref(false)
                 const gastos = ref([])
                 const usuarios = ref([])
@@ -1092,7 +1111,8 @@
                     monto: 0,
                     metodo_pago: 'EFECTIVO',
                     categoria: '',
-                    tipo: 'EGRESO'
+                    tipo: 'EGRESO',
+                    fecha: ''
                 })
 
                 // Nomina State
@@ -1209,7 +1229,8 @@
                         monto: 0,
                         metodo_pago: 'EFECTIVO',
                         categoria: categoriasGasto.value[0]?.nombre || 'GENERAL',
-                        tipo: 'EGRESO'
+                        tipo: 'EGRESO',
+                        fecha: getLocalDatetimeString()
                     }
                     showModal.value = true
                 }
@@ -1221,7 +1242,8 @@
                         monto: 0,
                         metodo_pago: 'EFECTIVO',
                         categoria: categoriasGasto.value[0]?.nombre || 'GENERAL',
-                        tipo: 'INGRESO'
+                        tipo: 'INGRESO',
+                        fecha: getLocalDatetimeString()
                     }
                     showModal.value = true
                 }
@@ -1288,7 +1310,8 @@
                     descripcion: 'Retiro de Socios / Utilidad del Mes',
                     metodo_pago: 'EFECTIVO',
                     responsable: '',
-                    socio_id: null
+                    socio_id: null,
+                    fecha: ''
                 })
 
                 const socios = ref([])
@@ -1448,10 +1471,12 @@
                     fetchNominaPendientes()
                     fetchRetirosHistorial()
                     fetchSocios()
+                    retiroForm.value.fecha = getLocalDatetimeString()
                 }
 
                 const procesarNomina = async (empleado, tipo) => {
                     const currentUser = localStorage.getItem('username') || 'Usuario actual';
+                    const fechaLocal = getLocalDatetimeString();
 
                     const htmlContent = `
                         <div class="text-left space-y-4 text-sm">
@@ -1464,8 +1489,8 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block font-medium text-gray-700">Resp. Transacción</label>
-                                    <input type="text" readonly value="${currentUser}" class="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm font-bold text-gray-600">
+                                    <label class="block font-medium text-gray-700">Fecha de Registro</label>
+                                    <input id="swal-fecha" type="datetime-local" value="${fechaLocal}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white">
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
@@ -1535,6 +1560,7 @@
                         },
                         preConfirm: () => {
                             const responsable = document.getElementById('swal-responsable').value;
+                            const fecha = document.getElementById('swal-fecha').value;
                             const sueldoBase = parseFloat(document.getElementById('swal-sueldo-base').value) || 0;
                             const efectivo = parseFloat(document.getElementById('swal-efectivo').value) || 0;
                             const transferencia = parseFloat(document.getElementById('swal-transferencia').value) || 0;
@@ -1567,14 +1593,14 @@
                                 Swal.showValidationMessage(`Hacen falta fondos en Tarjeta. Disponible: $${maxTarjeta.toFixed(2)}`);
                                 return false;
                             }
-                            return { responsable, sueldoBase, efectivo, transferencia, tarjeta, comisiones };
+                            return { responsable, fecha, sueldoBase, efectivo, transferencia, tarjeta, comisiones };
                         }
                     });
 
                     if (!formValues) return;
 
                     try {
-                        const { sueldoBase, efectivo, transferencia, tarjeta, comisiones } = formValues;
+                        const { sueldoBase, efectivo, transferencia, tarjeta, comisiones, fecha } = formValues;
                         await axios.post('/api/nomina/pagar', {
                             empleado_id: empleado.id,
                             tipo_empleado: tipo,
@@ -1584,6 +1610,7 @@
                             transferencia: transferencia,
                             tarjeta: tarjeta,
                             responsable: formValues.responsable,
+                            fecha: fecha ? new Date(fecha).toISOString() : null,
                             start_date: filterNominaStartDate.value || null,
                             end_date: filterNominaEndDate.value || null
                         })
@@ -1627,6 +1654,7 @@
                     const selDetalles = empleado.detalles.filter(d => selIds.includes(d.detalle_id))
                     const totalSel = selDetalles.reduce((s, d) => s + d.comision, 0)
                     const currentUser = localStorage.getItem('username') || 'Usuario actual'
+                    const fechaLocal = getLocalDatetimeString()
 
                     const htmlContent = `
                         <div class="text-left space-y-4 text-sm">
@@ -1637,12 +1665,18 @@
                                     ${selDetalles.map(d => `<p class="text-xs text-slate-500">• ${d.tratamiento} <span class="font-bold text-emerald-600">+$${d.comision.toFixed(2)}</span></p>`).join('')}
                                 </div>
                             </div>
-                            <div>
-                                <label class="block font-medium text-gray-700 mb-1">Responsable</label>
-                                <select id="swal-sel-responsable" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white">
-                                    <option value="">Seleccione un responsable...</option>
-                                    ${usuarios.value.map(u => `<option value="${u.username}" ${u.username === currentUser ? 'selected' : ''}>${u.username}</option>`).join('')}
-                                </select>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block font-medium text-gray-700 mb-1">Responsable</label>
+                                    <select id="swal-sel-responsable" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white">
+                                        <option value="">Seleccione un responsable...</option>
+                                        ${usuarios.value.map(u => `<option value="${u.username}" ${u.username === currentUser ? 'selected' : ''}>${u.username}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block font-medium text-gray-700 mb-1">Fecha de Registro</label>
+                                    <input id="swal-sel-fecha" type="datetime-local" value="${fechaLocal}" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white">
+                                </div>
                             </div>
                             <hr class="border-gray-200">
                             <h4 class="font-bold text-gray-700 uppercase tracking-wide text-xs">Abonar Vía:</h4>
@@ -1675,6 +1709,7 @@
                         width: '32em',
                         preConfirm: () => {
                             const responsable = document.getElementById('swal-sel-responsable').value
+                            const fecha = document.getElementById('swal-sel-fecha').value
                             const efectivo = parseFloat(document.getElementById('swal-sel-efectivo').value) || 0
                             const transferencia = parseFloat(document.getElementById('swal-sel-transferencia').value) || 0
                             const tarjeta = parseFloat(document.getElementById('swal-sel-tarjeta').value) || 0
@@ -1690,7 +1725,7 @@
                             if (efectivo > maxEfectivo + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Efectivo. Disponible: $${maxEfectivo.toFixed(2)}`); return false }
                             if (transferencia > maxTrans + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Banco. Disponible: $${maxTrans.toFixed(2)}`); return false }
                             if (tarjeta > maxTarjeta + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Tarjeta. Disponible: $${maxTarjeta.toFixed(2)}`); return false }
-                            return { responsable, efectivo, transferencia, tarjeta }
+                            return { responsable, fecha, efectivo, transferencia, tarjeta }
                         }
                     })
 
@@ -1705,6 +1740,7 @@
                             transferencia: formValues.transferencia,
                             tarjeta: formValues.tarjeta,
                             responsable: formValues.responsable,
+                            fecha: formValues.fecha ? new Date(formValues.fecha).toISOString() : null,
                             start_date: filterNominaStartDate.value || null,
                             end_date: filterNominaEndDate.value || null
                         })
@@ -1730,6 +1766,7 @@
                     const currentUser = localStorage.getItem('username') || 'Usuario actual';
                     const label = tipo === 'Doctor' ? 'Doctores' : 'Empleados';
                     const prefijo = tipo === 'Doctor' ? 'Dr(a).' : '';
+                    const fechaLocal = getLocalDatetimeString();
 
                     const htmlContent = `
                         <div class="text-left space-y-4 text-sm">
@@ -1740,12 +1777,18 @@
                                     ${empleados.map(e => `<p class="text-xs text-slate-500">• ${prefijo} ${e.nombre}: <span class="font-bold text-emerald-600">$${e.comisiones_acumuladas.toFixed(2)}</span></p>`).join('')}
                                 </div>
                             </div>
-                            <div>
-                                <label class="block font-medium text-gray-700 mb-1">Responsable</label>
-                                <select id="swal-all-responsable" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white">
-                                    <option value="">Seleccione un responsable...</option>
-                                    ${usuarios.value.map(u => `<option value="${u.username}" ${u.username === currentUser ? 'selected' : ''}>${u.username}</option>`).join('')}
-                                </select>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block font-medium text-gray-700 mb-1">Responsable</label>
+                                    <select id="swal-all-responsable" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white">
+                                        <option value="">Seleccione un responsable...</option>
+                                        ${usuarios.value.map(u => `<option value="${u.username}" ${u.username === currentUser ? 'selected' : ''}>${u.username}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block font-medium text-gray-700 mb-1">Fecha de Registro</label>
+                                    <input id="swal-all-fecha" type="datetime-local" value="${fechaLocal}" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white">
+                                </div>
                             </div>
                             <hr class="border-gray-200">
                             <h4 class="font-bold text-gray-700 uppercase tracking-wide text-xs">Abonar Vía:</h4>
@@ -1778,6 +1821,7 @@
                         width: '34em',
                         preConfirm: () => {
                             const responsable = document.getElementById('swal-all-responsable').value;
+                            const fecha = document.getElementById('swal-all-fecha').value;
                             const efectivo = parseFloat(document.getElementById('swal-all-efectivo').value) || 0;
                             const transferencia = parseFloat(document.getElementById('swal-all-transferencia').value) || 0;
                             const tarjeta = parseFloat(document.getElementById('swal-all-tarjeta').value) || 0;
@@ -1794,7 +1838,7 @@
                             if (efectivo > maxEfectivo + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Efectivo. Disponible: $${maxEfectivo.toFixed(2)}`); return false; }
                             if (transferencia > maxTrans + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Banco. Disponible: $${maxTrans.toFixed(2)}`); return false; }
                             if (tarjeta > maxTarjeta + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Tarjeta. Disponible: $${maxTarjeta.toFixed(2)}`); return false; }
-                            return { responsable, efectivo, transferencia, tarjeta };
+                            return { responsable, fecha, efectivo, transferencia, tarjeta };
                         }
                     });
 
@@ -1847,6 +1891,7 @@
                                 transferencia: tr,
                                 tarjeta: ta,
                                 responsable: formValues.responsable,
+                                fecha: formValues.fecha ? new Date(formValues.fecha).toISOString() : null,
                                 start_date: filterNominaStartDate.value || null,
                                 end_date: filterNominaEndDate.value || null
                             });
@@ -1891,7 +1936,8 @@
                             metodo_pago: retiroForm.value.metodo_pago,
                             descripcion: retiroForm.value.descripcion,
                             responsable: retiroForm.value.responsable,
-                            socio_id: retiroForm.value.socio_id
+                            socio_id: retiroForm.value.socio_id,
+                            fecha: retiroForm.value.fecha ? new Date(retiroForm.value.fecha).toISOString() : null
                         })
 
                         Swal.fire('¡Retiro Registrado!', `Utilidad retirada exitosamente.`, 'success')
@@ -1914,13 +1960,16 @@
                         formData.append('categoria', form.value.categoria)
                         formData.append('responsable', form.value.responsable)
                         formData.append('tipo', form.value.tipo)
+                        if (form.value.fecha) {
+                            formData.append('fecha', new Date(form.value.fecha).toISOString())
+                        }
 
                         await axios.post('/api/gastos', formData)
                         showModal.value = false
                         fetchGastos()
                         fetchBalances()
                         const savedTipo = form.value.tipo
-                        form.value = { descripcion: '', responsable: '', monto: 0, metodo_pago: 'EFECTIVO', categoria: categoriasGasto.value[0]?.nombre || 'GENERAL', tipo: savedTipo }
+                        form.value = { descripcion: '', responsable: '', monto: 0, metodo_pago: 'EFECTIVO', categoria: categoriasGasto.value[0]?.nombre || 'GENERAL', tipo: savedTipo, fecha: getLocalDatetimeString() }
                         Swal.fire('¡Éxito!', savedTipo === 'INGRESO' ? 'Ingreso registrado correctamente' : 'Gasto registrado correctamente', 'success')
                     } catch (e) {
                         Swal.fire('Error', e.response?.data?.detail || e.message, 'error')
