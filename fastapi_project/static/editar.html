@@ -584,7 +584,7 @@
                                         </div>
                                         <textarea v-model="atencion.observaciones" @input="debouncedNoteSave"
                                             :disabled="atencion.validado && !isAdmin"
-                                            class="flex-1 w-full bg-white border border-blue-200 rounded-lg p-3 text-sm text-gray-700 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none min-h-[200px]"
+                                            class="flex-1 w-full bg-white border border-blue-200 rounded-lg p-3 text-sm text-gray-700 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none min-h-[100px]"
                                             placeholder="Escriba aquí las observaciones de la consulta..."></textarea>
                                         <div class="mt-2 text-[10px] text-blue-400 text-right">
                                             {{ savingNotes ? 'Guardando...' : 'Se guarda automáticamente' }}
