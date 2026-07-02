@@ -3788,7 +3788,12 @@ def update_gasto(
     return gasto
 
 @app.get("/api/gastos/balances")
-def get_gastos_balances(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+def get_gastos_balances(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
     """
     Calculates Strict Financial Balances:
     Caja Fija = Pagos(EF) + Recargas(EFECTIVO) - Gastos(EFECTIVO)
@@ -3799,14 +3804,25 @@ def get_gastos_balances(session: Session = Depends(get_session), user: User = De
     if not user.sucursal_id:
          return {"efectivo": 0, "transferencia": 0, "tarjeta": 0, "abono_aplicado": 0}
     
+    start_dt = None
+    end_dt = None
+    if start_date:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    if end_date:
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+
     # --- 1. INCOME FROM PAYMENTS (Atenciones) ---
-    ingresos_query = session.exec(
+    ingresos_query_select = (
         select(Pago.forma_pago, func.sum(Pago.monto))
         .join(Atencion)
         .where(Atencion.sucursal_id == user.sucursal_id)
-        .group_by(Pago.forma_pago)
-    ).all()
-    
+    )
+    if start_dt:
+        ingresos_query_select = ingresos_query_select.where(Pago.fecha >= start_dt)
+    if end_dt:
+        ingresos_query_select = ingresos_query_select.where(Pago.fecha < end_dt)
+
+    ingresos_query = session.exec(ingresos_query_select.group_by(Pago.forma_pago)).all()
     ingresos_crudos = {row[0]: float(row[1]) for row in ingresos_query}
     
     # Map to standard concepts
@@ -3818,13 +3834,17 @@ def get_gastos_balances(session: Session = Depends(get_session), user: User = De
     }
     
     # --- 2. INCOME FROM WALLET RECHARGES (Recargas Directas) ---
-    recargas_query = session.exec(
+    recargas_query_select = (
         select(HistorialAbono.metodo_pago, func.sum(HistorialAbono.monto))
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
         .where(Paciente.sucursal_id == user.sucursal_id)
-        .group_by(HistorialAbono.metodo_pago)
-    ).all()
-    
+    )
+    if start_dt:
+        recargas_query_select = recargas_query_select.where(HistorialAbono.fecha >= start_dt)
+    if end_dt:
+        recargas_query_select = recargas_query_select.where(HistorialAbono.fecha < end_dt)
+
+    recargas_query = session.exec(recargas_query_select.group_by(HistorialAbono.metodo_pago)).all()
     recargas = {}
     for row in recargas_query:
         method = (row[0] or "").upper()
@@ -3836,26 +3856,34 @@ def get_gastos_balances(session: Session = Depends(get_session), user: User = De
     ingresos["TARJETA"] += recargas.get("TARJETA", 0)
 
     # --- 3. EXPENSES (Gastos) ---
-    egresos_query = session.exec(
+    egresos_query_select = (
         select(Gasto.metodo_pago, func.sum(Gasto.monto))
         .where(Gasto.sucursal_id == user.sucursal_id)
         .where((Gasto.tipo == "EGRESO") | (Gasto.tipo == None))
-        .group_by(Gasto.metodo_pago)
-    ).all()
-    
+    )
+    if start_dt:
+        egresos_query_select = egresos_query_select.where(Gasto.fecha >= start_dt)
+    if end_dt:
+        egresos_query_select = egresos_query_select.where(Gasto.fecha < end_dt)
+
+    egresos_query = session.exec(egresos_query_select.group_by(Gasto.metodo_pago)).all()
     egresos = {}
     for row in egresos_query:
         method = (row[0] or "").upper()
         egresos[method] = egresos.get(method, 0.0) + float(row[1])
 
     # --- 3.5. GENERAL INCOMES (Otros Ingresos) ---
-    otros_ingresos_query = session.exec(
+    otros_ingresos_query_select = (
         select(Gasto.metodo_pago, func.sum(Gasto.monto))
         .where(Gasto.sucursal_id == user.sucursal_id)
         .where(Gasto.tipo == "INGRESO")
-        .group_by(Gasto.metodo_pago)
-    ).all()
+    )
+    if start_dt:
+        otros_ingresos_query_select = otros_ingresos_query_select.where(Gasto.fecha >= start_dt)
+    if end_dt:
+        otros_ingresos_query_select = otros_ingresos_query_select.where(Gasto.fecha < end_dt)
 
+    otros_ingresos_query = session.exec(otros_ingresos_query_select.group_by(Gasto.metodo_pago)).all()
     otros_ingresos = {}
     for row in otros_ingresos_query:
         method = (row[0] or "").upper()
