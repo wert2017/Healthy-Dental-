@@ -31,6 +31,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 from wtforms import SelectField, DecimalField
 import wtforms
+import wtforms.validators
 
 import locale
 try:
@@ -449,6 +450,9 @@ class DoctorAdmin(ModelView, model=Doctor):
         "max_citas_simultaneas": {
             "label": "Máximo Citas Simultáneas",
             "default": 2
+        },
+        "sucursal": {
+            "validators": [wtforms.validators.DataRequired(message="La sucursal es obligatoria")]
         }
     }
 
