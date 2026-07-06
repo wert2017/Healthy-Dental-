@@ -11,15 +11,6 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        // Force clear cache and storage for debugging
-        if (!sessionStorage.getItem('cache_cleared_v2')) {
-            localStorage.removeItem('token') // Ops, careful with token. Let's not remove token.
-            // Just log it
-            console.log('App Version: v2.0 - Transactional Payments Fix')
-            sessionStorage.setItem('cache_cleared_v2', 'true')
-        }
-    </script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <style>
