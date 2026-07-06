@@ -1912,6 +1912,7 @@ class PaymentSync(BaseModel):
     tarjeta: float
     abono: float
     metodo_excedente: Optional[str] = None
+    concepto_excedente: Optional[str] = None
     confirmar_abono: bool = False
 
 @app.post("/api/atenciones/{atencion_id}/pagos/sync")
@@ -1976,7 +1977,7 @@ def sync_pagos(atencion_id: int, data: PaymentSync, session: Session = Depends(g
             atencion_id=atencion_id,
             monto=surplus,
             metodo_pago=metodo_final,
-            concepto=f"Excedente de pago en Atención #{atencion_id}",
+            concepto=data.concepto_excedente or f"Excedente de pago en Atención #{atencion_id}",
             fecha=atencion.fecha,
         )
         session.add(historial)
