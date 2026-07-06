@@ -1353,6 +1353,8 @@ def get_global_atenciones(
             selectinload(Atencion.detalles).selectinload(AtencionDetalle.tratamiento),
             selectinload(Atencion.pagos)
         )
+        if user.sucursal_id:
+            query = query.where(Atencion.sucursal_id == user.sucursal_id)
 
         # Apply search filter at DB level so pagination doesn't hide results
         if search:
@@ -2261,6 +2263,8 @@ def get_bonos_report(
         select(HistorialAbono)
         .join(Paciente) # Ensure connection to Paciente
     )
+    if user.sucursal_id:
+        query = query.where(Paciente.sucursal_id == user.sucursal_id)
 
     if search:
         search_val = f"%{search}%"
