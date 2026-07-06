@@ -3437,6 +3437,109 @@ def recargar_billetera(paciente_id: int, data: RecargaSchema, session: Session =
     session.commit()
     return {"message": "Recarga exitosa", "nuevo_saldo": paciente.saldo_favor}
 
+@app.get("/api/pacientes/{paciente_id}/estado-cuenta")
+def get_paciente_estado_cuenta(
+    paciente_id: int, 
+    start_date: str = None,
+    end_date: str = None,
+    session: Session = Depends(get_session), 
+    user: User = Depends(get_current_user)
+):
+    if user.role not in ["admin", "recepcion"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+
+    paciente = session.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+        
+    if user.sucursal_id and paciente.sucursal_id != user.sucursal_id:
+         raise HTTPException(status_code=403, detail="El paciente pertenece a otra sucursal")
+
+    query_atenciones = select(Atencion).where(Atencion.paciente_id == paciente_id).options(
+        selectinload(Atencion.detalles).selectinload(AtencionDetalle.tratamiento),
+        selectinload(Atencion.pagos)
+    )
+    atenciones = session.exec(query_atenciones).all()
+
+    query_abonos = select(HistorialAbono).where(HistorialAbono.paciente_id == paciente_id)
+    abonos = session.exec(query_abonos).all()
+
+    transactions = []
+
+    # 1. Add Attentions (Cargos)
+    for a in atenciones:
+        total_valor = sum([d.total_calculado for d in a.detalles])
+        tratamientos_str = ", ".join([d.tratamiento.nombre for d in a.detalles if d.tratamiento]) or "Consulta General"
+        transactions.append({
+            "id": f"cargo-{a.id}",
+            "fecha": a.fecha,
+            "tipo": "CARGO",
+            "monto": float(total_valor),
+            "metodo": "—",
+            "concepto": f"Atención #{a.id} — Tratamientos: {tratamientos_str}",
+            "atencion_id": a.id,
+            "pagado": float(sum([p.monto for p in a.pagos])),
+            "pendiente": float(total_valor - sum([p.monto for p in a.pagos]))
+        })
+
+        # 2. Add Payments
+        for p in a.pagos:
+            transactions.append({
+                "id": f"pago-{p.id}",
+                "fecha": p.fecha,
+                "tipo": "PAGO",
+                "monto": float(p.monto),
+                "metodo": p.forma_pago,
+                "concepto": f"Pago a Consulta #{a.id}" + (f" (ref: {p.referencia})" if p.referencia else ""),
+                "atencion_id": a.id,
+                "pagado": 0.0,
+                "pendiente": 0.0
+            })
+
+    # 3. Add Abonos
+    for ab in abonos:
+        transactions.append({
+            "id": f"abono-{ab.id}",
+            "fecha": ab.fecha,
+            "tipo": "ABONO_RECIBIDO",
+            "monto": float(ab.monto),
+            "metodo": ab.metodo_pago,
+            "concepto": ab.concepto or "Abono / Carga a Billetera",
+            "atencion_id": ab.atencion_id,
+            "pagado": 0.0,
+            "pendiente": 0.0
+        })
+
+    # Sort transactions chronologically (newest first)
+    transactions.sort(key=lambda x: x["fecha"], reverse=True)
+
+    # Date filtering
+    if start_date:
+        try:
+            sd = datetime.strptime(start_date, "%Y-%m-%d")
+            transactions = [t for t in transactions if t["fecha"] >= sd]
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            ed = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            transactions = [t for t in transactions if t["fecha"] < ed]
+        except ValueError:
+            pass
+
+    cxc_total = sum([a.total_atencion_valor - sum([p.monto for p in a.pagos]) for a in atenciones])
+    
+    return {
+        "paciente": {
+            "id": paciente.id,
+            "nombre": f"{paciente.nombres} {paciente.apellidos}",
+            "identificacion": paciente.numero_identificacion,
+            "saldo_favor": float(paciente.saldo_favor),
+            "cxc_total": float(max(Decimal("0.0"), cxc_total))
+        },
+        "transacciones": transactions
+    }
+
 @app.get("/recepcion/imprimir/{atencion_id}", response_class=HTMLResponse)
 def view_imprimir_atencion(atencion_id: int):
     with open("static/imprimir.html", "r", encoding="utf-8") as f:

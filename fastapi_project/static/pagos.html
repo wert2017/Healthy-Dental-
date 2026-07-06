@@ -164,6 +164,11 @@
                     class="py-4 px-6 border-b-2 font-medium text-sm focus:outline-none transition-colors">
                     Reporte de Abonos
                 </button>
+                <button @click="currentView = 'estado_cuenta'"
+                    :class="currentView === 'estado_cuenta' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                    class="py-4 px-6 border-b-2 font-medium text-sm focus:outline-none transition-colors">
+                    Estado de Cuenta Paciente
+                </button>
             </div>
 
             <!-- Search Bar (Only for Consultas) -->
@@ -376,6 +381,164 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ESTADO DE CUENTA PACIENTE VIEW -->
+            <div v-show="currentView === 'estado_cuenta'" class="animate-fade-in">
+                <!-- Search & Filters -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+                    <div class="flex flex-col md:flex-row gap-4 items-end">
+                        <!-- Patient Predict Search Input -->
+                        <div class="relative flex-1">
+                            <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Buscar Paciente</label>
+                            <div class="relative">
+                                <input type="text" v-model="searchPacienteQuery" @input="debouncedSearchPacientes"
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all text-gray-800"
+                                    placeholder="Escribe el nombre del paciente a buscar...">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </span>
+                            </div>
+                            <!-- Search Autocomplete Dropdown -->
+                            <div v-if="searchPacienteResults.length > 0"
+                                class="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto divide-y divide-gray-100">
+                                <a href="#" v-for="p in searchPacienteResults" :key="p.id"
+                                    @click.prevent="selectPacienteEstadoCuenta(p)"
+                                    class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-slate-50 transition-colors font-medium">
+                                    {{ p.nombres }} {{ p.apellidos }} <span class="text-xs text-gray-400 font-normal">({{ p.numero_identificacion || 'Sin Cédula' }})</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Date range filters -->
+                        <div class="flex items-center gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Desde</label>
+                                <input type="date" v-model="startDateEC" @change="fetchEstadoCuenta"
+                                    class="px-3 py-2 bg-slate-50 border border-gray-100 rounded-xl text-sm text-gray-600 outline-none focus:ring-2 focus:ring-blue-100">
+                            </div>
+                            <span class="text-gray-400 text-xs mt-6">al</span>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Hasta</label>
+                                <input type="date" v-model="endDateEC" @change="fetchEstadoCuenta"
+                                    class="px-3 py-2 bg-slate-50 border border-gray-100 rounded-xl text-sm text-gray-600 outline-none focus:ring-2 focus:ring-blue-100">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Patient Summary & Transactions -->
+                <div v-if="selectedECPaciente">
+                    <!-- Summary Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Paciente Seleccionado</p>
+                                <p class="text-lg font-bold text-gray-800">{{ selectedECPaciente.nombre }}</p>
+                                <p class="text-xs text-gray-400 mt-1">Cédula/ID: {{ selectedECPaciente.identificacion || '—' }}</p>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl">
+                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Saldo a Favor (Billetera)</p>
+                                <p class="text-3xl font-bold text-emerald-600">${{ selectedECPaciente.saldo_favor.toFixed(2) }}</p>
+                            </div>
+                            <div class="bg-emerald-50 p-3 rounded-xl">
+                                <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Deuda Pendiente (CxC)</p>
+                                <p class="text-3xl font-bold text-rose-600">${{ selectedECPaciente.cxc_total.toFixed(2) }}</p>
+                            </div>
+                            <div class="bg-rose-50 p-3 rounded-xl">
+                                <svg class="w-8 h-8 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transactions Table -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="px-6 py-4 bg-slate-50 border-b border-gray-100">
+                            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wider">Historial Financiero</h3>
+                        </div>
+
+                        <div v-if="loadingEC" class="p-20 text-center">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                            <p class="mt-4 text-gray-500">Cargando estado de cuenta...</p>
+                        </div>
+
+                        <table v-else class="w-full text-left">
+                            <thead class="bg-slate-50/50 border-b border-gray-100">
+                                <tr>
+                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Fecha</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Operación</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Concepto / Detalle</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Método</th>
+                                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr v-for="t in ecTransacciones" :key="t.id" class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                                        {{ formatDate(t.fecha) }}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-center whitespace-nowrap">
+                                        <span v-if="t.tipo === 'CARGO'"
+                                            class="inline-flex px-2 py-1 bg-rose-50 text-rose-700 border border-rose-100 rounded-lg text-xs font-bold">
+                                            🟥 CARGO (Consulta)
+                                        </span>
+                                        <span v-else-if="t.tipo === 'PAGO'"
+                                            class="inline-flex px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-bold">
+                                            🟩 PAGO realizado
+                                        </span>
+                                        <span v-else-if="t.tipo === 'ABONO_RECIBIDO'"
+                                            class="inline-flex px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold">
+                                            🟨 ABONO a Billetera
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-800 font-medium">
+                                        {{ t.concepto }}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-center whitespace-nowrap">
+                                        <span v-if="t.metodo !== '—'" class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold">
+                                            {{ getPaymentLabel(t.metodo) }}
+                                        </span>
+                                        <span v-else class="text-gray-400">—</span>
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-right font-bold whitespace-nowrap"
+                                        :class="{'text-rose-600': t.tipo === 'CARGO', 'text-emerald-600': t.tipo === 'PAGO', 'text-amber-600': t.tipo === 'ABONO_RECIBIDO'}">
+                                        {{ t.tipo === 'CARGO' ? '-' : '+' }}${{ t.monto.toFixed(2) }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div v-if="!loadingEC && ecTransacciones.length === 0" class="p-10 text-center text-gray-500">
+                            No hay transacciones registradas para este paciente en el período seleccionado.
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-400 italic">
+                    Busca y selecciona un paciente para visualizar su historial financiero.
+                </div>
+            </div>
         </main>
 
         <!-- Payment Modal -->
@@ -584,6 +747,15 @@
 
                 // New logic: single new payment form
                 const newPayment = ref({ forma_pago: 'EF', monto: '' })
+ 
+                // Estado de Cuenta
+                const searchPacienteQuery = ref('')
+                const searchPacienteResults = ref([])
+                const selectedECPaciente = ref(null)
+                const ecTransacciones = ref([])
+                const loadingEC = ref(false)
+                const startDateEC = ref('')
+                const endDateEC = ref('')
 
                 const token = localStorage.getItem('token')
                 if (!token) window.location.href = '/login'
@@ -816,6 +988,61 @@
                     window.location.href = '/login'
                 }
 
+                // Estado de Cuenta methods
+                const searchPacientes = async () => {
+                    if (!searchPacienteQuery.value || searchPacienteQuery.value.trim().length < 2) {
+                        searchPacienteResults.value = []
+                        return
+                    }
+                    try {
+                        const res = await axios.get(`/api/pacientes?q=${encodeURIComponent(searchPacienteQuery.value)}`)
+                        searchPacienteResults.value = res.data
+                    } catch (error) {
+                        console.error('Error al buscar pacientes:', error)
+                    }
+                }
+
+                const debouncedSearchPacientes = (() => {
+                    let timeout = null
+                    return () => {
+                        clearTimeout(timeout)
+                        timeout = setTimeout(searchPacientes, 300)
+                    }
+                })()
+
+                const selectPacienteEstadoCuenta = (p) => {
+                    selectedECPaciente.value = {
+                        id: p.id,
+                        nombre: `${p.nombres} ${p.apellidos}`,
+                        identificacion: p.numero_identificacion,
+                        saldo_favor: parseFloat(p.saldo_favor) || 0,
+                        cxc_total: 0
+                    }
+                    searchPacienteQuery.value = `${p.nombres} ${p.apellidos}`
+                    searchPacienteResults.value = []
+                    fetchEstadoCuenta()
+                }
+
+                const fetchEstadoCuenta = async () => {
+                    if (!selectedECPaciente.value) return
+                    loadingEC.value = true
+                    try {
+                        const params = {}
+                        if (startDateEC.value) params.start_date = startDateEC.value
+                        if (endDateEC.value) params.end_date = endDateEC.value
+                        
+                        const res = await axios.get(`/api/pacientes/${selectedECPaciente.value.id}/estado-cuenta`, { params })
+                        selectedECPaciente.value.saldo_favor = res.data.paciente.saldo_favor
+                        selectedECPaciente.value.cxc_total = res.data.paciente.cxc_total
+                        ecTransacciones.value = res.data.transacciones
+                    } catch (error) {
+                        console.error('Error al cargar estado de cuenta:', error)
+                        Swal.fire('Error', 'No se pudo cargar el estado de cuenta.', 'error')
+                    } finally {
+                        loadingEC.value = false
+                    }
+                }
+
                 onMounted(fetchAtenciones)
 
                 return {
@@ -827,7 +1054,10 @@
                     startDate, endDate, startDateBonos, endDateBonos,
                     currentPage, currentPageBonos, changePage, changePageBonos,
                     fetchAtenciones, debouncedFilter, debouncedFilterBonos, openModal, addPayment,
-                    formatDate, formatDateTime, logout, getBilletera, getDoctorName, getPaymentLabel, isActive, fetchBonos
+                    formatDate, formatDateTime, logout, getBilletera, getDoctorName, getPaymentLabel, isActive, fetchBonos,
+                    // Estado de Cuenta
+                    searchPacienteQuery, searchPacienteResults, selectedECPaciente, ecTransacciones, loadingEC,
+                    startDateEC, endDateEC, debouncedSearchPacientes, selectPacienteEstadoCuenta, fetchEstadoCuenta
                 }
             }
         }).mount('#app')
