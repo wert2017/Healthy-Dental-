@@ -58,6 +58,14 @@ async def fix_proxy_headers(request: Request, call_next):
     if request.headers.get("x-forwarded-proto") == "https":
         request.scope["scheme"] = "https"
     response = await call_next(request)
+    
+    # Prevent browser caching of HTML pages so updates are immediately visible
+    content_type = response.headers.get("content-type", "").lower()
+    if "text/html" in content_type:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        
     return response
 
 # --- ROUTERS ---
