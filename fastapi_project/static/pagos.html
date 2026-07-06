@@ -324,17 +324,11 @@
                     <table v-else class="w-full text-left">
                         <thead class="bg-slate-50 border-b border-gray-100">
                             <tr>
-                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Fecha /
-                                    ID</th>
-                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Paciente
-                                </th>
-                                <th
-                                    class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">
-                                    Método</th>
-                                <th
-                                    class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">
-                                    Monto
-                                    Abono</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Fecha / ID</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Paciente</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Concepto</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Método</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Monto Abono</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
@@ -346,6 +340,9 @@
                                 <td class="px-6 py-4 text-sm font-medium text-gray-800">
                                     {{ b.paciente }}
                                     <div class="text-[10px] text-gray-500 font-normal italic">Por: {{ b.usuario }}</div>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600">
+                                    {{ b.concepto || 'Abono General' }}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-center">
                                     <span

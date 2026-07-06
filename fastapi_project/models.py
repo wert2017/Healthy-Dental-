@@ -215,6 +215,7 @@ class HistorialAbono(SQLModel, table=True):
     fecha: datetime = Field(default_factory=datetime.now)
     monto: Decimal = Field(max_digits=10, decimal_places=2)
     metodo_pago: str # EFECTIVO, TRANSFERENCIA, TARJETA
+    concepto: Optional[str] = Field(default="Abono General")
 
     paciente: Optional["Paciente"] = Relationship(back_populates="historial_abonos")
     usuario: Optional["User"] = Relationship()

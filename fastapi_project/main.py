@@ -1815,7 +1815,8 @@ def delete_detalle(
                     paciente_id=paciente.id,
                     usuario_id=user.id,
                     monto=Decimal(str(exceso)),
-                    metodo_pago="ABONO"
+                    metodo_pago="ABONO",
+                    concepto="Saldo a favor por tratamiento eliminado"
                 )
                 session.add(abono)
 
@@ -1975,6 +1976,7 @@ def sync_pagos(atencion_id: int, data: PaymentSync, session: Session = Depends(g
             atencion_id=atencion_id,
             monto=surplus,
             metodo_pago=metodo_final,
+            concepto=f"Excedente de pago en Atención #{atencion_id}",
             fecha=atencion.fecha,
         )
         session.add(historial)
@@ -2178,6 +2180,7 @@ def add_atencion_pago(atencion_id: int, data: dict, session: Session = Depends(g
                     usuario_id=user.id if user else None,
                     monto=Decimal(credit_to_wallet),
                     metodo_pago=metodo_excedente,
+                    concepto=f"Excedente de pago en Atención #{atencion_id}",
                     fecha=atencion.fecha,
                 )
                 session.add(historial)
@@ -2294,6 +2297,7 @@ def get_bonos_report(
             "paciente": f"{b.paciente.nombres} {b.paciente.apellidos}",
             "monto": b.monto,
             "metodo_pago": b.metodo_pago,
+            "concepto": getattr(b, "concepto", "Abono General") or "Abono General",
             "usuario": b.usuario.username if b.usuario else "Desconocido"
         })
         
@@ -3404,6 +3408,7 @@ def get_tratamientos_activos(paciente_id: int, session: Session = Depends(get_se
 class RecargaSchema(BaseModel):
     monto: float
     metodo_pago: str = "EFECTIVO" # EFECTIVO, TRANSFERENCIA, TARJETA
+    concepto: Optional[str] = "Abono General"
 
 @app.post("/api/pacientes/{paciente_id}/recargar")
 def recargar_billetera(paciente_id: int, data: RecargaSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
@@ -3422,6 +3427,7 @@ def recargar_billetera(paciente_id: int, data: RecargaSchema, session: Session =
         usuario_id=user.id if user else None,
         monto=Decimal(data.monto),
         metodo_pago=data.metodo_pago,
+        concepto=data.concepto or "Abono General",
         fecha=datetime.now()
     )
     session.add(historial)

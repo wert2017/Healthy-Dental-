@@ -294,7 +294,7 @@
                                 class="w-full border border-gray-300 rounded-lg px-4 py-3 text-2xl font-bold text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
                                 placeholder="0.00" autofocus>
                         </div>
-                        <div class="mb-6">
+                        <div class="mb-4">
                             <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Método de Pago</label>
                             <select v-model="metodoPagoRecarga"
                                 class="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:ring-2 focus:ring-amber-500 outline-none bg-white">
@@ -302,6 +302,12 @@
                                 <option value="TRANSFERENCIA">🏦 Transferencia</option>
                                 <option value="TARJETA">💳 Tarjeta / Voucher</option>
                             </select>
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Concepto / Motivo</label>
+                            <input type="text" v-model="conceptoRecarga"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:ring-2 focus:ring-amber-500 outline-none bg-white"
+                                placeholder="Ej: Abono General, Ortodoncia...">
                         </div>
 
                         <div class="flex gap-3">
@@ -852,6 +858,7 @@
                 const selectedTratamientoId = ref("")
                 const montoRecarga = ref(0)
                 const metodoPagoRecarga = ref("EFECTIVO")
+                const conceptoRecarga = ref("Abono General")
                 const isReportModalOpen = ref(false)
                 const directRecharges = ref(0)
 
@@ -1074,6 +1081,7 @@
                     selectedPaciente.value = null
                     montoRecarga.value = 0
                     metodoPagoRecarga.value = "EFECTIVO"
+                    conceptoRecarga.value = "Abono General"
                 }
 
                 const procesarRecarga = async () => {
@@ -1081,7 +1089,8 @@
                     try {
                         const res = await axios.post(`/api/pacientes/${selectedPaciente.value.id}/recargar`, {
                             monto: montoRecarga.value,
-                            metodo_pago: metodoPagoRecarga.value
+                            metodo_pago: metodoPagoRecarga.value,
+                            concepto: conceptoRecarga.value || "Abono General"
                         })
                         Swal.fire('Recarga Exitosa', `Se han recargado: $${montoRecarga.value}`, 'success')
                         closeRecargaModal()
@@ -1188,6 +1197,7 @@
                     showRecargaModal,
                     montoRecarga,
                     metodoPagoRecarga,
+                    conceptoRecarga,
                     openRecargaModal,
                     closeRecargaModal,
                     procesarRecarga,
