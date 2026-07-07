@@ -1278,7 +1278,7 @@
                         }
                         // Incluir fecha solo si fue modificada
                         if (editForm.value.fecha) {
-                            payload.fecha = new Date(editForm.value.fecha).toISOString()
+                            payload.fecha = editForm.value.fecha
                         }
                         await axios.put(`/api/gastos/${editingGastoId.value}`, payload)
                         showEditModal.value = false
@@ -1607,7 +1607,7 @@
                             transferencia: transferencia,
                             tarjeta: tarjeta,
                             responsable: formValues.responsable,
-                            fecha: fecha ? new Date(fecha).toISOString() : null,
+                            fecha: fecha || null,
                             start_date: filterNominaStartDate.value || null,
                             end_date: filterNominaEndDate.value || null
                         })
@@ -1737,7 +1737,7 @@
                             transferencia: formValues.transferencia,
                             tarjeta: formValues.tarjeta,
                             responsable: formValues.responsable,
-                            fecha: formValues.fecha ? new Date(formValues.fecha).toISOString() : null,
+                            fecha: formValues.fecha || null,
                             start_date: filterNominaStartDate.value || null,
                             end_date: filterNominaEndDate.value || null
                         })
@@ -1888,7 +1888,7 @@
                                 transferencia: tr,
                                 tarjeta: ta,
                                 responsable: formValues.responsable,
-                                fecha: formValues.fecha ? new Date(formValues.fecha).toISOString() : null,
+                                fecha: formValues.fecha || null,
                                 start_date: filterNominaStartDate.value || null,
                                 end_date: filterNominaEndDate.value || null
                             });
@@ -1934,7 +1934,7 @@
                             descripcion: retiroForm.value.descripcion,
                             responsable: retiroForm.value.responsable,
                             socio_id: retiroForm.value.socio_id,
-                            fecha: retiroForm.value.fecha ? new Date(retiroForm.value.fecha).toISOString() : null
+                            fecha: retiroForm.value.fecha || null
                         })
 
                         Swal.fire('¡Retiro Registrado!', `Utilidad retirada exitosamente.`, 'success')
@@ -1958,7 +1958,7 @@
                         formData.append('responsable', form.value.responsable)
                         formData.append('tipo', form.value.tipo)
                         if (form.value.fecha) {
-                            formData.append('fecha', new Date(form.value.fecha).toISOString())
+                            formData.append('fecha', form.value.fecha)
                         }
 
                         await axios.post('/api/gastos', formData)
