@@ -2811,12 +2811,11 @@ def reporte_resumen_financiero(
         })
     ingresos_por_doctor.sort(key=lambda x: x["total"], reverse=True)
 
-    # 2. Total payments actually collected (forma_pago != 'AB')
+    # 2. Total payments actually collected
     q_pagos = (
         select(Pago)
         .join(Atencion)
         .where(Atencion.sucursal_id == user.sucursal_id)
-        .where(Pago.forma_pago != 'AB')
     )
     if start_dt:
         q_pagos = q_pagos.where(Pago.fecha >= start_dt)
@@ -3042,7 +3041,6 @@ def get_distribucion_utilidades(
             select(func.sum(Pago.monto))
             .join(Atencion)
             .where(Atencion.sucursal_id == user.sucursal_id)
-            .where(Pago.forma_pago != 'AB')
             .where(Pago.fecha >= start_dt)
             .where(Pago.fecha < end_dt)
         )
