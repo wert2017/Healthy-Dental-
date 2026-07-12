@@ -4460,7 +4460,7 @@ def retiro_socios(data: RetiroSociosSchema, session: Session = Depends(get_sessi
          
     gasto = Gasto(
         fecha=data.fecha if data.fecha is not None else datetime.now(),
-        descripcion=f"Retiro de Socio ({socio.nombre}): {data.descripcion}",
+        descripcion=data.descripcion.strip() or "Retiro de Socio",
         monto=Decimal(data.monto),
         metodo_pago=data.metodo_pago,
         categoria="RETIRO SOCIOS",
