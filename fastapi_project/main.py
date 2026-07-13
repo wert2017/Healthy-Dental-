@@ -2729,8 +2729,8 @@ def reporte_financiero_completo(session: Session = Depends(get_session), user: U
 
 @app.get("/api/reportes/resumen-financiero")
 def reporte_resumen_financiero(
-    start_date: str = None,
-    end_date: str = None,
+    anio: Optional[int] = Query(None),
+    mes: Optional[int] = Query(None),
     doctor_id: Optional[int] = None,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user)
@@ -2745,8 +2745,24 @@ def reporte_resumen_financiero(
     if user.role not in ["admin", "recepcion"]:
         raise HTTPException(status_code=403, detail="No tiene permisos")
 
-    start_dt = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
-    end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1) if end_date else None
+    check_year = anio
+    check_month = mes
+
+    if anio and mes:
+        start_dt = datetime(anio, mes, 1)
+        if mes == 12:
+            end_dt = datetime(anio + 1, 1, 1)
+        else:
+            end_dt = datetime(anio, mes + 1, 1)
+    else:
+        today = datetime.now()
+        start_dt = datetime(today.year, today.month, 1)
+        if today.month == 12:
+            end_dt = datetime(today.year + 1, 1, 1)
+        else:
+            end_dt = datetime(today.year, today.month + 1, 1)
+        check_year = today.year
+        check_month = today.month
 
     # 1. Load AtencionDetalles filtered by date, sucursal, optionally doctor
     q_detalles = (
@@ -2862,15 +2878,6 @@ def reporte_resumen_financiero(
     distribucion_socios = []
     total_retiros = 0.0
     total_correspondiente = 0.0
-
-    # Determine if it's a single month request
-    check_year = None
-    check_month = None
-    if start_dt and end_dt:
-        real_end = end_dt - timedelta(days=1)
-        if start_dt.year == real_end.year and start_dt.month == real_end.month:
-            check_year = start_dt.year
-            check_month = start_dt.month
 
     balance_clinica = float(total_cobrado - total_gastos)
 

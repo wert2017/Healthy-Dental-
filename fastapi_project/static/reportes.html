@@ -331,16 +331,31 @@
             <!-- Filtros -->
             <div class="filter-bar">
                 <div class="filter-group">
-                    <label>Fecha inicio</label>
-                    <input type="date" v-model="resStartDate">
+                    <label>Año</label>
+                    <select v-model="resYear" class="select-input" style="padding:6px 12px; border-radius:6px; border:1px solid #d1d5db; background:#fff; font-size: 13px;">
+                        <option v-for="y in yearsList" :key="y" :value="y">{{ y }}</option>
+                    </select>
                 </div>
                 <div class="filter-group">
-                    <label>Fecha fin</label>
-                    <input type="date" v-model="resEndDate">
+                    <label>Mes</label>
+                    <select v-model="resMonth" class="select-input" style="padding:6px 12px; border-radius:6px; border:1px solid #d1d5db; background:#fff; font-size: 13px;">
+                        <option :value="1">Enero</option>
+                        <option :value="2">Febrero</option>
+                        <option :value="3">Marzo</option>
+                        <option :value="4">Abril</option>
+                        <option :value="5">Mayo</option>
+                        <option :value="6">Junio</option>
+                        <option :value="7">Julio</option>
+                        <option :value="8">Agosto</option>
+                        <option :value="9">Septiembre</option>
+                        <option :value="10">Octubre</option>
+                        <option :value="11">Noviembre</option>
+                        <option :value="12">Diciembre</option>
+                    </select>
                 </div>
-                <button class="btn btn-primary" @click="loadResumen" :disabled="isLoadingRes">
+                <button class="btn btn-primary" @click="loadResumen" :disabled="isLoadingRes" style="align-self: flex-end;">
                     <div v-if="isLoadingRes" class="spin"></div>
-                    {{ isLoadingRes ? 'Cargando...' : 'Generar' }}
+                    Generar
                 </button>
             </div>
 
@@ -617,8 +632,10 @@
             const tab = ref('resultados')
 
             // Results report
-            const resStartDate  = ref('')
-            const resEndDate    = ref('')
+            const currentYear = new Date().getFullYear()
+            const currentMonth = new Date().getMonth() + 1
+            const resYear       = ref(currentYear)
+            const resMonth      = ref(currentMonth)
             const resumen       = ref({ ingresos: null, gastos: null, balance: 0 })
             const isLoadingRes  = ref(false)
 
@@ -631,8 +648,6 @@
             const isLoadingCuadre = ref(false)
 
             // Socio Report
-            const currentYear = new Date().getFullYear()
-            const currentMonth = new Date().getMonth() + 1
             const socioYear = ref(currentYear)
             const socioMonth = ref(currentMonth)
             const sociosData = ref(null)
@@ -743,9 +758,10 @@
             const loadResumen = async () => {
                 isLoadingRes.value = true
                 try {
-                    const params = {}
-                    if (resStartDate.value) params.start_date = resStartDate.value
-                    if (resEndDate.value)   params.end_date   = resEndDate.value
+                    const params = {
+                        anio: resYear.value,
+                        mes: resMonth.value
+                    }
                     const res = await axios.get('/api/reportes/resumen-financiero', { params })
                     resumen.value = res.data
                 } catch (err) {
@@ -931,7 +947,7 @@
             return {
                 role, currentUser, sucursalNombre, branchColorStyle, branchTextColor, logout, tab,
                 cuadreStartDate, cuadreEndDate, cuadreData, isLoadingCuadre, loadCuadre, verTotalRealCaja,
-                resStartDate, resEndDate, resumen, isLoadingRes,
+                resYear, resMonth, resumen, isLoadingRes,
                 isExporting, isImporting,
                 sucursalesList, selectedImportSucursal,
                 fmt, loadResumen,
