@@ -139,7 +139,20 @@ def on_startup():
         "ALTER TABLE gasto ADD COLUMN socio_id INTEGER REFERENCES socio(id);",
         "ALTER TABLE doctor ADD COLUMN max_citas_simultaneas INTEGER DEFAULT 2;",
         "ALTER TABLE gasto ADD COLUMN tipo VARCHAR DEFAULT 'EGRESO';",
+        """
+        CREATE TABLE IF NOT EXISTS fotopaciente (
+            id SERIAL PRIMARY KEY,
+            paciente_id INTEGER REFERENCES paciente(id) ON DELETE CASCADE,
+            imagen_url VARCHAR NOT NULL,
+            categoria VARCHAR DEFAULT 'EXTRAORAL_FRONTAL',
+            etapa VARCHAR DEFAULT 'INICIAL',
+            fecha_toma VARCHAR DEFAULT '',
+            notas TEXT,
+            fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
     ]
+
     for sql in migrations:
         try:
             with Session(engine) as session:
@@ -369,46 +382,53 @@ async def upload_paciente_foto(
     notas: Optional[str] = Form(None),
     session: Session = Depends(get_session)
 ):
-    paciente = session.get(Paciente, paciente_id)
-    if not paciente:
-        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    try:
+        paciente = session.get(Paciente, paciente_id)
+        if not paciente:
+            raise HTTPException(status_code=404, detail="Paciente no encontrado")
 
-    upload_dir = os.path.join("static", "uploads", "fotos")
-    os.makedirs(upload_dir, exist_ok=True)
+        upload_dir = os.path.join("static", "uploads", "fotos")
+        os.makedirs(upload_dir, exist_ok=True)
 
-    ext = os.path.splitext(file.filename)[1] or ".jpg"
-    filename = f"p{paciente_id}_{int(time.time())}_{secrets.token_hex(4)}{ext}"
-    filepath = os.path.join(upload_dir, filename)
+        orig_filename = getattr(file, 'filename', None) or "foto.jpg"
+        ext = os.path.splitext(orig_filename)[1] or ".jpg"
+        filename = f"p{paciente_id}_{int(time.time())}_{secrets.token_hex(4)}{ext}"
+        filepath = os.path.join(upload_dir, filename)
 
-    contents = await file.read()
-    with open(filepath, "wb") as f:
-        f.write(contents)
+        contents = await file.read()
+        with open(filepath, "wb") as f:
+            f.write(contents)
 
-    imagen_url = f"/static/uploads/fotos/{filename}"
-    
-    nueva_foto = FotoPaciente(
-        paciente_id=paciente_id,
-        imagen_url=imagen_url,
-        categoria=categoria,
-        etapa=etapa,
-        fecha_toma=fecha_toma or datetime.now().strftime("%Y-%m-%d"),
-        notas=notas
-    )
-    session.add(nueva_foto)
-    session.commit()
-    session.refresh(nueva_foto)
+        imagen_url = f"/static/uploads/fotos/{filename}"
+        
+        nueva_foto = FotoPaciente(
+            paciente_id=paciente_id,
+            imagen_url=imagen_url,
+            categoria=categoria,
+            etapa=etapa,
+            fecha_toma=fecha_toma or datetime.now().strftime("%Y-%m-%d"),
+            notas=notas
+        )
+        session.add(nueva_foto)
+        session.commit()
+        session.refresh(nueva_foto)
 
-    return {
-        "ok": True,
-        "foto": {
-            "id": nueva_foto.id,
-            "imagen_url": nueva_foto.imagen_url,
-            "categoria": nueva_foto.categoria,
-            "etapa": nueva_foto.etapa,
-            "fecha_toma": nueva_foto.fecha_toma,
-            "notas": nueva_foto.notas
+        return {
+            "ok": True,
+            "foto": {
+                "id": nueva_foto.id,
+                "imagen_url": nueva_foto.imagen_url,
+                "categoria": nueva_foto.categoria,
+                "etapa": nueva_foto.etapa,
+                "fecha_toma": nueva_foto.fecha_toma,
+                "notas": nueva_foto.notas
+            }
         }
-    }
+    except Exception as e:
+        session.rollback()
+        print(f"ERROR al subir foto paciente {paciente_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al guardar foto: {str(e)}")
+
 
 @app.delete("/api/fotos/{foto_id}")
 def delete_paciente_foto(foto_id: int, session: Session = Depends(get_session)):

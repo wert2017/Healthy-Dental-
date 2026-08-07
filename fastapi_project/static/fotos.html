@@ -550,18 +550,18 @@
                     formData.append('fecha_toma', uploadForm.value.fecha_toma);
                     formData.append('notas', uploadForm.value.notas || '');
 
-                    await axios.post(`/api/pacientes/${selectedPatient.value.id}/fotos`, formData, {
-                        headers: { 'Content-Type': 'multipart/form-data' }
-                    });
+                    await axios.post(`/api/pacientes/${selectedPatient.value.id}/fotos`, formData);
 
                     closeUploadModal();
                     alert('📸 ¡Fotografía guardada exitosamente!');
                     await fetchPatientPhotos(selectedPatient.value.id);
                 } catch (e) {
-                    alert('Error al guardar la fotografía');
+                    const errDetail = e.response?.data?.detail || e.message || 'Error de conexión';
+                    alert('Error al guardar la fotografía: ' + errDetail);
                 } finally {
                     uploading.value = false;
                 }
+
             }
 
 
