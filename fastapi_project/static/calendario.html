@@ -19,6 +19,8 @@
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/locales/es.global.min.js"></script>
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     
     <style>
         body {
@@ -176,39 +178,45 @@
                 <!-- Fila 2: Navegación -->
                 <div class="flex flex-wrap gap-x-1 gap-y-0.5 py-0.5">
                     <a href="/recepcion" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                        Recepción
+                        <i class="fa-solid fa-desktop mr-1"></i> Recepción
                     </a>
                     <a href="/static/pagos.html" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                        CxC / Abonos
+                        <i class="fa-solid fa-credit-card mr-1"></i> CxC / Abonos
                     </a>
                     <a href="/static/calendario.html" class="px-2 py-0.5 rounded-md transition-colors text-xs bg-indigo-50 text-indigo-700 font-bold">
-                        Calendario 📅
+                        <i class="fa-solid fa-calendar-days mr-1"></i> Calendario
                     </a>
                     <a v-if="role !== 'doctor'" href="/cuadre" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                        Cuadre Diario
+                        <i class="fa-solid fa-calculator mr-1"></i> Cuadre Diario
                     </a>
-                    <a v-if="role !== 'doctor'" href="/gastos" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">Egresos/Gastos</a>
+                    <a v-if="role !== 'doctor'" href="/gastos" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+                        <i class="fa-solid fa-money-bill-wave mr-1"></i> Egresos/Gastos
+                    </a>
                     <a v-if="role === 'admin'" href="/admin" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                        Administración
+                        <i class="fa-solid fa-sliders mr-1"></i> Administración
                     </a>
                     <a v-if="role !== 'doctor'" href="/admin/paciente/list" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                        Pacientes
+                        <i class="fa-solid fa-users mr-1"></i> Pacientes
                     </a>
                     <a v-if="role === 'admin'" href="/static/reportes.html" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                        Reportes
+                        <i class="fa-solid fa-chart-line mr-1"></i> Reportes
                     </a>
                     <a v-if="role === 'admin'" href="/static/ingresos.html" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                        Ingresos
+                        <i class="fa-solid fa-hand-holding-dollar mr-1"></i> Ingresos
                     </a>
                     <a v-if="role !== 'doctor'" href="/static/doctores.html" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                        Doctores
+                        <i class="fa-solid fa-user-doctor mr-1"></i> Doctores
                     </a>
                     <a v-if="role !== 'doctor'" href="/static/ortodoncia.html" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                        Ortodoncia
+                        <i class="fa-solid fa-tooth mr-1"></i> Ortodoncia
                     </a>
                     <a v-if="role !== 'recepcion'" href="/recepcion/historial" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                        Historial
+                        <i class="fa-solid fa-clock-rotate-left mr-1"></i> Historial
                     </a>
+                    <a href="/static/fotos.html" class="px-2 py-0.5 rounded-md transition-colors text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+                        <i class="fa-solid fa-camera mr-1"></i> Fotos Clínicas
+                    </a>
+
                 </div>
             </div>
         </header>

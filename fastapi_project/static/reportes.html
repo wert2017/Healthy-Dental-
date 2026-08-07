@@ -10,6 +10,8 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background: #cbd5e0; color: #111827; font-size: 13px; line-height: 1.5; }
@@ -125,18 +127,21 @@
             </div>
         </div>
         <nav class="nav">
-            <a href="/recepcion">Recepción</a>
-            <a href="/static/pagos.html">CxC / Abonos</a>
-            <a href="/static/calendario.html">Calendario 📅</a>
-            <a v-if="role !== 'doctor'" href="/gastos">Egresos/Gastos</a>
-            <a v-if="role === 'admin'" href="/admin">Administración</a>
-            <a v-if="role !== 'doctor'" href="/admin/paciente/list">Pacientes</a>
-            <a v-if="role === 'admin'" href="/static/reportes.html" class="active">Reportes</a>
-            <a v-if="role === 'admin'" href="/static/ingresos.html">Ingresos</a>
-            <a v-if="role !== 'doctor'" href="/static/doctores.html">Doctores</a>
-            <a v-if="role !== 'doctor'" href="/static/ortodoncia.html">Ortodoncia</a>
-            <a v-if="role !== 'recepcion'" href="/recepcion/historial">Historial</a>
+            <a href="/recepcion"><i class="fa-solid fa-desktop mr-1"></i> Recepción</a>
+            <a href="/static/pagos.html"><i class="fa-solid fa-credit-card mr-1"></i> CxC / Abonos</a>
+            <a href="/static/calendario.html"><i class="fa-solid fa-calendar-days mr-1"></i> Calendario</a>
+            <a v-if="role !== 'doctor'" href="/cuadre"><i class="fa-solid fa-calculator mr-1"></i> Cuadre Diario</a>
+            <a v-if="role !== 'doctor'" href="/gastos"><i class="fa-solid fa-money-bill-wave mr-1"></i> Egresos/Gastos</a>
+            <a v-if="role === 'admin'" href="/admin"><i class="fa-solid fa-sliders mr-1"></i> Administración</a>
+            <a v-if="role !== 'doctor'" href="/admin/paciente/list"><i class="fa-solid fa-users mr-1"></i> Pacientes</a>
+            <a v-if="role === 'admin'" href="/static/reportes.html" class="active"><i class="fa-solid fa-chart-line mr-1"></i> Reportes</a>
+            <a v-if="role === 'admin'" href="/static/ingresos.html"><i class="fa-solid fa-hand-holding-dollar mr-1"></i> Ingresos</a>
+            <a v-if="role !== 'doctor'" href="/static/doctores.html"><i class="fa-solid fa-user-doctor mr-1"></i> Doctores</a>
+            <a v-if="role !== 'doctor'" href="/static/ortodoncia.html"><i class="fa-solid fa-tooth mr-1"></i> Ortodoncia</a>
+            <a v-if="role !== 'recepcion'" href="/recepcion/historial"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Historial</a>
+            <a href="/static/fotos.html"><i class="fa-solid fa-camera mr-1"></i> Fotos Clínicas</a>
         </nav>
+
     </header>
 
     <div class="page">
