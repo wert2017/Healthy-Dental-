@@ -413,7 +413,7 @@
 </div>
 
 <script>
-    const { createApp, ref, computed, onMounted } = Vue;
+    const { createApp, ref, computed, watch, onMounted } = Vue;
 
     createApp({
         setup() {
@@ -468,9 +468,17 @@
                 window.location.href = '/login';
             }
 
-            async function fetchPacientes() {
+            let searchTimeout = null;
+            watch(searchQuery, (newVal) => {
+                if (searchTimeout) clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    fetchPacientes(newVal);
+                }, 250);
+            });
+
+            async function fetchPacientes(q = '') {
                 try {
-                    const res = await axios.get('/api/fotos/pacientes-recientes');
+                    const res = await axios.get('/api/fotos/pacientes-recientes', { params: { q: q } });
                     pacientes.value = res.data;
                 } catch (e) {
                     console.error(e);
@@ -478,14 +486,9 @@
             }
 
             const filteredPacientes = computed(() => {
-                if (!searchQuery.value) return pacientes.value;
-                const q = searchQuery.value.toLowerCase().trim();
-                return pacientes.value.filter(p => 
-                    (p.nombre_mostrar && p.nombre_mostrar.toLowerCase().includes(q)) ||
-                    (p.historia_clinica && p.historia_clinica.toLowerCase().includes(q)) ||
-                    (p.numero_identificacion && p.numero_identificacion.toLowerCase().includes(q))
-                );
+                return pacientes.value;
             });
+
 
             async function selectPatient(p) {
                 selectedPatient.value = p;

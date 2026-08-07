@@ -323,11 +323,31 @@ def fotos_page():
     return FileResponse("static/fotos.html")
 
 @app.get("/api/fotos/pacientes-recientes")
-def get_pacientes_recientes_fotos(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+def get_pacientes_recientes_fotos(
+    q: str = "",
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
     statement = select(Paciente).where(Paciente.activo == True)
     if user.sucursal_id:
         statement = statement.where(Paciente.sucursal_id == user.sucursal_id)
-    pacientes = session.exec(statement.order_by(Paciente.fecha_creacion.desc()).limit(30)).all()
+    
+    if q and q.strip():
+        terms = q.strip().split()
+        for term in terms:
+            t = f"%{term}%"
+            statement = statement.where(
+                (Paciente.nombres.ilike(t)) |
+                (Paciente.apellidos.ilike(t)) |
+                (Paciente.numero_identificacion.ilike(t)) |
+                (Paciente.historia_clinica.ilike(t)) |
+                (Paciente.razon_social.ilike(t))
+            )
+        statement = statement.order_by(Paciente.nombres.asc()).limit(50)
+    else:
+        statement = statement.order_by(Paciente.fecha_creacion.desc()).limit(50)
+
+    pacientes = session.exec(statement).all()
     
     result = []
     for p in pacientes:
@@ -341,6 +361,7 @@ def get_pacientes_recientes_fotos(session: Session = Depends(get_session), user:
             "total_fotos": fotos_count,
         })
     return result
+
 
 @app.get("/api/pacientes/{paciente_id}/fotos")
 def get_paciente_fotos(paciente_id: int, session: Session = Depends(get_session)):
