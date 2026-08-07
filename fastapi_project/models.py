@@ -65,7 +65,9 @@ class Paciente(SQLModel, table=True):
     tratamientos_en_curso: List["TratamientoEnCurso"] = Relationship(back_populates="paciente", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     historial_abonos: List["HistorialAbono"] = Relationship(back_populates="paciente", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     citas: List["Cita"] = Relationship(back_populates="paciente", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
-    
+    fotos: List["FotoPaciente"] = Relationship(back_populates="paciente", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+
+
     @property
     def nombre_mostrar(self):
         if self.tipo_identificacion == 'RUC' and self.razon_social:
@@ -74,6 +76,23 @@ class Paciente(SQLModel, table=True):
 
     def __str__(self):
         return self.nombre_mostrar
+
+
+class FotoPaciente(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    paciente_id: int = Field(foreign_key="paciente.id")
+    imagen_url: str
+    categoria: str = Field(default="EXTRAORAL_FRONTAL")
+    etapa: str = Field(default="INICIAL")
+    fecha_toma: str = Field(default="")
+    notas: Optional[str] = None
+    fecha_registro: datetime = Field(default_factory=datetime.now)
+
+    paciente: Optional[Paciente] = Relationship(back_populates="fotos")
+
+    def __str__(self):
+        return f"Foto #{self.id} (Paciente {self.paciente_id})"
+
 
 
 class Tratamiento(SQLModel, table=True):

@@ -10,7 +10,7 @@ except AttributeError:
 from fastapi import FastAPI, Depends, HTTPException, Query, status, Request, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import engine, create_db_and_tables, get_session
-from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto, Socio, SocioParticipacion, Cita, GoogleCalendarConfig
+from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto, Socio, SocioParticipacion, Cita, GoogleCalendarConfig, FotoPaciente
 from sqlmodel import Field, Session, SQLModel, select, create_engine, Relationship
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -303,6 +303,131 @@ def admin_inventario_page():
 @app.get("/doctor/dashboard", response_class=HTMLResponse)
 def doctor_dashboard_page():
      return FileResponse("static/doctor_dashboard.html") 
+
+@app.get("/fotos", response_class=HTMLResponse)
+@app.get("/static/fotos.html", response_class=HTMLResponse)
+def fotos_page():
+    return FileResponse("static/fotos.html")
+
+@app.get("/api/fotos/pacientes-recientes")
+def get_pacientes_recientes_fotos(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    statement = select(Paciente).where(Paciente.activo == True)
+    if user.sucursal_id:
+        statement = statement.where(Paciente.sucursal_id == user.sucursal_id)
+    pacientes = session.exec(statement.order_by(Paciente.fecha_creacion.desc()).limit(30)).all()
+    
+    result = []
+    for p in pacientes:
+        fotos_count = len(p.fotos) if p.fotos else 0
+        result.append({
+            "id": p.id,
+            "historia_clinica": p.historia_clinica,
+            "nombre_mostrar": p.nombre_mostrar,
+            "numero_identificacion": p.numero_identificacion,
+            "telefono": p.telefono,
+            "total_fotos": fotos_count,
+        })
+    return result
+
+@app.get("/api/pacientes/{paciente_id}/fotos")
+def get_paciente_fotos(paciente_id: int, session: Session = Depends(get_session)):
+    paciente = session.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    
+    fotos = session.exec(select(FotoPaciente).where(FotoPaciente.paciente_id == paciente_id).order_by(FotoPaciente.fecha_registro.desc())).all()
+    
+    return {
+        "paciente": {
+            "id": paciente.id,
+            "nombre_mostrar": paciente.nombre_mostrar,
+            "historia_clinica": paciente.historia_clinica,
+            "numero_identificacion": paciente.numero_identificacion,
+            "telefono": paciente.telefono,
+        },
+        "fotos": [
+            {
+                "id": f.id,
+                "imagen_url": f.imagen_url,
+                "categoria": f.categoria,
+                "etapa": f.etapa,
+                "fecha_toma": f.fecha_toma or f.fecha_registro.strftime("%Y-%m-%d"),
+                "notas": f.notas,
+                "fecha_registro": f.fecha_registro.strftime("%Y-%m-%d %H:%M"),
+            }
+            for f in fotos
+        ]
+    }
+
+@app.post("/api/pacientes/{paciente_id}/fotos")
+async def upload_paciente_foto(
+    paciente_id: int,
+    file: UploadFile = File(...),
+    categoria: str = Form("EXTRAORAL_FRONTAL"),
+    etapa: str = Form("INICIAL"),
+    fecha_toma: str = Form(""),
+    notas: Optional[str] = Form(None),
+    session: Session = Depends(get_session)
+):
+    paciente = session.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+
+    upload_dir = os.path.join("static", "uploads", "fotos")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    ext = os.path.splitext(file.filename)[1] or ".jpg"
+    filename = f"p{paciente_id}_{int(time.time())}_{secrets.token_hex(4)}{ext}"
+    filepath = os.path.join(upload_dir, filename)
+
+    contents = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    imagen_url = f"/static/uploads/fotos/{filename}"
+    
+    nueva_foto = FotoPaciente(
+        paciente_id=paciente_id,
+        imagen_url=imagen_url,
+        categoria=categoria,
+        etapa=etapa,
+        fecha_toma=fecha_toma or datetime.now().strftime("%Y-%m-%d"),
+        notas=notas
+    )
+    session.add(nueva_foto)
+    session.commit()
+    session.refresh(nueva_foto)
+
+    return {
+        "ok": True,
+        "foto": {
+            "id": nueva_foto.id,
+            "imagen_url": nueva_foto.imagen_url,
+            "categoria": nueva_foto.categoria,
+            "etapa": nueva_foto.etapa,
+            "fecha_toma": nueva_foto.fecha_toma,
+            "notas": nueva_foto.notas
+        }
+    }
+
+@app.delete("/api/fotos/{foto_id}")
+def delete_paciente_foto(foto_id: int, session: Session = Depends(get_session)):
+    foto = session.get(FotoPaciente, foto_id)
+    if not foto:
+        raise HTTPException(status_code=404, detail="Foto no encontrada")
+    
+    try:
+        if foto.imagen_url.startswith("/static/"):
+            rel_path = foto.imagen_url.lstrip("/")
+            if os.path.exists(rel_path):
+                os.remove(rel_path)
+    except Exception:
+        pass
+
+    session.delete(foto)
+    session.commit()
+    return {"ok": True}
+
 
 
 class SafeDecimalField(DecimalField):

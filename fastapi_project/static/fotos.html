@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fotografía Clínica - Clínica HD</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; color: #0f172a; font-size: 14px; line-height: 1.5; }
+
+        /* TOPBAR */
+        .topbar { background: #ffffff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 50; padding: 0 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .topbar-content { max-width: 1300px; margin: 0 auto; display: flex; flex-direction: column; }
+        .topbar-header { display: flex; justify-content: space-between; align-items: center; height: 52px; border-bottom: 1px solid #f1f5f9; }
+        .topbar-brand { font-size: 16px; font-weight: 800; color: #1e40af; display: flex; align-items: center; gap: 8px; }
+        .topbar-brand img { height: 28px; }
+        .nav { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; padding: 8px 0; overflow-x: auto; }
+        .nav a { padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; color: #64748b; text-decoration: none; white-space: nowrap; transition: all 0.15s; }
+        .nav a:hover { background: #f1f5f9; color: #0f172a; }
+        .nav a.active { background: #eff6ff; color: #2563eb; }
+        .nav a.exit { color: #ef4444; }
+
+        /* CONTAINER */
+        .page { max-width: 1300px; margin: 0 auto; padding: 24px 20px 48px; }
+        
+        .hero-banner {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff; border-radius: 16px; padding: 24px; margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(30, 60, 114, 0.15);
+        }
+        .hero-title { font-size: 22px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+        .hero-subtitle { color: rgba(255,255,255,0.8); font-size: 13px; margin-top: 4px; }
+
+        /* CARDS */
+        .card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); margin-bottom: 20px; }
+
+        /* SEARCH INPUT */
+        .search-lg {
+            width: 100%; border: 2px solid #cbd5e1; border-radius: 30px; padding: 12px 20px;
+            font-size: 15px; outline: none; transition: border-color 0.2s; font-family: inherit;
+        }
+        .search-lg:focus { border-color: #2563eb; }
+
+        /* ACTION BUTTONS */
+        .btn-action {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 14px 24px; border-radius: 30px; font-size: 15px; font-weight: 700;
+            border: none; cursor: pointer; color: #fff; transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; text-decoration: none;
+        }
+        @media (min-width: 640px) { .btn-action { width: auto; } }
+        .btn-action:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.15); }
+        .btn-camera { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .btn-gallery { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
+
+        /* PATIENT LIST ITEM */
+        .patient-item {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px;
+            cursor: pointer; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center;
+        }
+        .patient-item:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1); }
+
+        /* PHOTO GRID */
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+        .photo-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+        .photo-img-box { height: 200px; background: #f8fafc; overflow: hidden; position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .photo-img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+        .photo-img-box:hover img { transform: scale(1.05); }
+
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+        .badge-etapa { position: absolute; top: 10px; left: 10px; background: rgba(15, 23, 42, 0.85); color: #fff; backdrop-filter: blur(4px); }
+        .badge-cat { position: absolute; top: 10px; right: 10px; background: #2563eb; color: #fff; }
+
+        .compare-check {
+            position: absolute; bottom: 10px; left: 10px; background: rgba(255,255,255,0.95);
+            padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #0f172a;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 6px; cursor: pointer;
+        }
+
+        /* MODALS */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+            z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-box { background: #fff; border-radius: 16px; width: 100%; max-width: 540px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-box-lg { max-width: 900px; }
+
+        [v-cloak] { display: none !important; }
+    </style>
+</head>
+<body>
+<div id="app" v-cloak>
+    
+    <!-- TOPBAR -->
+    <header class="topbar">
+        <div class="topbar-content">
+            <div class="topbar-header">
+                <div class="topbar-brand">
+                    <img src="/static/logo.png" alt="Logo" onerror="this.style.display='none'">
+                    <span>Clínica HD</span>
+                </div>
+                <div class="nav-user">
+                    <span class="text-xs font-semibold text-slate-600 mr-2"><i class="fa-solid fa-user mr-1"></i> {{ username }}</span>
+                    <button @click="logout" style="border:none; background:none; color:#ef4444; font-weight:700; cursor:pointer; font-size:12px;">Salir</button>
+                </div>
+            </div>
+            <nav class="nav">
+                <a href="/recepcion"><i class="fa-solid fa-desktop mr-1"></i> Recepción</a>
+                <a href="/static/fotos.html" class="active"><i class="fa-solid fa-camera mr-1"></i> 📷 Fotos Clínicas</a>
+                <a href="/static/pagos.html"><i class="fa-solid fa-credit-card mr-1"></i> Pagos</a>
+                <a href="/static/calendario.html"><i class="fa-solid fa-calendar-days mr-1"></i> Citas</a>
+                <a v-if="role !== 'doctor'" href="/cuadre"><i class="fa-solid fa-calculator mr-1"></i> Cuadre</a>
+                <a v-if="role !== 'doctor'" href="/gastos"><i class="fa-solid fa-money-bill-wave mr-1"></i> Gastos</a>
+                <a v-if="role !== 'doctor'" href="/admin/paciente/list"><i class="fa-solid fa-users mr-1"></i> Pacientes</a>
+                <a v-if="role === 'admin'" href="/static/reportes.html"><i class="fa-solid fa-chart-line mr-1"></i> Reportes</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- MAIN PAGE CONTENT -->
+    <main class="page">
+
+        <!-- HERO BANNER -->
+        <div class="hero-banner">
+            <div class="hero-title">
+                <i class="fa-solid fa-camera-retro"></i>
+                <span>Módulo de Fotografía Clínica</span>
+            </div>
+            <p class="hero-subtitle">Registro fotográfico y seguimiento de evolución para ortodoncia y estética dental.</p>
+        </div>
+
+        <!-- VISTA 1: BÚSQUEDA Y SELECCIÓN DE PACIENTE (SI NO HAY PACIENTE SELECCIONADO) -->
+        <div v-if="!selectedPatient">
+            
+            <div class="card">
+                <label class="font-bold text-slate-700 text-base mb-2 block">
+                    <i class="fa-solid fa-search text-blue-600 mr-1"></i> Buscar Paciente para Tomar / Ver Fotografías:
+                </label>
+                <input type="text" 
+                       v-model="searchQuery" 
+                       class="search-lg" 
+                       placeholder="Escribe el nombre, apellido, cédula o historia clínica..." 
+                       autofocus>
+            </div>
+
+            <!-- RESULTADOS O PACIENTES RECIENTES -->
+            <div>
+                <h3 class="font-bold text-slate-700 text-lg mb-3">
+                    <i class="fa-solid fa-users text-blue-600 mr-2"></i>
+                    {{ searchQuery ? 'Resultados de Búsqueda' : 'Pacientes Registrados' }}
+                </h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div v-for="p in filteredPacientes" :key="p.id" class="patient-item" @click="selectPatient(p)">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="bg-slate-100 text-slate-700 text-xs font-bold px-2 py-0.5 rounded">HC: {{ p.historia_clinica }}</span>
+                                <span class="bg-blue-50 text-blue-700 text-xs font-bold px-2 py-0.5 rounded" v-if="p.total_fotos !== undefined">
+                                    📸 {{ p.total_fotos }} fotos
+                                </span>
+                            </div>
+                            <h4 class="font-bold text-slate-900 text-base">{{ p.nombre_mostrar }}</h4>
+                            <p class="text-xs text-slate-500"><i class="fa-solid fa-id-card mr-1"></i> CI: {{ p.numero_identificacion }} | 📱 {{ p.telefono || 'Sin teléfono' }}</p>
+                        </div>
+                        <button class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 font-bold flex items-center justify-center border-0 cursor-pointer">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+
+                    <div v-if="filteredPacientes.length === 0" class="col-span-full bg-white p-8 rounded-xl text-center text-slate-500">
+                        <i class="fa-solid fa-user-slash text-3xl mb-2 block"></i>
+                        No se encontraron pacientes con "{{ searchQuery }}".
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA 2: GALERÍA Y CAPTURA DEDICADA DEL PACIENTE SELECCIONADO -->
+        <div v-else>
+            
+            <!-- Botón Volver -->
+            <button @click="selectedPatient = null; patientPhotos = [];" class="mb-4 text-sm font-semibold text-slate-600 bg-white hover:bg-slate-50 border border-slate-300 px-4 py-2 rounded-full cursor-pointer inline-flex items-center gap-2">
+                <i class="fa-solid fa-arrow-left"></i> Volver a Buscar Paciente
+            </button>
+
+            <!-- Patient Header Card -->
+            <div class="card bg-slate-900 text-white border-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-2xl font-bold">{{ selectedPatient.nombre_mostrar }}</h2>
+                        <span class="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">HC: {{ selectedPatient.historia_clinica }}</span>
+                    </div>
+                    <p class="text-slate-400 text-sm mt-1">
+                        <i class="fa-solid fa-id-card mr-1"></i> CI/RUC: {{ selectedPatient.numero_identificacion }} | 📱 Tel: {{ selectedPatient.telefono || 'No registrado' }}
+                    </p>
+                </div>
+                <div>
+                    <span class="bg-amber-400 text-slate-900 font-bold px-4 py-2 rounded-full text-sm">
+                        📸 {{ patientPhotos.length }} Fotos Registradas
+                    </span>
+                </div>
+            </div>
+
+            <!-- BOTONES GIGANTES DE CAPTURA / CARGA -->
+            <div class="card text-center">
+                <h3 class="font-bold text-slate-700 text-base mb-4">
+                    <i class="fa-solid fa-circle-plus text-green-600 mr-1"></i> Añadir Nueva Fotografía Clínica
+                </h3>
+
+                <div class="flex flex-col sm:flex-row justify-center gap-4">
+                    <!-- Botón Cámara Móvil Nativa -->
+                    <button class="btn-action btn-camera" @click="triggerCamera">
+                        <i class="fa-solid fa-camera text-xl"></i> 📸 TOMAR FOTO CON CÁMARA (CELULAR)
+                    </button>
+                    <!-- Botón Archivo PC -->
+                    <button class="btn-action btn-gallery" @click="triggerGallery">
+                        <i class="fa-solid fa-folder-open text-xl"></i> 📁 SUBIR DESDE EQUIPO / GALERÍA
+                    </button>
+                </div>
+
+                <!-- Hidden file inputs -->
+                <input type="file" ref="cameraInput" accept="image/*" capture="environment" class="hidden" @change="onFilePicked">
+                <input type="file" ref="galleryInput" accept="image/*" class="hidden" @change="onFilePicked">
+            </div>
+
+            <!-- BARRA DE FILTROS Y COMPARADOR -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-bold text-slate-600 text-xs uppercase"><i class="fa-solid fa-filter mr-1"></i> Filtrar:</span>
+                    <select v-model="filterCat" class="border border-slate-300 rounded-md text-xs p-2 bg-white">
+                        <option value="">-- Todas las Categorías --</option>
+                        <option value="EXTRAORAL_FRONTAL">Extraoral Frontal</option>
+                        <option value="EXTRAORAL_PERFIL">Extraoral Perfil</option>
+                        <option value="INTRAORAL_FRONTAL">Intraoral Frontal</option>
+                        <option value="OCLUSAL_SUP">Oclusal Superior</option>
+                        <option value="OCLUSAL_INF">Oclusal Inferior</option>
+                        <option value="RADIOGRAFIA">Radiografía / RX</option>
+                        <option value="OTRA">Otra</option>
+                    </select>
+
+                    <select v-model="filterEtapa" class="border border-slate-300 rounded-md text-xs p-2 bg-white">
+                        <option value="">-- Todas las Etapas --</option>
+                        <option value="INICIAL">Inicial (Antes)</option>
+                        <option value="DIAGNOSTICO">Diagnóstico</option>
+                        <option value="AVANCE">Avance de Tratamiento</option>
+                        <option value="FINAL">Final (Después)</option>
+                        <option value="RETENCION">Retención</option>
+                    </select>
+                </div>
+
+                <button class="bg-slate-900 text-white font-bold text-xs px-4 py-2.5 rounded-full disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-0"
+                        :disabled="compareList.length !== 2" 
+                        @click="showCompareModal = true">
+                    🔬 COMPARAR EVOLUCIÓN ({{ compareList.length }}/2)
+                </button>
+            </div>
+
+            <!-- GALERÍA DE FOTOS DEL PACIENTE -->
+            <div class="photo-grid">
+                <div v-for="foto in filteredPhotos" :key="foto.id" class="photo-card">
+                    <div class="photo-img-box" @click="lightboxPhoto = foto">
+                        <img :src="foto.imagen_url" :alt="foto.categoria">
+                        <span class="badge badge-etapa">{{ getEtapaLabel(foto.etapa) }}</span>
+                        <span class="badge badge-cat">{{ getCatLabel(foto.categoria) }}</span>
+
+                        <label class="compare-check" @click.stop>
+                            <input type="checkbox" :value="foto" v-model="compareList" :disabled="compareList.length >= 2 && !compareList.includes(foto)">
+                            <span>Comparar</span>
+                        </label>
+                    </div>
+
+                    <div class="p-3 flex-1 flex flex-col justify-between">
+                        <div>
+                            <div class="text-xs text-slate-500 mb-1"><i class="fa-regular fa-calendar mr-1"></i> {{ foto.fecha_toma }}</div>
+                            <p v-if="foto.notas" class="text-xs text-slate-700 bg-slate-50 p-2 rounded border border-slate-100 mt-1 whitespace-pre-line">
+                                <i class="fa-solid fa-sticky-note text-amber-500 mr-1"></i> {{ foto.notas }}
+                            </p>
+                        </div>
+                        
+                        <div class="pt-3 border-t border-slate-100 mt-2 flex justify-between items-center">
+                            <button @click="lightboxPhoto = foto" class="text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border-0 px-3 py-1.5 rounded cursor-pointer">
+                                Ampliar
+                            </button>
+                            <button @click="deletePhoto(foto.id)" class="text-xs text-red-600 hover:text-red-800 bg-red-50 p-1.5 rounded border-0 cursor-pointer" title="Eliminar foto">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="filteredPhotos.length === 0" class="col-span-full bg-white p-12 rounded-xl text-center text-slate-400">
+                    <i class="fa-solid fa-camera text-4xl mb-3 block"></i>
+                    <p class="font-semibold">No hay fotografías registradas con los filtros seleccionados.</p>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- MODAL DE GUARDADO DE FOTO CAPTURADA -->
+    <div v-if="showUploadModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="bg-blue-600 text-white p-4 font-bold text-base flex justify-between items-center">
+                <span>📸 Guardar Fotografía Clínica</span>
+                <button @click="showUploadModal = false" class="text-white hover:text-slate-200 border-0 bg-transparent text-lg cursor-pointer">&times;</button>
+            </div>
+            <div class="p-4">
+                <div class="text-center mb-4" v-if="uploadPreview">
+                    <img :src="uploadPreview" class="max-h-52 mx-auto rounded-lg border border-blue-200">
+                </div>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Categoría / Ángulo Clínico:</label>
+                        <select v-model="uploadForm.categoria" class="w-full border border-slate-300 rounded-md p-2 text-sm bg-white">
+                            <option value="EXTRAORAL_FRONTAL">Extraoral Frontal</option>
+                            <option value="EXTRAORAL_PERFIL">Extraoral Perfil</option>
+                            <option value="INTRAORAL_FRONTAL">Intraoral Frontal</option>
+                            <option value="OCLUSAL_SUP">Oclusal Superior</option>
+                            <option value="OCLUSAL_INF">Oclusal Inferior</option>
+                            <option value="RADIOGRAFIA">Radiografía / RX</option>
+                            <option value="OTRA">Otra</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Etapa del Tratamiento (Ortodoncia):</label>
+                        <select v-model="uploadForm.etapa" class="w-full border border-slate-300 rounded-md p-2 text-sm bg-white">
+                            <option value="INICIAL">Inicial (Antes)</option>
+                            <option value="DIAGNOSTICO">Diagnóstico</option>
+                            <option value="AVANCE">Avance de Tratamiento</option>
+                            <option value="FINAL">Final (Después)</option>
+                            <option value="RETENCION">Retención</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Fecha de la Toma:</label>
+                        <input type="date" v-model="uploadForm.fecha_toma" class="w-full border border-slate-300 rounded-md p-2 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Notas / Observaciones Clínicas:</label>
+                        <textarea v-model="uploadForm.notas" rows="2" class="w-full border border-slate-300 rounded-md p-2 text-sm" placeholder="Ej. Alineación inicial de caninos..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 p-3 flex justify-end gap-2 border-t border-slate-200">
+                <button @click="showUploadModal = false" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-full text-xs cursor-pointer border-0">Cancelar</button>
+                <button @click="savePhoto" :disabled="uploading" class="px-5 py-2 bg-green-600 text-white font-bold rounded-full text-xs cursor-pointer border-0 disabled:opacity-50">
+                    {{ uploading ? 'Guardando...' : 'Guardar Foto' }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LIGHTBOX FOTO AMPLIADA -->
+    <div v-if="lightboxPhoto" class="modal-overlay" @click="lightboxPhoto = null">
+        <div class="modal-box bg-slate-900 text-white border-0 text-center p-4" @click.stop>
+            <div class="flex justify-between items-center mb-2">
+                <span class="font-bold text-sm">{{ getCatLabel(lightboxPhoto.categoria) }} - {{ getEtapaLabel(lightboxPhoto.etapa) }} ({{ lightboxPhoto.fecha_toma }})</span>
+                <button @click="lightboxPhoto = null" class="text-white text-xl border-0 bg-transparent cursor-pointer">&times;</button>
+            </div>
+            <img :src="lightboxPhoto.imagen_url" class="max-h-[75vh] w-full object-contain rounded">
+        </div>
+    </div>
+
+    <!-- MODAL COMPARADOR DE EVOLUCIÓN (ANTES VS DESPUÉS) -->
+    <div v-if="showCompareModal && compareList.length === 2" class="modal-overlay">
+        <div class="modal-box modal-box-lg">
+            <div class="bg-slate-900 text-white p-4 font-bold text-base flex justify-between items-center">
+                <span>🔬 Comparador de Evolución - {{ selectedPatient.nombre_mostrar }}</span>
+                <button @click="showCompareModal = false" class="text-white hover:text-slate-200 border-0 bg-transparent text-lg cursor-pointer">&times;</button>
+            </div>
+            <div class="p-4 bg-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white p-3 rounded-xl border border-slate-200 text-center">
+                    <span class="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-2 inline-block">
+                        ANTES: {{ getEtapaLabel(compareList[0].etapa) }} ({{ compareList[0].fecha_toma }})
+                    </span>
+                    <img :src="compareList[0].imagen_url" class="max-h-80 w-full object-contain bg-slate-50 rounded-lg">
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-slate-200 text-center">
+                    <span class="bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-2 inline-block">
+                        DESPUÉS: {{ getEtapaLabel(compareList[1].etapa) }} ({{ compareList[1].fecha_toma }})
+                    </span>
+                    <img :src="compareList[1].imagen_url" class="max-h-80 w-full object-contain bg-slate-50 rounded-lg">
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const { createApp, ref, computed, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            const username = ref('Usuario');
+            const role = ref('user');
+
+            const searchQuery = ref('');
+            const pacientes = ref([]);
+            const selectedPatient = ref(null);
+            const patientPhotos = ref([]);
+
+            const filterCat = ref('');
+            const filterEtapa = ref('');
+            const compareList = ref([]);
+
+            const showUploadModal = ref(false);
+            const uploadPreview = ref(null);
+            const selectedFile = ref(null);
+            const uploading = ref(false);
+
+            const uploadForm = ref({
+                categoria: 'EXTRAORAL_FRONTAL',
+                etapa: 'INICIAL',
+                fecha_toma: new Date().toISOString().substr(0, 10),
+                notas: ''
+            });
+
+            const lightboxPhoto = ref(null);
+            const showCompareModal = ref(false);
+
+            const cameraInput = ref(null);
+            const galleryInput = ref(null);
+
+            onMounted(() => {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    window.location.href = '/login';
+                    return;
+                }
+                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                
+                const storedUser = localStorage.getItem('username');
+                if (storedUser) username.value = storedUser;
+                const storedRole = localStorage.getItem('user_role');
+                if (storedRole) role.value = storedRole;
+
+                fetchPacientes();
+            });
+
+            function logout() {
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+            }
+
+            async function fetchPacientes() {
+                try {
+                    const res = await axios.get('/api/fotos/pacientes-recientes');
+                    pacientes.value = res.data;
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            const filteredPacientes = computed(() => {
+                if (!searchQuery.value) return pacientes.value;
+                const q = searchQuery.value.toLowerCase().trim();
+                return pacientes.value.filter(p => 
+                    (p.nombre_mostrar && p.nombre_mostrar.toLowerCase().includes(q)) ||
+                    (p.historia_clinica && p.historia_clinica.toLowerCase().includes(q)) ||
+                    (p.numero_identificacion && p.numero_identificacion.toLowerCase().includes(q))
+                );
+            });
+
+            async function selectPatient(p) {
+                selectedPatient.value = p;
+                compareList.value = [];
+                await fetchPatientPhotos(p.id);
+            }
+
+            async function fetchPatientPhotos(pacienteId) {
+                try {
+                    const res = await axios.get(`/api/pacientes/${pacienteId}/fotos`);
+                    patientPhotos.value = res.data.fotos || [];
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            const filteredPhotos = computed(() => {
+                return patientPhotos.value.filter(f => {
+                    if (filterCat.value && f.categoria !== filterCat.value) return false;
+                    if (filterEtapa.value && f.etapa !== filterEtapa.value) return false;
+                    return true;
+                });
+            });
+
+            function triggerCamera() {
+                if (cameraInput.value) cameraInput.value.click();
+            }
+
+            function triggerGallery() {
+                if (galleryInput.value) galleryInput.value.click();
+            }
+
+            function onFilePicked(e) {
+                const files = e.target.files;
+                if (files && files[0]) {
+                    selectedFile.value = files[0];
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        uploadPreview.value = ev.target.result;
+                        uploadForm.value.fecha_toma = new Date().toISOString().substr(0, 10);
+                        showUploadModal.value = true;
+                    };
+                    reader.readAsDataURL(files[0]);
+                }
+            }
+
+            async function savePhoto() {
+                if (!selectedFile.value || !selectedPatient.value) return;
+                uploading.value = true;
+                try {
+                    const formData = new FormData();
+                    formData.append('file', selectedFile.value);
+                    formData.append('categoria', uploadForm.value.categoria);
+                    formData.append('etapa', uploadForm.value.etapa);
+                    formData.append('fecha_toma', uploadForm.value.fecha_toma);
+                    formData.append('notas', uploadForm.value.notas || '');
+
+                    await axios.post(`/api/pacientes/${selectedPatient.value.id}/fotos`, formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+
+                    showUploadModal.value = false;
+                    selectedFile.value = null;
+                    uploadPreview.value = null;
+                    uploadForm.value.notas = '';
+
+                    await fetchPatientPhotos(selectedPatient.value.id);
+                } catch (e) {
+                    alert('Error al guardar la fotografía');
+                } finally {
+                    uploading.value = false;
+                }
+            }
+
+            async function deletePhoto(fotoId) {
+                if (!confirm('¿Seguro que deseas eliminar esta fotografía del historial?')) return;
+                try {
+                    await axios.delete(`/api/fotos/${fotoId}`);
+                    await fetchPatientPhotos(selectedPatient.value.id);
+                } catch (e) {
+                    alert('Error al eliminar la fotografía');
+                }
+            }
+
+            function getCatLabel(key) {
+                const map = {
+                    'EXTRAORAL_FRONTAL': 'Extraoral Frontal',
+                    'EXTRAORAL_PERFIL': 'Extraoral Perfil',
+                    'INTRAORAL_FRONTAL': 'Intraoral Frontal',
+                    'OCLUSAL_SUP': 'Oclusal Sup.',
+                    'OCLUSAL_INF': 'Oclusal Inf.',
+                    'RADIOGRAFIA': 'Radiografía / RX',
+                    'OTRA': 'Otra'
+                };
+                return map[key] || key;
+            }
+
+            function getEtapaLabel(key) {
+                const map = {
+                    'INICIAL': 'Inicial (Antes)',
+                    'DIAGNOSTICO': 'Diagnóstico',
+                    'AVANCE': 'Avance',
+                    'FINAL': 'Final (Después)',
+                    'RETENCION': 'Retención'
+                };
+                return map[key] || key;
+            }
+
+            return {
+                username, role, logout,
+                searchQuery, pacientes, filteredPacientes, selectedPatient, selectPatient,
+                patientPhotos, filteredPhotos, filterCat, filterEtapa, compareList,
+                showUploadModal, uploadPreview, uploadForm, uploading, triggerCamera, triggerGallery,
+                cameraInput, galleryInput, onFilePicked, savePhoto, deletePhoto,
+                lightboxPhoto, showCompareModal, getCatLabel, getEtapaLabel
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
