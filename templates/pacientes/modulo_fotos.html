@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block title %}Módulo de Fotografía Clínica - Clínica HD{% endblock %}
+
+{% block content %}
+<style>
+    .photo-hero {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .search-input-lg {
+        font-size: 1.2rem;
+        padding: 14px 20px;
+        border-radius: 30px;
+        border: 2px solid #2a5298;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .patient-card {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #eef2f5;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+        padding: 16px;
+    }
+    .patient-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        border-color: #2a5298;
+    }
+    .badge-fotos {
+        background-color: #e3f2fd;
+        color: #0d47a1;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+    }
+    .btn-camera-main {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        font-weight: bold;
+        border-radius: 30px;
+        padding: 10px 24px;
+        border: none;
+    }
+    .btn-camera-main:hover {
+        color: white;
+        opacity: 0.95;
+    }
+</style>
+
+<div class="container-fluid p-0">
+    <!-- Header Hero -->
+    <div class="photo-hero d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+        <div>
+            <h2 class="mb-1"><i class="fas fa-camera mr-2"></i>Módulo de Fotografía Clínica</h2>
+            <p class="mb-0 text-white-50">Registro fotográfico y seguimiento de la evolución del tratamiento de ortodoncia.</p>
+        </div>
+    </div>
+
+    <!-- Buscador Rápido de Paciente (Mobile First) -->
+    <div class="card mb-4 border-0 shadow-sm" style="border-radius: 12px;">
+        <div class="card-body p-4">
+            <label class="font-weight-bold text-secondary mb-2" style="font-size: 1.05rem;">
+                <i class="fas fa-search mr-1"></i> Buscar Paciente para Tomar / Ver Fotos:
+            </label>
+            <form method="get" action="{% url 'modulo_fotos' %}" class="w-100">
+                <div class="input-group">
+                    <input type="text" 
+                           name="q" 
+                           value="{{ q }}" 
+                           class="form-control search-input-lg" 
+                           placeholder="Escribe el nombre, apellido, cédula o historia clínica..." 
+                           autofocus 
+                           autocomplete="off">
+                    <div class="input-group-append">
+                        <button type="submit" class="btn btn-primary px-4" style="border-radius: 0 30px 30px 0;">
+                            <i class="fas fa-search mr-1"></i> Buscar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if q %}
+    <!-- Resultados de Búsqueda -->
+    <div class="mb-4">
+        <h5 class="mb-3 text-secondary"><i class="fas fa-list-ul mr-2"></i>Resultados de búsqueda para: "{{ q }}"</h5>
+        <div class="row">
+            {% for paciente in pacientes %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="patient-card h-100 d-flex flex-column justify-content-between" onclick="window.location.href='{% url 'fotos_paciente' paciente.id %}'">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge badge-secondary p-2">HC: {{ paciente.historia_clinica }}</span>
+                            <span class="badge-fotos"><i class="fas fa-images mr-1"></i> {{ paciente.total_fotos }} fotos</span>
+                        </div>
+                        <h5 class="font-weight-bold text-dark mb-1">{{ paciente.nombre_mostrar }}</h5>
+                        <p class="text-muted small mb-2"><i class="fas fa-id-card mr-1"></i> {{ paciente.numero_identificacion }}</p>
+                    </div>
+                    <div class="pt-2 border-top text-right">
+                        <a href="{% url 'fotos_paciente' paciente.id %}" class="btn btn-sm btn-camera-main">
+                            📸 Abrir Galería & Cámara
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center py-5 bg-white rounded shadow-sm">
+                <i class="fas fa-user-slash text-muted mb-3" style="font-size: 3rem;"></i>
+                <h5 class="text-secondary">No se encontraron pacientes con "{{ q }}"</h5>
+                <p class="text-muted">Intenta buscar por otro nombre o cédula.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Pacientes con Fotos Recientes -->
+    {% if pacientes_recientes %}
+    <div class="mb-4">
+        <h5 class="mb-3 font-weight-bold text-secondary">
+            <i class="fas fa-history mr-2 text-primary"></i>Pacientes con Fotos Recientes
+        </h5>
+        <div class="row">
+            {% for paciente in pacientes_recientes %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="patient-card h-100 d-flex flex-column justify-content-between" onclick="window.location.href='{% url 'fotos_paciente' paciente.id %}'">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge badge-light border">HC: {{ paciente.historia_clinica }}</span>
+                            <span class="badge-fotos"><i class="fas fa-camera mr-1"></i> {{ paciente.fotos.count }} foto(s)</span>
+                        </div>
+                        <h5 class="font-weight-bold text-dark mb-1">{{ paciente.nombre_mostrar }}</h5>
+                        <p class="text-muted small mb-0"><i class="fas fa-clock mr-1"></i> Última foto: {{ paciente.fotos.first.fecha_toma|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="pt-3 text-right">
+                        <a href="{% url 'fotos_paciente' paciente.id %}" class="btn btn-sm btn-outline-primary btn-block rounded-pill">
+                            <i class="fas fa-images mr-1"></i> Ver Galería & Fotos
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Lista General de Pacientes para Selección Táctil Rápida -->
+    <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+        <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+            <h5 class="font-weight-bold text-secondary"><i class="fas fa-users mr-2"></i>Selección Rápida de Pacientes</h5>
+        </div>
+        <div class="card-body p-4">
+            <div class="row">
+                {% for paciente in pacientes %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="patient-card" onclick="window.location.href='{% url 'fotos_paciente' paciente.id %}'">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="font-weight-bold mb-1 text-primary">{{ paciente.nombre_mostrar }}</h6>
+                                <small class="text-muted">HC: {{ paciente.historia_clinica }} | CI: {{ paciente.numero_identificacion }}</small>
+                            </div>
+                            <button class="btn btn-sm btn-light border-0 rounded-circle text-primary" style="width: 40px; height: 40px;">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12 text-center py-4 text-muted">
+                    No hay pacientes registrados aún.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+{% endblock %}

@@ -19,16 +19,17 @@
 
 <body>
 
-    <!-- SIDEBAR -->
     <nav class="sidebar">
         <h2>Clínica HD</h2>
-        <a href="{% url 'recepcion' %}" class="active">Recepción</a>
-        <a href="/admin/">Administración</a>
+        <a href="{% url 'recepcion' %}">Recepción</a>
+        <a href="{% url 'modulo_fotos' %}">📷 Fotografía Clínica</a>
         <a href="{% url 'lista_pacientes' %}">Pacientes</a>
         <a href="{% url 'reportes' %}">Reportes</a>
+        <a href="/admin/">Administración</a>
         <hr>
         <a href="#" style="color: #dc3545;">Salir</a>
     </nav>
+
 
     <!-- CONTENT -->
     <main class="main-content">

@@ -23,7 +23,7 @@
                 <th>Nombre Completo</th>
                 <th>Identificación</th>
                 <th>Teléfono</th>
-                <th>Email</th>
+                <th>Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -33,7 +33,11 @@
                 <td>{{ paciente.nombre_mostrar }}</td>
                 <td>{{ paciente.numero_identificacion }}</td>
                 <td>{{ paciente.telefono|default:"-" }}</td>
-                <td>{{ paciente.email|default:"-" }}</td>
+                <td>
+                    <a href="{% url 'fotos_paciente' paciente.id %}" class="btn btn-sm btn-info" title="Ver / Tomar Fotos">
+                        📷 Fotos
+                    </a>
+                </td>
             </tr>
             {% empty %}
             <tr>
@@ -43,6 +47,7 @@
             </tr>
             {% endfor %}
         </tbody>
+
     </table>
 </div>
 {% endblock %}

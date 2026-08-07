@@ -122,6 +122,10 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
+# Media files (Archivos subidos por los usuarios / Fotos de Pacientes)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # Login Configuration
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/recepcion/'

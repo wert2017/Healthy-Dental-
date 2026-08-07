@@ -18,6 +18,6 @@ echo.
 echo Press Ctrl+C to stop the server.
 echo.
 
-cd /d c:\HD\fastapi_project
-python -m uvicorn main:app --reload --port 8000
+cd /d "%~dp0"
+..\venv\Scripts\python.exe -m uvicorn main:app --reload --port 8000
 pause
