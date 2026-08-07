@@ -278,8 +278,9 @@
             <div class="photo-grid">
                 <div v-for="foto in filteredPhotos" :key="foto.id" class="photo-card">
                     <div class="photo-img-box" @click="lightboxPhoto = foto">
-                        <img :src="foto.imagen_url" :alt="foto.categoria">
+                        <img :src="foto.imagen_url" :alt="foto.categoria" @error="onImgError">
                         <span class="badge badge-etapa">{{ getEtapaLabel(foto.etapa) }}</span>
+
                         <span class="badge badge-cat">{{ getCatLabel(foto.categoria) }}</span>
 
                         <label class="compare-check" @click.stop>
@@ -613,16 +614,21 @@
                 return map[key] || key;
             }
 
+            function onImgError(e) {
+                e.target.src = 'https://placehold.co/400x300/f1f5f9/64748b?text=Foto+no+disponible';
+            }
+
             return {
                 username, role, sucursalNombre, logout,
                 searchQuery, pacientes, filteredPacientes, selectedPatient, selectPatient,
 
                 patientPhotos, filteredPhotos, filterCat, filterEtapa, compareList,
                 showUploadModal, uploadPreview, uploadForm, uploading, triggerCamera, triggerGallery, closeUploadModal,
-                cameraInput, galleryInput, onFilePicked, savePhoto, deletePhoto,
+                cameraInput, galleryInput, onFilePicked, savePhoto, deletePhoto, onImgError,
 
                 lightboxPhoto, showCompareModal, getCatLabel, getEtapaLabel
             };
+
         }
     }).mount('#app');
 </script>

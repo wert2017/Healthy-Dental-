@@ -27,7 +27,16 @@ from datetime import datetime, timedelta, time
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 import secrets
+import base64
+from io import BytesIO
+try:
+    from PIL import Image
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
 from sqlalchemy import func
+
 from sqlalchemy.orm import selectinload
 from wtforms import SelectField, DecimalField
 import wtforms
@@ -408,21 +417,40 @@ async def upload_paciente_foto(
         if not paciente:
             raise HTTPException(status_code=404, detail="Paciente no encontrado")
 
-        upload_dir = os.path.join("static", "uploads", "fotos")
-        os.makedirs(upload_dir, exist_ok=True)
-
-        orig_filename = getattr(file, 'filename', None) or "foto.jpg"
-        ext = os.path.splitext(orig_filename)[1] or ".jpg"
-        timestamp_str = int(datetime.now().timestamp())
-        filename = f"p{paciente_id}_{timestamp_str}_{secrets.token_hex(4)}{ext}"
-        filepath = os.path.join(upload_dir, filename)
-
-
         contents = await file.read()
-        with open(filepath, "wb") as f:
-            f.write(contents)
+        mime_type = file.content_type or "image/jpeg"
 
-        imagen_url = f"/static/uploads/fotos/{filename}"
+        # Optimizar imagen con PIL si está disponible
+        if HAS_PIL and len(contents) > 0:
+            try:
+                img = Image.open(BytesIO(contents))
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                img.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+                buffer = BytesIO()
+                img.save(buffer, format="JPEG", quality=82, optimize=True)
+                contents = buffer.getvalue()
+                mime_type = "image/jpeg"
+            except Exception as pe:
+                print(f"Advertencia optimización PIL: {pe}")
+
+        # Guardar en Base64 dentro de la base de datos PostgreSQL (persistencia permanente en Railway)
+        encoded = base64.b64encode(contents).decode("utf-8")
+        imagen_url = f"data:{mime_type};base64,{encoded}"
+
+        # Guardar copia de respaldo local en static/uploads/fotos/
+        try:
+            upload_dir = os.path.join("static", "uploads", "fotos")
+            os.makedirs(upload_dir, exist_ok=True)
+            orig_filename = getattr(file, 'filename', None) or "foto.jpg"
+            ext = os.path.splitext(orig_filename)[1] or ".jpg"
+            timestamp_str = int(datetime.now().timestamp())
+            filename = f"p{paciente_id}_{timestamp_str}_{secrets.token_hex(4)}{ext}"
+            filepath = os.path.join(upload_dir, filename)
+            with open(filepath, "wb") as f:
+                f.write(contents)
+        except Exception as fe:
+            print(f"Advertencia copia local: {fe}")
         
         nueva_foto = FotoPaciente(
             paciente_id=paciente_id,
@@ -447,6 +475,7 @@ async def upload_paciente_foto(
                 "notas": nueva_foto.notas
             }
         }
+
     except Exception as e:
         session.rollback()
         print(f"ERROR al subir foto paciente {paciente_id}: {e}")

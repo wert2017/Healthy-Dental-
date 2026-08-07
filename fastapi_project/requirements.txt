@@ -13,4 +13,6 @@ markupsafe
 gunicorn
 pandas
 openpyxl
+Pillow==10.3.0
 # trigger openpyxl dependency rebuild
+
