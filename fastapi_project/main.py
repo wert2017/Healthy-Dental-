@@ -392,8 +392,10 @@ async def upload_paciente_foto(
 
         orig_filename = getattr(file, 'filename', None) or "foto.jpg"
         ext = os.path.splitext(orig_filename)[1] or ".jpg"
-        filename = f"p{paciente_id}_{int(time.time())}_{secrets.token_hex(4)}{ext}"
+        timestamp_str = int(datetime.now().timestamp())
+        filename = f"p{paciente_id}_{timestamp_str}_{secrets.token_hex(4)}{ext}"
         filepath = os.path.join(upload_dir, filename)
+
 
         contents = await file.read()
         with open(filepath, "wb") as f:
