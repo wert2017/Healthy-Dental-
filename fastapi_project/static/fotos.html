@@ -119,14 +119,15 @@
             </div>
             <nav class="nav">
                 <a href="/recepcion"><i class="fa-solid fa-desktop mr-1"></i> Recepción</a>
-                <a href="/static/fotos.html" class="active"><i class="fa-solid fa-camera mr-1"></i> 📷 Fotos Clínicas</a>
                 <a href="/static/pagos.html"><i class="fa-solid fa-credit-card mr-1"></i> Pagos</a>
                 <a href="/static/calendario.html"><i class="fa-solid fa-calendar-days mr-1"></i> Citas</a>
                 <a v-if="role !== 'doctor'" href="/cuadre"><i class="fa-solid fa-calculator mr-1"></i> Cuadre</a>
                 <a v-if="role !== 'doctor'" href="/gastos"><i class="fa-solid fa-money-bill-wave mr-1"></i> Gastos</a>
                 <a v-if="role !== 'doctor'" href="/admin/paciente/list"><i class="fa-solid fa-users mr-1"></i> Pacientes</a>
                 <a v-if="role === 'admin'" href="/static/reportes.html"><i class="fa-solid fa-chart-line mr-1"></i> Reportes</a>
+                <a href="/static/fotos.html" class="active"><i class="fa-solid fa-camera mr-1"></i> 📷 Fotos Clínicas</a>
             </nav>
+
         </div>
     </header>
 
