@@ -562,13 +562,31 @@
                 const loadingInventory = ref(false)
                 const loadingHistorial = ref(false)
                 const searchQueryHistorial = ref("")
-                const sortBy = ref("fecha_desc")
-                const currentPageHistorial = ref(1)
-                const historialStartDate = ref("")
-                const historialEndDate = ref("")
+                const getCurrentMonthRange = () => {
+                    const now = new Date()
+                    const year = now.getFullYear()
+                    const month = now.getMonth()
+                    const firstDay = new Date(year, month, 1)
+                    const lastDay = new Date(year, month + 1, 0)
+                    const formatYYMMDD = (d) => {
+                        const yyyy = d.getFullYear()
+                        const mm = String(d.getMonth() + 1).padStart(2, '0')
+                        const dd = String(d.getDate()).padStart(2, '0')
+                        return `${yyyy}-${mm}-${dd}`
+                    }
+                    return {
+                        start: formatYYMMDD(firstDay),
+                        end: formatYYMMDD(lastDay)
+                    }
+                }
+
+                const initialRange = getCurrentMonthRange()
+                const historialStartDate = ref(initialRange.start)
+                const historialEndDate = ref(initialRange.end)
                 const historialTratamientoId = ref("")
                 const tratamientosList = ref([])
                 let timeoutHistorial = null
+
 
                 // Pestaña Pacientes
                 const searchPacientesQuery = ref("")
@@ -650,12 +668,15 @@
                 }
 
                 const limpiarFiltrosHistorial = () => {
-                    historialStartDate.value = ""
-                    historialEndDate.value = ""
+                    const range = getCurrentMonthRange()
+                    historialStartDate.value = range.start
+                    historialEndDate.value = range.end
                     historialTratamientoId.value = ""
+                    searchQueryHistorial.value = ""
                     currentPageHistorial.value = 1
                     loadHistorial()
                 }
+
 
                 const loadTratamientos = async () => {
                     try {

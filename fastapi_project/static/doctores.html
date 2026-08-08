@@ -257,14 +257,34 @@
             });
             const logout = () => { localStorage.clear(); window.location.href = '/login' }
 
-            const docStartDate     = ref('')
-            const docEndDate       = ref('')
+            const getCurrentMonthRange = () => {
+                const now = new Date()
+                const year = now.getFullYear()
+                const month = now.getMonth()
+                const firstDay = new Date(year, month, 1)
+                const lastDay = new Date(year, month + 1, 0)
+                const formatYYMMDD = (d) => {
+                    const yyyy = d.getFullYear()
+                    const mm = String(d.getMonth() + 1).padStart(2, '0')
+                    const dd = String(d.getDate()).padStart(2, '0')
+                    return `${yyyy}-${mm}-${dd}`
+                }
+                return {
+                    start: formatYYMMDD(firstDay),
+                    end: formatYYMMDD(lastDay)
+                }
+            }
+
+            const monthRange = getCurrentMonthRange()
+            const docStartDate     = ref(monthRange.start)
+            const docEndDate       = ref(monthRange.end)
             const docDoctorId      = ref(null)
             const docTratamientoId = ref(null)
             const docData          = ref({ filas: [], totales: {} })
             const isLoadingDoc     = ref(false)
             const doctoresList     = ref([])
             const tratamientosList = ref([])
+
 
             const fmt = (v) => Number(v || 0).toFixed(2)
 
