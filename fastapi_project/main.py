@@ -1836,9 +1836,25 @@ def get_historial_atenciones(
                 "validado": a.validado,
                 "estado": a.estado,
                 "patient_balance": patient_balance,
-                "patient_financial_status": patient_status
+                "patient_financial_status": patient_status,
+                "detalles": [
+                    {
+                        "id": d.id,
+                        "tratamiento_nombre": d.tratamiento.nombre if d.tratamiento else "-",
+                        "doctor_nombre": (d.doctor.nombres + " " + d.doctor.apellidos) if d.doctor else "-",
+                        "porcentaje_comision": float(d.porcentaje_comision),
+                        "precio_unitario": float(d.precio_unitario),
+                        "cantidad": d.cantidad,
+                        "total": float(d.total_calculado),
+                        "comision_valor": float(float(d.total_calculado) * (float(d.porcentaje_comision) / 100.0)),
+                        "comision_pagada": float(d.comision_pagada_monto if d.comision_pagada else 0.0),
+                        "comision_pendiente": float(float(d.total_calculado) * (float(d.porcentaje_comision) / 100.0)) - float(d.comision_pagada_monto if d.comision_pagada else 0.0)
+                    }
+                    for d in a.detalles
+                ]
             })
         return results
+
     except Exception as e:
         import traceback
         traceback.print_exc()
