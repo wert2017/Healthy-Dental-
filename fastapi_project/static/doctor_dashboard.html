@@ -562,6 +562,9 @@
                 const loadingInventory = ref(false)
                 const loadingHistorial = ref(false)
                 const searchQueryHistorial = ref("")
+                const sortBy = ref("fecha_desc")
+                const currentPageHistorial = ref(1)
+
                 const getCurrentMonthRange = () => {
                     const now = new Date()
                     const year = now.getFullYear()
@@ -586,6 +589,7 @@
                 const historialTratamientoId = ref("")
                 const tratamientosList = ref([])
                 let timeoutHistorial = null
+
 
 
                 // Pestaña Pacientes
