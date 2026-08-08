@@ -89,7 +89,23 @@
                     <i class="fa-solid fa-chevron-right text-white/70 group-hover:translate-x-1 transition-transform text-lg mr-2"></i>
                 </button>
 
-                <!-- Botón 3: Historial -->
+                <!-- Botón 3: Pacientes -->
+                <button @click="activeTab = 'pacientes'" 
+                        :class="activeTab === 'pacientes' ? 'ring-2 ring-purple-500 shadow-lg' : ''"
+                        class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white p-4 sm:p-5 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-between group cursor-pointer border-0">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-users text-2xl text-white"></i>
+                        </div>
+                        <div class="text-left">
+                            <h3 class="text-lg font-bold text-white mb-0.5">Pacientes</h3>
+                            <p class="text-xs text-purple-100 mb-0">Buscar paciente y consultar su historial de atenciones</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-white/70 group-hover:translate-x-1 transition-transform text-lg mr-2"></i>
+                </button>
+
+                <!-- Botón 4: Historial -->
                 <button @click="activeTab = 'historial'" 
                         :class="activeTab === 'historial' ? 'ring-2 ring-amber-500 shadow-lg' : ''"
                         class="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white p-4 sm:p-5 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-between group cursor-pointer border-0">
@@ -106,30 +122,6 @@
                 </button>
             </div>
 
-            <!-- TABS DE NAVEGACIÓN -->
-            <div class="flex border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide">
-                <div class="flex min-w-max">
-                    <a href="/static/fotos.html"
-                        class="py-3 px-4 sm:px-6 border-b-2 border-transparent text-gray-600 hover:text-blue-600 font-semibold text-sm transition-colors whitespace-nowrap inline-flex items-center gap-2 no-underline">
-                        <i class="fa-solid fa-camera"></i> Fotos Clínicas
-                    </a>
-                    <button @click="activeTab = 'agenda'"
-                        :class="activeTab === 'agenda' ? 'border-blue-500 text-blue-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700 font-medium'"
-                        class="py-3 px-4 sm:px-6 border-b-2 text-sm focus:outline-none transition-colors whitespace-nowrap inline-flex items-center gap-2 cursor-pointer">
-                        <i class="fa-solid fa-calendar-days"></i> Mi Agenda
-                    </button>
-                    <button @click="activeTab = 'pacientes'"
-                        :class="activeTab === 'pacientes' ? 'border-blue-500 text-blue-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700 font-medium'"
-                        class="py-3 px-4 sm:px-6 border-b-2 text-sm focus:outline-none transition-colors whitespace-nowrap inline-flex items-center gap-2 cursor-pointer">
-                        <i class="fa-solid fa-users"></i> Pacientes
-                    </button>
-                    <button @click="activeTab = 'historial'"
-                        :class="activeTab === 'historial' ? 'border-blue-500 text-blue-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700 font-medium'"
-                        class="py-3 px-4 sm:px-6 border-b-2 text-sm focus:outline-none transition-colors whitespace-nowrap inline-flex items-center gap-2 cursor-pointer">
-                        <i class="fa-solid fa-clock-rotate-left"></i> Historial
-                    </button>
-                </div>
-            </div>
 
 
             <!-- TAB: AGENDA -->
