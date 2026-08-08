@@ -341,8 +341,55 @@
                             class="text-xs text-red-500 hover:text-red-700 whitespace-nowrap underline">
                             Limpiar filtros
                         </button>
+                </div>
+
+                <!-- Resumen de Totales Filtrados del Historial -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 my-4">
+                    <!-- Total Producción -->
+                    <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Total Producción</p>
+                            <p class="text-base sm:text-lg font-extrabold text-slate-800">${{ formatCurrency(historialTotalProduccion) }}</p>
+                        </div>
+                        <div class="bg-slate-100 p-2 rounded-lg shrink-0">
+                            <i class="fa-solid fa-calculator text-slate-600 text-sm"></i>
+                        </div>
+                    </div>
+
+                    <!-- Comisión Generada Total -->
+                    <div class="bg-amber-50/90 p-3 rounded-xl shadow-xs border border-amber-200 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] uppercase font-extrabold text-amber-800 mb-0.5">Com. Generada</p>
+                            <p class="text-base sm:text-lg font-extrabold text-amber-700">${{ formatCurrency(historialTotalComisionGenerada) }}</p>
+                        </div>
+                        <div class="bg-amber-100/80 p-2 rounded-lg shrink-0">
+                            <i class="fa-solid fa-coins text-amber-600 text-sm"></i>
+                        </div>
+                    </div>
+
+                    <!-- Comisión Pagada Total -->
+                    <div class="bg-emerald-50/90 p-3 rounded-xl shadow-xs border border-emerald-200 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] uppercase font-extrabold text-emerald-800 mb-0.5">Com. Pagada</p>
+                            <p class="text-base sm:text-lg font-extrabold text-emerald-700">${{ formatCurrency(historialTotalComisionPagada) }}</p>
+                        </div>
+                        <div class="bg-emerald-100/80 p-2 rounded-lg shrink-0">
+                            <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
+                        </div>
+                    </div>
+
+                    <!-- Comisión Pendiente Total -->
+                    <div class="bg-rose-50/90 p-3 rounded-xl shadow-xs border border-rose-200 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] uppercase font-extrabold text-rose-800 mb-0.5">Pendiente</p>
+                            <p class="text-base sm:text-lg font-extrabold text-rose-700">${{ formatCurrency(historialTotalComisionPendiente) }}</p>
+                        </div>
+                        <div class="bg-rose-100/80 p-2 rounded-lg shrink-0">
+                            <i class="fa-solid fa-clock text-rose-600 text-sm"></i>
+                        </div>
                     </div>
                 </div>
+
 
                 <!-- Historial List -->
                 <div v-if="loadingHistorial" class="text-center py-20">
@@ -729,6 +776,23 @@
                     return sorted
                 })
 
+                const historialTotalProduccion = computed(() => {
+                    return sortedHistorial.value.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0)
+                })
+
+                const historialTotalComisionGenerada = computed(() => {
+                    return sortedHistorial.value.reduce((sum, item) => sum + getItemComision(item), 0)
+                })
+
+                const historialTotalComisionPagada = computed(() => {
+                    return sortedHistorial.value.reduce((sum, item) => sum + getItemComisionPagada(item), 0)
+                })
+
+                const historialTotalComisionPendiente = computed(() => {
+                    return sortedHistorial.value.reduce((sum, item) => sum + getItemComisionPendiente(item), 0)
+                })
+
+
                 const logout = () => {
                     localStorage.clear()
                     window.location.href = '/login'
@@ -824,6 +888,11 @@
                     getItemComisionPct,
                     getItemComisionPagada,
                     getItemComisionPendiente,
+                    historialTotalProduccion,
+                    historialTotalComisionGenerada,
+                    historialTotalComisionPagada,
+                    historialTotalComisionPendiente,
+
 
 
                     loading,
