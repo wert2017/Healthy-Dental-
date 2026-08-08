@@ -136,61 +136,60 @@
             <div v-show="activeTab === 'agenda'" class="space-y-4 animate-fade-in">
 
                 <!-- Stats Summary inside Agenda Tab -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-4">
                     <!-- Pendientes -->
                     <div
-                        class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        class="bg-white p-3.5 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                         <div>
-                            <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Pendientes</p>
-                            <p class="text-2xl font-bold text-blue-600">{{ pendientes.length }}</p>
+                            <p class="text-[10px] sm:text-xs text-gray-500 uppercase font-bold tracking-wider">Pendientes</p>
+                            <p class="text-xl sm:text-2xl font-bold text-blue-600">{{ pendientes.length }}</p>
                         </div>
                         <div class="bg-blue-50 p-2 rounded-lg">
-                            <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                            <i class="fa-solid fa-clock text-lg text-blue-500"></i>
                         </div>
                     </div>
                     <!-- Atendidos -->
                     <div
-                        class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        class="bg-white p-3.5 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                         <div>
-                            <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Conciliados</p>
-                            <p class="text-2xl font-bold text-green-600">{{ atendidos.length }}</p>
+                            <p class="text-[10px] sm:text-xs text-gray-500 uppercase font-bold tracking-wider">Conciliados</p>
+                            <p class="text-xl sm:text-2xl font-bold text-green-600">{{ atendidos.length }}</p>
                         </div>
                         <div class="bg-green-50 p-2 rounded-lg">
-                            <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M5 13l4 4L19 7" />
-                            </svg>
+                            <i class="fa-solid fa-check text-lg text-green-500"></i>
                         </div>
                     </div>
                     <!-- Producción (Hecho) -->
                     <div
-                        class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        class="bg-white p-3.5 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                         <div>
-                            <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total</p>
-                            <p class="text-xl font-bold text-indigo-600">${{ formatCurrency(totalProduccion) }}</p>
+                            <p class="text-[10px] sm:text-xs text-gray-500 uppercase font-bold tracking-wider">Total</p>
+                            <p class="text-lg sm:text-xl font-bold text-indigo-600">${{ formatCurrency(totalProduccion) }}</p>
                         </div>
                         <div class="bg-indigo-50 p-2 rounded-lg">
-                            <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
+                            <i class="fa-solid fa-briefcase text-lg text-indigo-500"></i>
                         </div>
                     </div>
                     <!-- Recaudado (Caja) -->
                     <div
-                        class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        class="bg-white p-3.5 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                         <div>
-                            <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Pagado</p>
-                            <p class="text-xl font-bold text-emerald-600">${{ formatCurrency(totalRecaudado) }}</p>
+                            <p class="text-[10px] sm:text-xs text-gray-500 uppercase font-bold tracking-wider">Pagado</p>
+                            <p class="text-lg sm:text-xl font-bold text-emerald-600">${{ formatCurrency(totalRecaudado) }}</p>
                         </div>
                         <div class="bg-emerald-50 p-2 rounded-lg">
-                            <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                            <i class="fa-solid fa-circle-dollar-to-slot text-lg text-emerald-500"></i>
+                        </div>
+                    </div>
+                    <!-- Comisión Total Doctor -->
+                    <div
+                        class="bg-amber-50/90 p-3.5 sm:p-4 rounded-xl shadow-sm border border-amber-200 flex items-center justify-between col-span-2 sm:col-span-1">
+                        <div>
+                            <p class="text-[10px] sm:text-xs text-amber-800 uppercase font-extrabold tracking-wider">Comisión Total</p>
+                            <p class="text-lg sm:text-xl font-extrabold text-amber-700">${{ formatCurrency(totalComision) }}</p>
+                        </div>
+                        <div class="bg-white/90 p-2 rounded-lg shadow-xs">
+                            <i class="fa-solid fa-hand-holding-dollar text-xl text-amber-600"></i>
                         </div>
                     </div>
                 </div>
@@ -222,25 +221,54 @@
                                 {{ item.paciente.nombres }} {{ item.paciente.apellidos }}
                             </h3>
 
-                            <!-- Financial / Treatment Summary Box -->
-                            <div
-                                class="border-2 border-red-100 bg-red-50/30 rounded-lg p-3 mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-                                <div>
-                                    <p class="text-[10px] uppercase font-bold text-gray-400">Tratamiento</p>
-                                    <p class="text-sm font-semibold text-gray-800 truncate"
-                                        :title="item.resumen_tratamientos">{{ item.resumen_tratamientos || 'General' }}
-                                    </p>
+                            <!-- Financial / Treatment Summary Box with Commissions -->
+                            <div class="border border-slate-200 bg-slate-50/70 rounded-xl p-3 sm:p-4 mt-2">
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <div>
+                                        <p class="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Tratamiento</p>
+                                        <p class="text-xs sm:text-sm font-bold text-gray-800 truncate"
+                                            :title="item.resumen_tratamientos">{{ item.resumen_tratamientos || 'General' }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Total</p>
+                                        <p class="text-xs sm:text-sm font-bold text-gray-800">${{ formatCurrency(item.total) }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Pagado</p>
+                                        <p class="text-xs sm:text-sm font-bold text-emerald-600">${{ formatCurrency(item.pagado) }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] uppercase font-extrabold text-amber-700 mb-0.5">Comisión Doctor</p>
+                                        <p class="text-xs sm:text-sm font-extrabold text-amber-600">
+                                            ${{ formatCurrency(getItemComision(item)) }}
+                                            <span class="text-[10px] font-semibold text-amber-700">({{ getItemComisionPct(item) }})</span>
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p class="text-[10px] uppercase font-bold text-gray-400">Total</p>
-                                    <p class="text-sm font-bold text-gray-800">${{ formatCurrency(item.total) }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-[10px] uppercase font-bold text-gray-400">Pagado</p>
-                                    <p class="text-sm font-bold text-green-600">${{ formatCurrency(item.pagado) }}</p>
+
+                                <!-- Desglose por tratamiento (si hay detalles) -->
+                                <div v-if="item.detalles && item.detalles.length > 0" class="mt-2.5 pt-2 border-t border-slate-200/80">
+                                    <div class="text-[10px] font-bold uppercase text-slate-400 mb-1">Detalle de Comisiones por Tratamiento:</div>
+                                    <div class="space-y-1">
+                                        <div v-for="det in item.detalles" :key="det.id" 
+                                             class="flex items-center justify-between text-xs bg-white px-2.5 py-1.5 rounded-lg border border-slate-200/60 shadow-2xs">
+                                            <span class="font-semibold text-slate-700">
+                                                <i class="fa-solid fa-tooth text-blue-500 mr-1 text-[10px]"></i>
+                                                {{ det.tratamiento_nombre }} <span class="text-slate-400 font-normal text-[11px]">(x{{ det.cantidad }})</span>
+                                            </span>
+                                            <div class="flex items-center gap-3">
+                                                <span class="text-slate-500 text-[11px]">Total: <strong>${{ formatCurrency(det.total) }}</strong></span>
+                                                <span class="font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-[11px]">
+                                                    {{ det.porcentaje_comision }}% = ${{ formatCurrency(det.total * (det.porcentaje_comision / 100)) }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
 
                         <!-- Actions -->
                         <div class="flex flex-col sm:flex-row md:flex-col gap-2 w-full md:w-auto md:min-w-[170px]">
@@ -382,11 +410,16 @@
                             </div>
 
                             <div
-                                class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0">
+                                class="flex items-center gap-4 sm:gap-6 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0">
                                 <div class="text-right">
                                     <p class="text-[10px] uppercase font-bold text-gray-400">Total</p>
                                     <p class="text-sm font-bold text-gray-800">${{ formatCurrency(item.total) }}</p>
                                 </div>
+                                <div class="text-right bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                                    <p class="text-[10px] uppercase font-extrabold text-amber-800">Comisión</p>
+                                    <p class="text-sm font-extrabold text-amber-600">${{ formatCurrency(getItemComision(item)) }}</p>
+                                </div>
+
                                 <div class="flex items-center gap-2">
                                     <a :href="`/recepcion/editar/${item.id}`"
                                         class="bg-gray-100 text-gray-600 hover:bg-blue-600 hover:text-white p-2 rounded-lg transition"
@@ -659,6 +692,35 @@
                     return atenciones.value.reduce((sum, item) => sum + (parseFloat(item.pagado) || 0), 0)
                 })
 
+                const totalComision = computed(() => {
+                    return atenciones.value.reduce((sum, item) => {
+                        if (!item.detalles || item.detalles.length === 0) return sum
+                        const itemCom = item.detalles.reduce((dSum, d) => {
+                            const subtotal = parseFloat(d.total) || 0
+                            const pct = parseFloat(d.porcentaje_comision) || 0
+                            return dSum + (subtotal * (pct / 100.0))
+                        }, 0)
+                        return sum + itemCom
+                    }, 0)
+                })
+
+                const getItemComision = (item) => {
+                    if (!item.detalles || item.detalles.length === 0) return 0
+                    return item.detalles.reduce((sum, d) => {
+                        const subtotal = parseFloat(d.total) || 0
+                        const pct = parseFloat(d.porcentaje_comision) || 0
+                        return sum + (subtotal * (pct / 100.0))
+                    }, 0)
+                }
+
+                const getItemComisionPct = (item) => {
+                    if (!item.detalles || item.detalles.length === 0) return '0%'
+                    const pcts = item.detalles.map(d => `${d.porcentaje_comision}%`)
+                    const unique = [...new Set(pcts)]
+                    return unique.join(', ')
+                }
+
+
                 const sortedHistorial = computed(() => {
                     let sorted = [...historialAtenciones.value]
 
@@ -765,6 +827,10 @@
                     atendidos,
                     totalProduccion,
                     totalRecaudado,
+                    totalComision,
+                    getItemComision,
+                    getItemComisionPct,
+
                     loading,
                     loadingInventory,
                     loadingHistorial,
