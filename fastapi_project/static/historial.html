@@ -69,24 +69,30 @@
                 </div>
                 <!-- Fila 2: Navegación -->
                 <div class="flex flex-wrap gap-x-1 gap-y-0.5 py-1.5">
+                    <!-- Mi Agenda (Solo Doctor) -->
+                    <a v-if="role === 'doctor'" href="/doctor/dashboard"
+                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-bold bg-blue-50 text-blue-700 whitespace-nowrap">
+                        <i class="fa-solid fa-user-doctor mr-1.5"></i> Mi Agenda
+                    </a>
                     <!-- Recepción -->
-                    <a href="/recepcion"
+                    <a v-if="role !== 'doctor'" href="/recepcion"
                         class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
                         :class="isActive('/recepcion') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
                         <i class="fa-solid fa-desktop mr-1.5"></i> Recepción
                     </a>
                     <!-- CxC / Abonos -->
-                    <a href="/static/pagos.html"
+                    <a v-if="role !== 'doctor'" href="/static/pagos.html"
                         class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
                         :class="isActive('/static/pagos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
                         <i class="fa-solid fa-credit-card mr-1.5"></i> CxC / Abonos
                     </a>
                     <!-- Calendario -->
-                    <a href="/static/calendario.html"
+                    <a v-if="role !== 'doctor'" href="/static/calendario.html"
                         class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
                         :class="isActive('/static/calendario.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
                         <i class="fa-solid fa-calendar-days mr-1.5"></i> Calendario
                     </a>
+
                     <!-- Cuadre Diario -->
                     <a v-if="role !== 'doctor'" href="/cuadre"
                         class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"

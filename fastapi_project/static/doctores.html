@@ -209,8 +209,14 @@
     </div>
 </div>
 
-<script>
-    const { createApp, ref, onMounted, computed } = Vue
+    <script>
+        const _docGuard = localStorage.getItem('role') || localStorage.getItem('user_role');
+        if (_docGuard === 'doctor') {
+            window.location.href = '/doctor/dashboard';
+        }
+
+        const { createApp, ref, onMounted, computed } = Vue
+
 
     createApp({
         setup() {

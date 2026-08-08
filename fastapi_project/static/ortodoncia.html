@@ -326,7 +326,8 @@ createApp({
         const loadData = async () => {
             const token = localStorage.getItem('token');
             if (!token) { window.location.href = '/login'; return; }
-            if (role.value === 'doctor') { window.location.href = '/recepcion'; return; }
+            if (role.value === 'doctor') { window.location.href = '/doctor/dashboard'; return; }
+
             loading.value = true;
             try {
                 const res = await axios.get('/api/reportes/ortodoncia', {

@@ -399,8 +399,11 @@ createApp({
 
         onMounted(() => {
             if (!localStorage.getItem('token')) { window.location.href = '/login'; return; }
+            const currentRole = localStorage.getItem('role') || localStorage.getItem('user_role');
+            if (currentRole === 'doctor') { window.location.href = '/doctor/dashboard'; return; }
             if (role.value !== 'admin') { window.location.href = '/recepcion'; return; }
         });
+
 
         return { role, currentUser, sucursalNombre, branchColorStyle, branchTextColor, loading, data, startDate, endDate, filterMetodo, displayData, generar, fmt, formatFecha, logout };
     }

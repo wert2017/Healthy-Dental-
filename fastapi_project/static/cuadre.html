@@ -300,6 +300,11 @@
 </div>
 
 <script>
+    const _doctorCheck = localStorage.getItem('role') || localStorage.getItem('user_role');
+    if (_doctorCheck === 'doctor') {
+        window.location.href = '/doctor/dashboard';
+    }
+
     const { createApp, ref, onMounted, computed } = Vue
 
     createApp({

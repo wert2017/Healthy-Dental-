@@ -519,7 +519,13 @@
 
     <!-- Calendar Mount & App Logic -->
     <script>
+        const _doctorGuard = localStorage.getItem('role') || localStorage.getItem('user_role');
+        if (_doctorGuard === 'doctor') {
+            window.location.href = '/doctor/dashboard';
+        }
+
         const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
 
         createApp({
             setup() {
