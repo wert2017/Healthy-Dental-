@@ -154,57 +154,61 @@
         </div>
 
         <!-- Tabla doctores -->
-        <div class="section">
-            <div class="section-head">
-                <span class="section-title">Detalle por Doctor</span>
-                <span class="section-desc">{{ docData.filas?.length || 0 }} registros</span>
+        <div class="section bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+            <div class="section-head px-4 py-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                <span class="section-title text-sm sm:text-base font-extrabold text-slate-800 uppercase tracking-wide">DETALLE POR DOCTOR</span>
+                <span class="section-desc text-xs font-semibold text-slate-500 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-2xs">{{ docData.filas?.length || 0 }} registros</span>
             </div>
-            <div class="section-body" style="overflow-x:auto;">
-                <table class="dt">
-                    <thead>
+            <div class="section-body overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="bg-slate-100/90 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
                         <tr>
-                            <th>Fecha</th>
-                            <th>Doctor</th>
-                            <th>Tratamiento</th>
-                            <th class="r">Valor Cancelado</th>
-                            <th class="c">% Comisión</th>
-                            <th class="r">Valor de Comisión</th>
-                            <th class="r">Comisión Cancelada</th>
-                            <th class="r">Pendiente por Cancelar</th>
+                            <th class="py-2.5 px-3">Fecha</th>
+                            <th class="py-2.5 px-3">Doctor</th>
+                            <th class="py-2.5 px-3">Tratamiento</th>
+                            <th class="py-2.5 px-3 text-right">Valor Cancelado</th>
+                            <th class="py-2.5 px-3 text-center">% Comisión</th>
+                            <th class="py-2.5 px-3 text-right text-amber-800">Valor de Comisión</th>
+                            <th class="py-2.5 px-3 text-right text-emerald-700">Comisión Cancelada</th>
+                            <th class="py-2.5 px-3 text-right">Pendiente por Cancelar</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr v-for="(f, i) in docData.filas || []" :key="i">
-                            <td style="white-space:nowrap; color:#6b7280;">{{ f.fecha }}</td>
-                            <td style="font-weight:500;">{{ f.doctor }}</td>
-                            <td>{{ f.tratamiento }}</td>
-                            <td class="r">${{ fmt(f.valor_cancelado) }}</td>
-                            <td class="c"><span class="badge">{{ f.pct_comision }}%</span></td>
-                            <td class="r">${{ fmt(f.valor_comision) }}</td>
-                            <td class="r">${{ fmt(f.valor_comision_pagada) }}</td>
-                            <td class="r">
-                                <span :class="f.comision_pendiente > 0 ? 'badge badge-warn' : 'badge badge-ok'">
+                    <tbody class="divide-y divide-slate-100 text-slate-700">
+                        <tr v-for="(f, i) in docData.filas || []" :key="i" class="hover:bg-slate-50/80 transition-colors">
+                            <td class="py-2 px-3 whitespace-nowrap font-mono text-slate-500 text-[11px]">{{ f.fecha }}</td>
+                            <td class="py-2 px-3 whitespace-nowrap font-bold text-slate-800">{{ f.doctor }}</td>
+                            <td class="py-2 px-3 whitespace-nowrap font-medium text-slate-700">{{ f.tratamiento }}</td>
+                            <td class="py-2 px-3 whitespace-nowrap text-right font-semibold text-slate-800">${{ fmt(f.valor_cancelado) }}</td>
+                            <td class="py-2 px-3 whitespace-nowrap text-center">
+                                <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200">{{ f.pct_comision }}%</span>
+                            </td>
+                            <td class="py-2 px-3 whitespace-nowrap text-right font-bold text-amber-700">${{ fmt(f.valor_comision) }}</td>
+                            <td class="py-2 px-3 whitespace-nowrap text-right font-semibold text-emerald-600">${{ fmt(f.valor_comision_pagada) }}</td>
+                            <td class="py-2 px-3 whitespace-nowrap text-right font-bold">
+                                <span :class="f.comision_pendiente > 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'"
+                                      class="px-2 py-0.5 rounded-full text-[11px] border">
                                     ${{ fmt(f.comision_pendiente) }}
                                 </span>
                             </td>
                         </tr>
                         <tr v-if="!docData.filas?.length">
-                            <td colspan="8" class="empty">Sin datos — ajusta los filtros y presiona Generar</td>
+                            <td colspan="8" class="text-center py-8 text-slate-400 italic">Sin datos — ajusta los filtros y presiona Generar</td>
                         </tr>
                     </tbody>
-                    <tfoot v-if="docData.filas?.length">
+                    <tfoot v-if="docData.filas?.length" class="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-800">
                         <tr>
-                            <td colspan="3" style="font-weight:700; color:#374151;">TOTALES</td>
-                            <td class="r">${{ fmt(docData.totales?.valor_cancelado) }}</td>
+                            <td colspan="3" class="py-2.5 px-3 uppercase text-[11px] tracking-wider">TOTALES</td>
+                            <td class="py-2.5 px-3 text-right">${{ fmt(docData.totales?.valor_cancelado) }}</td>
                             <td></td>
-                            <td class="r">${{ fmt(docData.totales?.valor_comision) }}</td>
-                            <td class="r">${{ fmt(docData.totales?.valor_comision_pagada) }}</td>
-                            <td class="r">${{ fmt(docData.totales?.comision_pendiente) }}</td>
+                            <td class="py-2.5 px-3 text-right text-amber-700">${{ fmt(docData.totales?.valor_comision) }}</td>
+                            <td class="py-2.5 px-3 text-right text-emerald-600">${{ fmt(docData.totales?.valor_comision_pagada) }}</td>
+                            <td class="py-2.5 px-3 text-right text-amber-800">${{ fmt(docData.totales?.comision_pendiente) }}</td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
         </div>
+
 
     </div>
 </div>

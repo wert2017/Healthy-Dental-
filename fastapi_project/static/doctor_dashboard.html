@@ -203,108 +203,92 @@
                 </div>
 
                 <div v-else v-for="item in atenciones" :key="item.id"
-                    :class="item.validado ? 'opacity-75 bg-gray-50' : 'bg-white border-l-4 border-blue-500'"
-                    class="rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 transition hover:shadow-md">
+                    :class="item.validado ? 'opacity-80 bg-slate-50 border-l-4 border-slate-300' : 'bg-white border-l-4 border-blue-600'"
+                    class="rounded-xl shadow-xs border border-slate-200 p-3 sm:p-4 transition hover:shadow-sm">
 
-                    <div class="flex flex-col md:flex-row justify-between items-start gap-4">
-                        <!-- Patient Info -->
-                        <div class="flex-grow">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded font-mono">{{
-                                    item.hora }}</span>
-                                <span v-if="item.paciente.historia_clinica"
-                                    class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded font-bold">
-                                    {{ item.paciente.historia_clinica }}
-                                </span>
-                            </div>
-                            <h3 class="text-lg font-bold text-gray-900 mb-2">
+                    <!-- Header Fila Paciente + Botones de Acción de Celular -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/60">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded font-mono font-bold">{{ item.hora }}</span>
+                            <span v-if="item.paciente.historia_clinica"
+                                class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded font-bold">
+                                HC: {{ item.paciente.historia_clinica }}
+                            </span>
+                            <h3 class="text-base font-bold text-slate-900 m-0">
                                 {{ item.paciente.nombres }} {{ item.paciente.apellidos }}
                             </h3>
-
-                            <!-- Financial / Treatment Summary Box with Commissions -->
-                            <div class="border border-slate-200 bg-slate-50/70 rounded-xl p-3 sm:p-4 mt-2">
-                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    <div>
-                                        <p class="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Tratamiento</p>
-                                        <p class="text-xs sm:text-sm font-bold text-gray-800 truncate"
-                                            :title="item.resumen_tratamientos">{{ item.resumen_tratamientos || 'General' }}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p class="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Total</p>
-                                        <p class="text-xs sm:text-sm font-bold text-gray-800">${{ formatCurrency(item.total) }}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Pagado</p>
-                                        <p class="text-xs sm:text-sm font-bold text-emerald-600">${{ formatCurrency(item.pagado) }}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-[10px] uppercase font-extrabold text-amber-700 mb-0.5">Comisión Doctor</p>
-                                        <p class="text-xs sm:text-sm font-extrabold text-amber-600">
-                                            ${{ formatCurrency(getItemComision(item)) }}
-                                            <span class="text-[10px] font-semibold text-amber-700">({{ getItemComisionPct(item) }})</span>
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <!-- Desglose por tratamiento (si hay detalles) -->
-                                <div v-if="item.detalles && item.detalles.length > 0" class="mt-2.5 pt-2 border-t border-slate-200/80">
-                                    <div class="text-[10px] font-bold uppercase text-slate-400 mb-1">Detalle de Comisiones por Tratamiento:</div>
-                                    <div class="space-y-1">
-                                        <div v-for="det in item.detalles" :key="det.id" 
-                                             class="flex items-center justify-between text-xs bg-white px-2.5 py-1.5 rounded-lg border border-slate-200/60 shadow-2xs">
-                                            <span class="font-semibold text-slate-700">
-                                                <i class="fa-solid fa-tooth text-blue-500 mr-1 text-[10px]"></i>
-                                                {{ det.tratamiento_nombre }} <span class="text-slate-400 font-normal text-[11px]">(x{{ det.cantidad }})</span>
-                                            </span>
-                                            <div class="flex items-center gap-3">
-                                                <span class="text-slate-500 text-[11px]">Total: <strong>${{ formatCurrency(det.total) }}</strong></span>
-                                                <span class="font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-[11px]">
-                                                    {{ det.porcentaje_comision }}% = ${{ formatCurrency(det.total * (det.porcentaje_comision / 100)) }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
-
-                        <!-- Actions -->
-                        <div class="flex flex-col sm:flex-row md:flex-col gap-2 w-full md:w-auto md:min-w-[170px]">
+                        <!-- Botones de Acción compactos -->
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <span v-if="item.validado" class="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-1 rounded-lg">
+                                <i class="fa-solid fa-check mr-1"></i> Conciliado
+                            </span>
+                            <button v-if="!item.validado" @click="terminarTratamiento(item)"
+                                class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-2xs transition inline-flex items-center gap-1 border-0 cursor-pointer">
+                                <i class="fa-solid fa-check"></i> Conciliar
+                            </button>
+                            <button v-if="!item.validado" @click="solicitarRevision(item)"
+                                :disabled="item.estado === 'POR_REVISAR'"
+                                class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-2xs transition inline-flex items-center gap-1 disabled:opacity-50 border-0 cursor-pointer">
+                                <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
+                                {{ item.estado === 'POR_REVISAR' ? 'En Revisión' : 'Revisión' }}
+                            </button>
                             <a :href="`/recepcion/editar/${item.id}`"
-                                class="w-full bg-blue-600 text-white hover:bg-blue-700 shadow-sm px-4 py-2 rounded-lg font-bold text-sm transition flex items-center justify-center gap-2 text-center">
-                                Ver Detalles
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
+                                class="bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white text-xs font-bold px-2.5 py-1 rounded-lg transition inline-flex items-center gap-1 no-underline border border-blue-200">
+                                <i class="fa-solid fa-eye text-[10px]"></i> Ver
                             </a>
-
-                            <div class="flex flex-col gap-2 w-full" v-if="!item.validado">
-                                <button @click="terminarTratamiento(item)"
-                                    class="w-full bg-green-600 text-white hover:bg-green-700 shadow-sm px-4 py-2 rounded-lg font-bold text-sm transition flex items-center justify-center gap-2">
-                                    Conciliar
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M5 13l4 4L19 7" />
-                                    </svg>
-                                </button>
-                                <button @click="solicitarRevision(item)"
-                                    :disabled="item.estado === 'POR_REVISAR'"
-                                    class="w-full bg-amber-500 text-white hover:bg-amber-600 shadow-sm px-4 py-2 rounded-lg font-bold text-sm transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    {{ item.estado === 'POR_REVISAR' ? 'En Revisión' : 'Solicitar Revisión' }}
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                    </svg>
-                                </button>
-                            </div>
                         </div>
                     </div>
+
+                    <!-- Tabla de Tratamientos & Comisiones ultra compacta para celular -->
+                    <div class="mt-2.5 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100/90 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                    <th class="py-2 px-3">Tratamiento</th>
+                                    <th class="py-2 px-3 text-right">Valor</th>
+                                    <th class="py-2 px-3 text-center">% Com.</th>
+                                    <th class="py-2 px-3 text-right text-amber-800">Comisión</th>
+                                    <th class="py-2 px-3 text-right text-emerald-700">Pagado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-slate-800">
+                                <tr v-for="det in item.detalles" :key="det.id" class="hover:bg-slate-50/80">
+                                    <td class="py-2 px-3 whitespace-nowrap font-medium text-slate-800">
+                                        <i class="fa-solid fa-tooth text-blue-500 mr-1 text-[10px]"></i>
+                                        {{ det.tratamiento_nombre }} <span class="text-slate-400 font-normal text-[11px]">(x{{ det.cantidad }})</span>
+                                    </td>
+                                    <td class="py-2 px-3 whitespace-nowrap text-right font-semibold text-slate-700">${{ formatCurrency(det.total) }}</td>
+                                    <td class="py-2 px-3 whitespace-nowrap text-center">
+                                        <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200">{{ det.porcentaje_comision }}%</span>
+                                    </td>
+                                    <td class="py-2 px-3 whitespace-nowrap text-right font-extrabold text-amber-700 bg-amber-50/30">
+                                        ${{ formatCurrency(det.total * (det.porcentaje_comision / 100)) }}
+                                    </td>
+                                    <td class="py-2 px-3 whitespace-nowrap text-right font-semibold text-emerald-600">${{ formatCurrency(item.pagado) }}</td>
+                                </tr>
+                                <tr v-if="!item.detalles || item.detalles.length === 0">
+                                    <td class="py-2 px-3 whitespace-nowrap font-medium text-slate-800">{{ item.resumen_tratamientos || 'General' }}</td>
+                                    <td class="py-2 px-3 whitespace-nowrap text-right font-semibold text-slate-700">${{ formatCurrency(item.total) }}</td>
+                                    <td class="py-2 px-3 whitespace-nowrap text-center"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200">{{ getItemComisionPct(item) }}</span></td>
+                                    <td class="py-2 px-3 whitespace-nowrap text-right font-extrabold text-amber-700 bg-amber-50/30">${{ formatCurrency(getItemComision(item)) }}</td>
+                                    <td class="py-2 px-3 whitespace-nowrap text-right font-semibold text-emerald-600">${{ formatCurrency(item.pagado) }}</td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="bg-slate-100/90 font-bold border-t border-slate-200 text-slate-800">
+                                <tr>
+                                    <td class="py-2 px-3 uppercase text-[10px] text-slate-500">Total Paciente</td>
+                                    <td class="py-2 px-3 text-right text-slate-900">${{ formatCurrency(item.total) }}</td>
+                                    <td class="py-2 px-3 text-center text-slate-400 text-[10px]">-</td>
+                                    <td class="py-2 px-3 text-right text-amber-800 bg-amber-100/40">${{ formatCurrency(getItemComision(item)) }}</td>
+                                    <td class="py-2 px-3 text-right text-emerald-600">${{ formatCurrency(item.pagado) }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
                 </div>
+
             </div>
 
             <!-- TAB: MANTENIMIENTO -->
