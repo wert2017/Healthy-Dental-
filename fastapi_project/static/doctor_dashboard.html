@@ -407,60 +407,62 @@
                     <p class="text-gray-400 text-lg">No se encontraron atenciones en el historial.</p>
                 </div>
 
-                <div v-else class="grid grid-cols-1 gap-4">
+                <div v-else class="grid grid-cols-1 gap-3">
                     <div v-for="item in sortedHistorial" :key="item.id"
-                        class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition group">
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div class="flex-grow">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span
-                                        class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{{
-                                        item.fecha_dia }}</span>
-                                    <span class="text-xs text-gray-400 font-mono">{{ item.hora }}</span>
-                                </div>
-                                <h4 class="font-bold text-gray-900 group-hover:text-blue-600 transition">{{
-                                    item.paciente.nombres }} {{ item.paciente.apellidos }}</h4>
-                                <p class="text-xs text-gray-500 italic mt-1">{{ item.resumen_tratamientos }}</p>
+                        class="bg-white rounded-xl shadow-xs border border-slate-200 p-3 sm:p-4 hover:shadow-sm transition">
+                        
+                        <!-- Línea 1: Fecha, Hora y Botón Ver -->
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="text-[10px] sm:text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-mono uppercase whitespace-nowrap">
+                                    {{ item.fecha_dia }}
+                                </span>
+                                <span class="text-[10px] sm:text-xs text-slate-400 font-mono shrink-0">{{ item.hora }}</span>
                             </div>
+                            <a :href="`/recepcion/editar/${item.id}`"
+                               class="bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[11px] sm:text-xs font-bold transition inline-flex items-center gap-1 shrink-0 no-underline border border-blue-200"
+                               title="Ver Detalles">
+                                <i class="fa-solid fa-eye text-[10px]"></i> Ver
+                            </a>
+                        </div>
 
-                            <div
-                                class="flex flex-wrap items-center gap-2 sm:gap-4 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0">
-                                <div class="text-right">
-                                    <p class="text-[10px] uppercase font-bold text-gray-400">Total</p>
-                                    <p class="text-xs sm:text-sm font-bold text-gray-800">${{ formatCurrency(item.total) }}</p>
-                                </div>
-                                <!-- Comisión Generada -->
-                                <div class="text-right bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
-                                    <p class="text-[10px] uppercase font-extrabold text-amber-800">Com. Generada</p>
-                                    <p class="text-xs sm:text-sm font-extrabold text-amber-700">${{ formatCurrency(getItemComision(item)) }}</p>
-                                </div>
-                                <!-- Comisión Pagada -->
-                                <div class="text-right bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                                    <p class="text-[10px] uppercase font-extrabold text-emerald-800">Com. Pagada</p>
-                                    <p class="text-xs sm:text-sm font-extrabold text-emerald-700">${{ formatCurrency(getItemComisionPagada(item)) }}</p>
-                                </div>
-                                <!-- Comisión Pendiente -->
-                                <div class="text-right bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
-                                    <p class="text-[10px] uppercase font-extrabold text-rose-800">Pendiente</p>
-                                    <p class="text-xs sm:text-sm font-extrabold text-rose-700">${{ formatCurrency(getItemComisionPendiente(item)) }}</p>
-                                </div>
+                        <!-- Línea 2: Nombre del Paciente (en 1 sola línea) -->
+                        <h4 class="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug m-0 truncate"
+                            :title="item.paciente.nombres + ' ' + item.paciente.apellidos">
+                            {{ item.paciente.nombres }} {{ item.paciente.apellidos }}
+                        </h4>
 
+                        <!-- Línea 3: Tratamientos realizados (en 1 sola línea) -->
+                        <p class="text-[11px] text-slate-500 italic mt-0.5 mb-2 truncate" :title="item.resumen_tratamientos">
+                            <i class="fa-solid fa-tooth text-blue-400 mr-1 text-[10px]"></i> {{ item.resumen_tratamientos || 'General' }}
+                        </p>
 
-                                <div class="flex items-center gap-2">
-                                    <a :href="`/recepcion/editar/${item.id}`"
-                                        class="bg-gray-100 text-gray-600 hover:bg-blue-600 hover:text-white p-2 rounded-lg transition"
-                                        title="Ver Detalles">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                    </a>
-                                </div>
+                        <!-- Línea 4: Todos los Valores en una sola fila compacta (Grid 4 columnas) -->
+                        <div class="grid grid-cols-4 gap-1 sm:gap-2 pt-2 border-t border-slate-100 text-center">
+                            <!-- Total Cita -->
+                            <div class="bg-slate-50 p-1.5 rounded-lg border border-slate-200/60">
+                                <p class="text-[9px] uppercase font-bold text-slate-400 leading-none mb-0.5">Total</p>
+                                <p class="text-[11px] sm:text-xs font-extrabold text-slate-800 leading-none">${{ formatCurrency(item.total) }}</p>
+                            </div>
+                            <!-- Comisión Generada -->
+                            <div class="bg-amber-50 p-1.5 rounded-lg border border-amber-200/80">
+                                <p class="text-[9px] uppercase font-extrabold text-amber-800 leading-none mb-0.5">Generada</p>
+                                <p class="text-[11px] sm:text-xs font-extrabold text-amber-700 leading-none">${{ formatCurrency(getItemComision(item)) }}</p>
+                            </div>
+                            <!-- Comisión Pagada -->
+                            <div class="bg-emerald-50 p-1.5 rounded-lg border border-emerald-200/80">
+                                <p class="text-[9px] uppercase font-extrabold text-emerald-800 leading-none mb-0.5">Pagada</p>
+                                <p class="text-[11px] sm:text-xs font-extrabold text-emerald-700 leading-none">${{ formatCurrency(getItemComisionPagada(item)) }}</p>
+                            </div>
+                            <!-- Comisión Pendiente -->
+                            <div class="bg-rose-50 p-1.5 rounded-lg border border-rose-200/80">
+                                <p class="text-[9px] uppercase font-extrabold text-rose-800 leading-none mb-0.5">Pendiente</p>
+                                <p class="text-[11px] sm:text-xs font-extrabold text-rose-700 leading-none">${{ formatCurrency(getItemComisionPendiente(item)) }}</p>
                             </div>
                         </div>
                     </div>
+                </div>
+
 
                     <!-- Pagination Controls -->
                     <div class="flex items-center justify-between pt-4 pb-8">
