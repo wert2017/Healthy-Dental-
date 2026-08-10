@@ -527,11 +527,11 @@
                                                         class="block text-xs font-extrabold text-slate-900 uppercase mb-1 tracking-tight">Efectivo</label>
                                                     <div class="relative">
                                                         <span
-                                                            class="absolute left-2.5 top-2.5 text-slate-700 font-bold text-sm">$</span>
+                                                            class="absolute left-3 top-2 text-slate-900 font-extrabold text-base pointer-events-none z-10">$</span>
                                                         <input v-model.number="payments.efectivo"
                                                             :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
-                                                            type="number" step="0.01"
-                                                            class="input-clean pl-7 h-10 text-base font-extrabold text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
+                                                            type="number" step="0.01" style="padding-left: 2.25rem !important;"
+                                                            class="input-clean h-10 text-base font-extrabold text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
                                                     </div>
                                                 </div>
                                                 <div>
@@ -539,11 +539,11 @@
                                                         class="block text-xs font-extrabold text-slate-900 uppercase mb-1 tracking-tight">Transferencia</label>
                                                     <div class="relative">
                                                         <span
-                                                            class="absolute left-2.5 top-2.5 text-slate-700 font-bold text-sm">$</span>
+                                                            class="absolute left-3 top-2 text-slate-900 font-extrabold text-base pointer-events-none z-10">$</span>
                                                         <input v-model.number="payments.transferencia"
                                                             :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
-                                                            type="number" step="0.01"
-                                                            class="input-clean pl-7 h-10 text-base font-extrabold text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
+                                                            type="number" step="0.01" style="padding-left: 2.25rem !important;"
+                                                            class="input-clean h-10 text-base font-extrabold text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
                                                     </div>
                                                 </div>
                                                 <div>
@@ -551,11 +551,11 @@
                                                         class="block text-xs font-extrabold text-slate-900 uppercase mb-1 tracking-tight">Tarjeta</label>
                                                     <div class="relative">
                                                         <span
-                                                            class="absolute left-2.5 top-2.5 text-slate-700 font-bold text-sm">$</span>
+                                                            class="absolute left-3 top-2 text-slate-900 font-extrabold text-base pointer-events-none z-10">$</span>
                                                         <input v-model.number="payments.tarjeta"
                                                             :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
-                                                            type="number" step="0.01"
-                                                            class="input-clean pl-7 h-10 text-base font-extrabold text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
+                                                            type="number" step="0.01" style="padding-left: 2.25rem !important;"
+                                                            class="input-clean h-10 text-base font-extrabold text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
                                                     </div>
                                                 </div>
 
@@ -567,12 +567,12 @@
                                                     </label>
                                                     <div class="relative">
                                                         <span
-                                                            class="absolute left-2.5 top-2.5 text-amber-700 font-bold text-sm">$</span>
+                                                            class="absolute left-3 top-2 text-amber-900 font-extrabold text-base pointer-events-none z-10">$</span>
                                                         <input v-model.number="payments.abono"
                                                             :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
-                                                            type="number" step="0.01"
+                                                            type="number" step="0.01" style="padding-left: 2.25rem !important;"
                                                             :max="atencion?.paciente?.saldo_favor"
-                                                            class="input-clean pl-7 h-10 text-base font-extrabold text-amber-800 border border-amber-300 w-full bg-white rounded-lg shadow-2xs focus:ring-amber-500">
+                                                            class="input-clean h-10 text-base font-extrabold text-amber-900 border border-amber-300 w-full bg-white rounded-lg shadow-2xs focus:ring-amber-500">
                                                     </div>
                                                 </div>
                                             </div>
