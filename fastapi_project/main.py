@@ -204,7 +204,8 @@ async def login_for_access_token(
     sucursal_id: Optional[int] = Form(None), # Added for clinic selection
     session: Session = Depends(get_session)
 ):
-    user = session.exec(select(User).where(User.username == form_data.username)).first()
+    input_username = form_data.username.strip()
+    user = session.exec(select(User).where(User.username.ilike(input_username))).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

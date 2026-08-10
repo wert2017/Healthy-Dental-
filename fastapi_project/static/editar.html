@@ -381,25 +381,33 @@
                                             </select>
                                         </div>
 
-                                        <!-- Comision -->
+                                        <!-- Comision % -->
                                         <div style="width:68px;">
                                             <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Comis%</label>
-                                            <input type="number" v-model="newDetail.comision" step="1" min="0" max="100"
+                                            <input type="number" v-model="newDetail.comision" @input="onComisionPctChange" step="any" min="0" max="100"
                                                 class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-medium text-gray-600"
                                                 placeholder="0">
+                                        </div>
+
+                                        <!-- Comision $ -->
+                                        <div style="width:80px;">
+                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Comis ($)</label>
+                                            <input type="number" v-model="newDetail.comision_monto" @input="onComisionMontoChange" step="0.01" min="0"
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-amber-700 font-mono"
+                                                placeholder="0.00">
                                         </div>
 
                                         <!-- Cantidad -->
                                         <div style="width:60px;">
                                             <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Cant.</label>
-                                            <input type="number" v-model="newDetail.cantidad" min="1" step="1"
+                                            <input type="number" v-model="newDetail.cantidad" @input="onQuantityOrPriceChange" min="1" step="1"
                                                 class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-gray-700">
                                         </div>
 
                                         <!-- Precio unitario -->
                                         <div style="width:88px;">
                                             <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">P. Unit ($)</label>
-                                            <input type="number" v-model="newDetail.precio" step="0.01"
+                                            <input type="number" v-model="newDetail.precio" @input="onQuantityOrPriceChange" step="0.01"
                                                 class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-gray-700">
                                         </div>
 
@@ -455,9 +463,10 @@
                                                 <td class="px-2.5 py-2 text-right text-gray-600 font-mono whitespace-nowrap">
                                                     ${{ (parseFloat(d.precio_unitario) || 0).toFixed(2) }}
                                                 </td>
-                                                <td class="px-2.5 py-2 text-right text-gray-500 font-mono whitespace-nowrap">
-                                                    {{ d.porcentaje_comision }}%
-                                                </td>
+                                                 <td class="px-2.5 py-2 text-right font-mono whitespace-nowrap">
+                                                     <div class="font-bold text-amber-800 text-xs">${{ ((parseFloat(d.total) || 0) * ((parseFloat(d.porcentaje_comision) || 0) / 100)).toFixed(2) }}</div>
+                                                     <div class="text-[10px] text-gray-400">({{ d.porcentaje_comision }}%)</div>
+                                                 </td>
                                                 <td class="px-2.5 py-2 text-right font-extrabold text-gray-900 font-mono whitespace-nowrap">${{
                                                     (parseFloat(d.total) || 0).toFixed(2) }}</td>
                                                 <td class="px-2.5 py-2 text-right whitespace-nowrap">
@@ -647,7 +656,8 @@
                     assignedTo: '',
                     cantidad: 1,
                     precio: 0,
-                    comision: 0
+                    comision: 0,
+                    comision_monto: 0
                 });
 
                 const parts = window.location.pathname.split('/');
@@ -894,6 +904,34 @@
 
                 const editingDetailId = ref(null);
 
+                const onComisionPctChange = () => {
+                    const pct = parseFloat(newDetail.value.comision) || 0;
+                    const total = (parseInt(newDetail.value.cantidad) || 1) * (parseFloat(newDetail.value.precio) || 0);
+                    if (total > 0) {
+                        newDetail.value.comision_monto = parseFloat(((pct / 100) * total).toFixed(2));
+                    } else {
+                        newDetail.value.comision_monto = 0;
+                    }
+                };
+
+                const onComisionMontoChange = () => {
+                    const monto = parseFloat(newDetail.value.comision_monto) || 0;
+                    const total = (parseInt(newDetail.value.cantidad) || 1) * (parseFloat(newDetail.value.precio) || 0);
+                    if (total > 0) {
+                        newDetail.value.comision = parseFloat(((monto / total) * 100).toFixed(2));
+                    } else {
+                        newDetail.value.comision = 0;
+                    }
+                };
+
+                const onQuantityOrPriceChange = () => {
+                    if (newDetail.value.comision_monto && !newDetail.value.comision) {
+                        onComisionMontoChange();
+                    } else {
+                        onComisionPctChange();
+                    }
+                };
+
                 const startEditing = (detail) => {
                     if (editLocked.value && !isAdmin.value) return;
                     editingDetailId.value = detail.id;
@@ -901,18 +939,26 @@
                     let assignedTo = '';
                     if (detail.doctor_id) assignedTo = `doc_${detail.doctor_id}`;
                     else if (detail.vendedor_id) assignedTo = `usr_${detail.vendedor_id}`;
+
+                    const cantidad = detail.cantidad || 1;
+                    const precio = parseFloat(detail.precio_unitario || detail.precio_base || 0);
+                    const totalDetail = cantidad * precio;
+                    const pct = parseFloat(detail.porcentaje_comision || 0);
+                    const monto = totalDetail > 0 ? parseFloat(((pct / 100) * totalDetail).toFixed(2)) : 0;
+
                     newDetail.value = {
                         tratamiento_id: t ? t.id : detail.tratamiento_id,
                         assignedTo,
-                        cantidad: detail.cantidad || 1,
-                        precio: parseFloat(detail.precio_unitario || detail.precio_base || 0),
-                        comision: detail.porcentaje_comision || 0
+                        cantidad,
+                        precio,
+                        comision: pct,
+                        comision_monto: monto
                     };
                 };
 
                 const cancelEditing = () => {
                     editingDetailId.value = null;
-                    newDetail.value = { tratamiento_id: '', assignedTo: '', cantidad: 1, precio: 0, comision: 0 };
+                    newDetail.value = { tratamiento_id: '', assignedTo: '', cantidad: 1, precio: 0, comision: 0, comision_monto: 0 };
                 };
 
                 const updatePrice = () => {
@@ -920,6 +966,7 @@
                     if (t) {
                         newDetail.value.precio = parseFloat(t.precio_base || 0);
                         newDetail.value.comision = 0;
+                        newDetail.value.comision_monto = 0;
                     }
                 };
 
@@ -1071,6 +1118,7 @@
                     fechaEditable, guardarFecha,
                     savingNotes, editingDetailId,
                     startEditing, cancelEditing, updatePrice, addDetail, deleteDetalle,
+                    onComisionPctChange, onComisionMontoChange, onQuantityOrPriceChange,
                     eliminarAtencion, debouncedSync, debouncedNoteSave,
                     terminarConsulta, guardarYSalir,
                     totalPagado, porPagar, remainingWalletBalance, currentPatientBalance,
