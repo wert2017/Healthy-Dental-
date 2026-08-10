@@ -397,21 +397,21 @@
                                         <div style="width:60px;">
                                             <label class="block text-xs font-extrabold text-slate-800 mb-1 uppercase">Cant.</label>
                                             <input type="number" v-model="newDetail.cantidad" @input="onQuantityOrPriceChange" min="1" step="1"
-                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-gray-700">
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-normal text-slate-800">
                                         </div>
 
                                         <!-- Precio unitario -->
                                         <div style="width:88px;">
                                             <label class="block text-xs font-extrabold text-slate-800 mb-1 uppercase">P. Unit ($)</label>
                                             <input type="number" v-model="newDetail.precio" @input="onQuantityOrPriceChange" step="0.01"
-                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-gray-700">
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-normal text-slate-800">
                                         </div>
 
                                         <!-- Comision % -->
                                         <div style="width:72px;">
                                             <label class="block text-xs font-extrabold text-slate-900 mb-1 uppercase whitespace-nowrap">COM <span class="text-blue-600 font-black text-sm">%</span></label>
                                             <input type="number" v-model="newDetail.comision" @input="onComisionPctChange" step="any" min="0" max="100"
-                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-slate-800"
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-normal text-slate-800"
                                                 placeholder="0">
                                         </div>
 
@@ -419,7 +419,7 @@
                                         <div style="width:80px;">
                                             <label class="block text-xs font-extrabold text-slate-900 mb-1 uppercase whitespace-nowrap">COM <span class="text-amber-600 font-black text-sm">$</span></label>
                                             <input type="number" v-model="newDetail.comision_monto" @input="onComisionMontoChange" step="0.01" min="0"
-                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-amber-700 font-mono"
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-normal text-amber-800 font-mono"
                                                 placeholder="0.00">
                                         </div>
 
@@ -543,7 +543,7 @@
                                                         <input v-model.number="payments.efectivo"
                                                             :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
                                                             type="number" step="0.01" style="padding-left: 2.25rem !important;"
-                                                            class="input-clean h-10 text-base font-extrabold text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
+                                                            class="input-clean h-10 text-base font-normal text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
                                                     </div>
                                                 </div>
                                                 <div>
@@ -555,7 +555,7 @@
                                                         <input v-model.number="payments.transferencia"
                                                             :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
                                                             type="number" step="0.01" style="padding-left: 2.25rem !important;"
-                                                            class="input-clean h-10 text-base font-extrabold text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
+                                                            class="input-clean h-10 text-base font-normal text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
                                                     </div>
                                                 </div>
                                                 <div>
@@ -567,7 +567,7 @@
                                                         <input v-model.number="payments.tarjeta"
                                                             :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
                                                             type="number" step="0.01" style="padding-left: 2.25rem !important;"
-                                                            class="input-clean h-10 text-base font-extrabold text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
+                                                            class="input-clean h-10 text-base font-normal text-slate-900 w-full bg-white border border-gray-300 rounded-lg shadow-2xs focus:ring-2 focus:ring-blue-100">
                                                     </div>
                                                 </div>
 
@@ -584,7 +584,7 @@
                                                             :disabled="atencion.validado && !isAdmin" @input="debouncedSync"
                                                             type="number" step="0.01" style="padding-left: 2.25rem !important;"
                                                             :max="atencion?.paciente?.saldo_favor"
-                                                            class="input-clean h-10 text-base font-extrabold text-amber-900 border border-amber-300 w-full bg-white rounded-lg shadow-2xs focus:ring-amber-500">
+                                                            class="input-clean h-10 text-base font-normal text-amber-900 border border-amber-300 w-full bg-white rounded-lg shadow-2xs focus:ring-amber-500">
                                                     </div>
                                                 </div>
                                             </div>
