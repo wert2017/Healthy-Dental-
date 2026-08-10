@@ -60,6 +60,18 @@
             background-color: #f3f4f6 !important;
             color: #6b7280 !important;
         }
+
+        /* Ocultar flechas de incremento/decremento en inputs numéricos */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none !important;
+            margin: 0 !important;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield !important;
+            appearance: textfield !important;
+        }
+
         [v-cloak] { display: none !important; }
     </style>
 </head>
@@ -1110,6 +1122,11 @@
 
                 onMounted(() => {
                     loadData();
+                    window.addEventListener('wheel', (e) => {
+                        if (document.activeElement && document.activeElement.type === 'number') {
+                            document.activeElement.blur();
+                        }
+                    }, { passive: true });
                 });
 
                 return {
