@@ -358,7 +358,7 @@
                                     <div class="flex flex-wrap gap-2 items-end">
                                         <!-- Tratamiento -->
                                         <div style="flex:2;min-width:140px;">
-                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Tratamiento</label>
+                                            <label class="block text-xs font-extrabold text-slate-800 mb-1 uppercase">Tratamiento</label>
                                             <select v-model="newDetail.tratamiento_id" @change="updatePrice"
                                                 class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg focus:ring-2 focus:ring-blue-100">
                                                 <option value="" disabled selected>Seleccionar...</option>
@@ -368,7 +368,7 @@
 
                                         <!-- Doctor / Vendedor — solo al editar un tratamiento específico -->
                                         <div v-if="editingDetailId" style="flex:2;min-width:130px;">
-                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Doctor / Vendedor</label>
+                                            <label class="block text-xs font-extrabold text-slate-800 mb-1 uppercase">Doctor / Vendedor</label>
                                             <select v-model="newDetail.assignedTo" :disabled="isDoctor"
                                                 class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg disabled:bg-gray-100 disabled:text-gray-500">
                                                 <option value="">-- Sin Asignar --</option>
@@ -383,29 +383,29 @@
 
                                         <!-- Cantidad -->
                                         <div style="width:60px;">
-                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Cant.</label>
+                                            <label class="block text-xs font-extrabold text-slate-800 mb-1 uppercase">Cant.</label>
                                             <input type="number" v-model="newDetail.cantidad" @input="onQuantityOrPriceChange" min="1" step="1"
                                                 class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-gray-700">
                                         </div>
 
                                         <!-- Precio unitario -->
                                         <div style="width:88px;">
-                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">P. Unit ($)</label>
+                                            <label class="block text-xs font-extrabold text-slate-800 mb-1 uppercase">P. Unit ($)</label>
                                             <input type="number" v-model="newDetail.precio" @input="onQuantityOrPriceChange" step="0.01"
                                                 class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-gray-700">
                                         </div>
 
                                         <!-- Comision % -->
-                                        <div style="width:68px;">
-                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Comis%</label>
+                                        <div style="width:72px;">
+                                            <label class="block text-xs font-extrabold text-slate-900 mb-1 uppercase whitespace-nowrap">COM <span class="text-blue-600 font-black text-sm">%</span></label>
                                             <input type="number" v-model="newDetail.comision" @input="onComisionPctChange" step="any" min="0" max="100"
-                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-medium text-gray-600"
+                                                class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-slate-800"
                                                 placeholder="0">
                                         </div>
 
                                         <!-- Comision $ -->
                                         <div style="width:80px;">
-                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Comis ($)</label>
+                                            <label class="block text-xs font-extrabold text-slate-900 mb-1 uppercase whitespace-nowrap">COM <span class="text-amber-600 font-black text-sm">$</span></label>
                                             <input type="number" v-model="newDetail.comision_monto" @input="onComisionMontoChange" step="0.01" min="0"
                                                 class="input-clean bg-white h-9 border-gray-200 w-full text-xs rounded-lg text-center font-bold text-amber-700 font-mono"
                                                 placeholder="0.00">
@@ -413,7 +413,7 @@
 
                                         <!-- Total calculado -->
                                         <div style="width:80px;">
-                                            <label class="block text-xs font-bold text-gray-400 mb-1 uppercase">Total</label>
+                                            <label class="block text-xs font-extrabold text-slate-800 mb-1 uppercase">Total</label>
                                             <div class="h-9 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-indigo-700">
                                                 ${{ ((newDetail.cantidad || 1) * (newDetail.precio || 0)).toFixed(2) }}
                                             </div>
