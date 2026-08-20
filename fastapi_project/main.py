@@ -700,8 +700,8 @@ class DoctorAdmin(ModelView, model=Doctor):
             model.sucursal_id = admin_sucursal_id
 
 class SucursalAdmin(ModelView, model=Sucursal):
-    column_list = [Sucursal.nombre, Sucursal.direccion, Sucursal.fondo_caja, Sucursal.fondo_banco]
-    form_columns = [Sucursal.nombre, Sucursal.direccion, Sucursal.fondo_caja, Sucursal.fondo_banco]
+    column_list = [Sucursal.nombre, Sucursal.direccion, Sucursal.telefono, Sucursal.fondo_caja, Sucursal.fondo_banco]
+    form_columns = [Sucursal.nombre, Sucursal.direccion, Sucursal.telefono, Sucursal.fondo_caja, Sucursal.fondo_banco]
     icon = "fa-solid fa-building"
 
     def is_accessible(self, request: Request) -> bool:
