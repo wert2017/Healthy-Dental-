@@ -5317,7 +5317,9 @@ def build_certificado_excel_workbook(data: dict) -> io.BytesIO:
     curr_row += 2
     
     ws.merge_cells(f'A{curr_row}:D{curr_row}')
-    ws[f'A{curr_row}'] = "José de Soto OE4-35 Y Ave. La Prensa, San José Del Condado, Quito, Provincia Pichincha | TELEF. 0998899655"
+    s_dir = data.get("sucursal_emision_direccion") or "José de Soto OE4-35 Y Ave. La Prensa, San José Del Condado, Quito, Provincia Pichincha"
+    s_tel = data.get("sucursal_emision_telefono") or "0998899655"
+    ws[f'A{curr_row}'] = f"{s_dir} | TELEF. {s_tel}"
     ws[f'A{curr_row}'].font = font_small
     ws[f'A{curr_row}'].alignment = Alignment(horizontal="center")
     
@@ -5356,6 +5358,9 @@ class CertificadoCreate(BaseModel):
     doctor_email: Optional[str] = ""
     doctor_telefono: Optional[str] = ""
     doctor_especialidad: Optional[str] = ""
+    sucursal_emision_nombre: Optional[str] = ""
+    sucursal_emision_direccion: Optional[str] = ""
+    sucursal_emision_telefono: Optional[str] = ""
 
 @app.get("/recepcion/certificados", response_class=HTMLResponse)
 def view_certificados_page():
@@ -5404,6 +5409,9 @@ def create_certificado(cert: CertificadoCreate, session: Session = Depends(get_s
         doctor_email=cert.doctor_email,
         doctor_telefono=cert.doctor_telefono,
         doctor_especialidad=cert.doctor_especialidad,
+        sucursal_emision_nombre=cert.sucursal_emision_nombre,
+        sucursal_emision_direccion=cert.sucursal_emision_direccion,
+        sucursal_emision_telefono=cert.sucursal_emision_telefono,
         sucursal_id=user.sucursal_id,
         usuario_id=user.id
     )
@@ -5478,7 +5486,10 @@ def exportar_excel_certificado(cert_id: int, session: Session = Depends(get_sess
         "doctor_cedula": cert.doctor_cedula,
         "doctor_email": cert.doctor_email,
         "doctor_telefono": cert.doctor_telefono,
-        "doctor_especialidad": cert.doctor_especialidad
+        "doctor_especialidad": cert.doctor_especialidad,
+        "sucursal_emision_nombre": cert.sucursal_emision_nombre,
+        "sucursal_emision_direccion": cert.sucursal_emision_direccion,
+        "sucursal_emision_telefono": cert.sucursal_emision_telefono,
     }
     stream = build_certificado_excel_workbook(data)
     filename = f"Certificado_IESS_{cert.id}_{cert.paciente_nombre.replace(' ', '_')}.xlsx"

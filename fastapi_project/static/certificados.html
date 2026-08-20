@@ -203,10 +203,10 @@
                     </div>
                 </div>
 
-                <!-- SECTION 3: REPOSO & DOCTOR -->
+                <!-- SECTION 3: REPOSO, DOCTOR Y SUCURSAL PIE DE PÁGINA -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-3">
                     <h3 class="font-bold text-teal-800 border-b border-teal-100 pb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-notes-medical"></i> 3. Diagnóstico y Doctor
+                        <i class="fa-solid fa-notes-medical"></i> 3. Diagnóstico, Doctor y Sucursal
                     </h3>
                     
                     <div class="grid grid-cols-2 gap-2">
@@ -256,6 +256,7 @@
                         </div>
                     </div>
 
+                    <!-- DOCTOR SELECTOR -->
                     <div class="border-t border-gray-200 pt-3">
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Seleccionar Doctor Firmante</label>
                         <select id="doctor_select" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm mb-2" onchange="onSelectDoctor(this.value)">
@@ -287,6 +288,26 @@
                             <input type="text" id="doctor_especialidad" value="ODONTÓLOGA ESPECIALISTA EN REHABILITACIÓN ORAL" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" oninput="updatePreview()">
                         </div>
                     </div>
+
+                    <!-- SUCURSAL EMISION SELECTOR (PIE DE PÁGINA) -->
+                    <div class="border-t border-teal-100 pt-3 bg-teal-50/50 p-2.5 rounded-lg border">
+                        <label class="block text-xs font-bold text-teal-800 mb-1">
+                            <i class="fa-solid fa-location-dot mr-1"></i> Sucursal de Emisión (Pie de Página)
+                        </label>
+                        <select id="sucursal_emision_select" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm mb-2 bg-white" onchange="onSelectSucursal(this.value)">
+                            <option value="">-- Seleccionar Sucursal --</option>
+                        </select>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Dirección (Pie de Página)</label>
+                            <input type="text" id="sucursal_emision_direccion" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm mb-2 bg-white" placeholder="Ej: José de Soto OE4-35 Y Ave. La Prensa" oninput="updatePreview()">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Teléfono (Pie de Página)</label>
+                            <input type="text" id="sucursal_emision_telefono" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm bg-white" placeholder="Ej: 0998899655" oninput="updatePreview()">
+                        </div>
+                    </div>
+
                 </div>
 
             </div>
@@ -402,10 +423,10 @@
                 <p id="pv_doctor_especialidad" class="font-bold tracking-wider">ODONTÓLOGA ESPECIALISTA EN REHABILITACIÓN ORAL</p>
             </div>
 
-            <!-- FOOTER -->
+            <!-- FOOTER WITH SUCURSAL ADDRESS & PHONE -->
             <div class="mt-8 border-t border-gray-400 pt-2 text-center text-[10px] font-semibold text-gray-700">
-                José de Soto OE4-35 Y Ave. La Prensa, San José Del Condado, Quito, Provincia Pichincha <br>
-                TELEF. 0998899655
+                <span id="pv_sucursal_direccion">José de Soto OE4-35 Y Ave. La Prensa, San José Del Condado, Quito, Provincia Pichincha</span> <br>
+                TELEF. <span id="pv_sucursal_telefono">0998899655</span>
             </div>
 
         </div>
@@ -444,6 +465,7 @@
     <script>
         let selectedPacienteId = null;
         let doctoresList = [];
+        let sucursalesList = [];
 
         document.addEventListener("DOMContentLoaded", () => {
             const token = localStorage.getItem("token");
@@ -453,6 +475,7 @@
             }
 
             initDates();
+            loadSucursales();
             loadDoctores();
             loadHistorial();
         });
@@ -580,6 +603,35 @@
             updatePreview();
         }
 
+        // LOAD SUCURSALES FOR FOOTER ADDRESS
+        async function loadSucursales() {
+            try {
+                const res = await fetch("/api/public/sucursales");
+                sucursalesList = await res.json();
+                const sel = document.getElementById("sucursal_emision_select");
+                sel.innerHTML = `<option value="">-- Seleccionar Sucursal --</option>` + 
+                    sucursalesList.map(s => `<option value="${s.id}">${s.nombre}</option>`).join("");
+                
+                // Set default sucursal if available
+                if (sucursalesList.length > 0) {
+                    sel.value = sucursalesList[0].id;
+                    onSelectSucursal(sucursalesList[0].id);
+                }
+            } catch (err) {
+                console.error("Error cargando sucursales:", err);
+            }
+        }
+
+        function onSelectSucursal(sId) {
+            const suc = sucursalesList.find(s => String(s.id) === String(sId));
+            if (suc) {
+                document.getElementById("sucursal_emision_direccion").value = suc.direccion || "José de Soto OE4-35 Y Ave. La Prensa, San José Del Condado, Quito, Provincia Pichincha";
+                document.getElementById("sucursal_emision_telefono").value = suc.telefono || "0998899655";
+            }
+            updatePreview();
+        }
+
+        // LOAD DOCTORS
         async function loadDoctores() {
             try {
                 const token = localStorage.getItem("token");
@@ -644,9 +696,18 @@
             document.getElementById("pv_doctor_atentamente").innerText = `ATENTAMENTE: ${dNombre} C.I ${dCedula}`.trim();
             document.getElementById("pv_doctor_contacto").innerText = `${dEmail} Telef: ${dTelef}`.trim();
             document.getElementById("pv_doctor_especialidad").innerText = dEsp;
+
+            // Sucursal Pie de Página
+            const sDir = document.getElementById("sucursal_emision_direccion").value || "José de Soto OE4-35 Y Ave. La Prensa, San José Del Condado, Quito, Provincia Pichincha";
+            const sTel = document.getElementById("sucursal_emision_telefono").value || "0998899655";
+            document.getElementById("pv_sucursal_direccion").innerText = sDir;
+            document.getElementById("pv_sucursal_telefono").innerText = sTel;
         }
 
         function getFormData() {
+            const sSel = document.getElementById("sucursal_emision_select");
+            const sObj = sucursalesList.find(s => String(s.id) === String(sSel.value));
+
             return {
                 fecha_emision: document.getElementById("fecha_emision").value,
                 paciente_id: selectedPacienteId,
@@ -675,7 +736,10 @@
                 doctor_cedula: document.getElementById("doctor_cedula").value,
                 doctor_email: document.getElementById("doctor_email").value,
                 doctor_telefono: document.getElementById("doctor_telefono").value,
-                doctor_especialidad: document.getElementById("doctor_especialidad").value
+                doctor_especialidad: document.getElementById("doctor_especialidad").value,
+                sucursal_emision_nombre: sObj ? sObj.nombre : "",
+                sucursal_emision_direccion: document.getElementById("sucursal_emision_direccion").value,
+                sucursal_emision_telefono: document.getElementById("sucursal_emision_telefono").value
             };
         }
 
@@ -821,6 +885,9 @@
                 document.getElementById("doctor_email").value = c.doctor_email || "";
                 document.getElementById("doctor_telefono").value = c.doctor_telefono || "";
                 document.getElementById("doctor_especialidad").value = c.doctor_especialidad || "";
+
+                document.getElementById("sucursal_emision_direccion").value = c.sucursal_emision_direccion || "";
+                document.getElementById("sucursal_emision_telefono").value = c.sucursal_emision_telefono || "";
 
                 updatePreview();
                 window.scrollTo({ top: 0, behavior: 'smooth' });

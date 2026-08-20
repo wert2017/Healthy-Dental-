@@ -433,6 +433,11 @@ class CertificadoMedico(SQLModel, table=True):
     doctor_email: Optional[str] = Field(default="")
     doctor_telefono: Optional[str] = Field(default="")
     doctor_especialidad: Optional[str] = Field(default="")
+
+    # Datos de la Sucursal de Emisión (Pie de página editable)
+    sucursal_emision_nombre: Optional[str] = Field(default="")
+    sucursal_emision_direccion: Optional[str] = Field(default="")
+    sucursal_emision_telefono: Optional[str] = Field(default="")
     
     # Relaciones del sistema
     sucursal_id: int = Field(foreign_key="sucursal.id")

@@ -29,6 +29,9 @@ def create_db_and_tables():
         "ALTER TABLE sucursal ADD COLUMN IF NOT EXISTS telefono VARCHAR(50) DEFAULT NULL",
         "ALTER TABLE doctor ADD COLUMN IF NOT EXISTS google_calendar_id VARCHAR(255) DEFAULT NULL",
         "ALTER TABLE historialabono ADD COLUMN IF NOT EXISTS concepto VARCHAR(255) DEFAULT 'Abono General'",
+        "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_nombre VARCHAR(255) DEFAULT ''",
+        "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_direccion VARCHAR(255) DEFAULT ''",
+        "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_telefono VARCHAR(50) DEFAULT ''",
     ]
     with engine.connect() as conn:
         for sql in migrations:
