@@ -15,26 +15,30 @@
             background-color: #f3f4f6;
         }
 
-        /* --- STYLES FOR PRINTED CERTIFICATE --- */
+        /* --- STYLES FOR PRINTED CERTIFICATE (SINGLE PAGE FIT) --- */
         .cert-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 13px;
+            font-size: 11.5px;
+            line-height: 1.2;
         }
         .cert-table th, .cert-table td {
-            border: 1.5px solid #000;
-            padding: 5px 8px;
+            border: 1.2px solid #000;
+            padding: 3px 6px;
             vertical-align: middle;
         }
         .cert-header-cell {
             background-color: #f9fafb;
             font-weight: 700;
             color: #000;
-            width: 25%;
+            width: 22%;
+            white-space: nowrap;
         }
 
         @media print {
-            body {
+            html, body {
+                height: 100% !important;
+                overflow: hidden !important;
                 background: white !important;
                 color: black !important;
                 padding: 0 !important;
@@ -49,11 +53,13 @@
                 box-shadow: none !important;
                 border: none !important;
                 margin: 0 !important;
-                padding: 10mm 15mm !important;
+                padding: 3mm 6mm !important;
+                page-break-after: avoid !important;
+                page-break-inside: avoid !important;
             }
             @page {
                 size: A4 portrait;
-                margin: 5mm;
+                margin: 3mm 6mm;
             }
         }
     </style>
@@ -103,7 +109,7 @@
                     <button onclick="descargarExcelDirecto()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium text-sm shadow transition flex items-center gap-2">
                         <i class="fa-solid fa-file-excel"></i> Descargar Excel
                     </button>
-                    <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm shadow transition flex items-center gap-2">
+                    <button onclick="imprimirCertificadoPDF()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm shadow transition flex items-center gap-2">
                         <i class="fa-solid fa-print"></i> Imprimir / PDF
                     </button>
                 </div>
@@ -186,20 +192,20 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Empresa donde labora</label>
-                        <input type="text" id="empresa_nombre" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: PARAGON CORP" oninput="updatePreview()">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Centro laboral</label>
+                        <input type="text" id="empresa_nombre" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: EETEKSA / PARAGON CORP" oninput="updatePreview()">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Dirección de Empresa</label>
-                        <input type="text" id="empresa_direccion" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: Amazonas y Guayas torre centre piso 9" oninput="updatePreview()">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Dirección del Centro Laboral</label>
+                        <input type="text" id="empresa_direccion" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: Las Lagunas y Agua Clara" oninput="updatePreview()">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Puesto de Trabajo</label>
-                        <input type="text" id="puesto_trabajo" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: Asistente administrativa" oninput="updatePreview()">
+                        <input type="text" id="puesto_trabajo" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: Asesor comercial" oninput="updatePreview()">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Descripción del Puesto</label>
-                        <input type="text" id="descripcion_puesto" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: Administradora de la empresa" oninput="updatePreview()">
+                        <input type="text" id="descripcion_puesto" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: Ventas" oninput="updatePreview()">
                     </div>
                 </div>
 
@@ -227,15 +233,15 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Diagnóstico (CIE-10)</label>
-                        <input type="text" id="diagnostico" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: CIE - K 011 DIENTES IMPACTADO" oninput="updatePreview()">
+                        <input type="text" id="diagnostico" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: k 011 DIENTES IMPACTADOS" oninput="updatePreview()">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Síntomas</label>
-                        <input type="text" id="sintomas" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: Dolor agudo e inflamación" oninput="updatePreview()">
+                        <input type="text" id="sintomas" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: Dolor Agudo" oninput="updatePreview()">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Tratamiento</label>
-                        <textarea id="tratamiento" rows="2" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: Previa medicación antibiotica. Extracción de la pieza dental 28, 38." oninput="updatePreview()"></textarea>
+                        <textarea id="tratamiento" rows="2" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm" placeholder="Ej: Previa medicacion antibiotica, extraccion de las piezas 18, 28, 38" oninput="updatePreview()"></textarea>
                     </div>
 
                     <div>
@@ -300,11 +306,11 @@
 
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Dirección (Pie de Página)</label>
-                            <input type="text" id="sucursal_emision_direccion" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm mb-2 bg-white" placeholder="Ej: José de Soto OE4-35 Y Ave. La Prensa" oninput="updatePreview()">
+                            <input type="text" id="sucursal_emision_direccion" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm mb-2 bg-white" placeholder="Ej: Ave Mariscal Sucre e Illescas S10-462" oninput="updatePreview()">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Teléfono (Pie de Página)</label>
-                            <input type="text" id="sucursal_emision_telefono" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm bg-white" placeholder="Ej: 0998899655" oninput="updatePreview()">
+                            <input type="text" id="sucursal_emision_telefono" class="w-full border border-gray-300 rounded px-3 py-1.5 text-sm bg-white" placeholder="Ej: 0939752666" oninput="updatePreview()">
                         </div>
                     </div>
 
@@ -313,27 +319,27 @@
             </div>
         </div>
 
-        <!-- PRINT PREVIEW SHEET (EXACT DENTAL CERTIFICATE FORMAT) -->
-        <div class="bg-white rounded-xl shadow-lg border border-gray-300 p-8 print-area mx-auto max-w-4xl">
+        <!-- PRINT PREVIEW SHEET (COMPACT SINGLE PAGE FORMAT) -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-300 p-6 print-area mx-auto max-w-4xl">
             
             <!-- CERTIFICATE HEADER -->
-            <div class="text-center mb-4">
-                <div class="flex justify-center items-center gap-2 mb-2">
-                    <img src="/static/logo.png" alt="Healthy Dental" class="h-14 w-auto object-contain" onerror="this.style.display='none'">
+            <div class="text-center mb-2">
+                <div class="flex justify-center items-center gap-2 mb-1">
+                    <img src="/static/logo.png" alt="Healthy Dental" class="h-10 w-auto object-contain" onerror="this.style.display='none'">
                 </div>
-                <h2 class="text-xl font-bold text-gray-900 tracking-wide uppercase">Clínica de Especialidades Odontológicas</h2>
-                <h3 class="text-lg font-bold text-gray-800 underline tracking-wider mt-1">CERTIFICADO ODONTOLÓGICO</h3>
-                <p class="text-xs italic text-gray-700 mt-1">El suscrito Profesional del Centro de Odontología <strong>“HEALTHY DENTAL”</strong>.</p>
+                <h2 class="text-base font-bold text-gray-900 tracking-wide uppercase">Clínica de Especialidades Odontológicas</h2>
+                <h3 class="text-sm font-bold text-gray-800 underline tracking-wider mt-0.5">CERTIFICADO ODONTOLÓGICO</h3>
+                <p class="text-[11px] italic text-gray-700 mt-0.5">El suscrito Profesional del Centro de Odontología <strong>“HEALTHY DENTAL”</strong>.</p>
             </div>
 
             <!-- CERTIFICATE TABLE -->
-            <table class="cert-table my-3">
+            <table class="cert-table my-2">
                 <tr>
                     <td class="cert-header-cell">Fecha de emisión:</td>
-                    <td colspan="3" class="text-center font-semibold text-base py-1" id="pv_fecha_emision">3 de Agosto del 2026</td>
+                    <td colspan="3" class="text-center font-semibold text-sm py-0.5" id="pv_fecha_emision">20 de Agosto del 2026</td>
                 </tr>
                 <tr>
-                    <td colspan="4" class="text-center font-bold bg-gray-100 py-1 text-xs">Datos del paciente</td>
+                    <td colspan="4" class="text-center font-bold bg-gray-100 py-0.5 text-[11px]">Datos del paciente</td>
                 </tr>
                 <tr>
                     <td class="cert-header-cell">Nombre:</td>
@@ -360,9 +366,9 @@
                     <td id="pv_paciente_telefono"></td>
                 </tr>
 
-                <!-- DATOS LABORALES -->
+                <!-- DATOS LABORALES (CENTRO LABORAL) -->
                 <tr>
-                    <td class="cert-header-cell">Empresa donde labora:</td>
+                    <td class="cert-header-cell">Centro laboral:</td>
                     <td colspan="3" id="pv_empresa_nombre" class="font-medium"></td>
                 </tr>
                 <tr>
@@ -410,23 +416,23 @@
 
                 <!-- LEGAL DISCLAIMER -->
                 <tr>
-                    <td colspan="4" class="text-center italic text-xs py-2 px-3">
+                    <td colspan="4" class="text-center italic text-[10.5px] py-1 px-2">
                         El presente certificado dental puede ser utilizado para los fines que fue requerido. Y es lo que esta Clínica Dental puede Certificar en honor a la verdad.
                     </td>
                 </tr>
             </table>
 
             <!-- SIGNATURE & DOCTOR INFO -->
-            <div class="mt-12 text-center text-xs space-y-1">
-                <p class="font-bold text-sm uppercase" id="pv_doctor_atentamente">ATENTAMENTE: Dra. YUDELSIS LECHUGA PÉREZ C.I 1756719629</p>
-                <p id="pv_doctor_contacto" class="text-gray-700">davidalej2010@yahoo.es Telef: 0998899655</p>
+            <div class="mt-4 text-center text-[11px] space-y-0.5">
+                <p class="font-bold text-xs uppercase" id="pv_doctor_atentamente">ATENTAMENTE: DRA. YUDELSIS LECHUGA PÉREZ C.I 1756719629</p>
+                <p id="pv_doctor_contacto" class="text-gray-700">michel.fuentes.wert@gmail.com Telef: 0939752666</p>
                 <p id="pv_doctor_especialidad" class="font-bold tracking-wider">ODONTÓLOGA ESPECIALISTA EN REHABILITACIÓN ORAL</p>
             </div>
 
             <!-- FOOTER WITH SUCURSAL ADDRESS & PHONE -->
-            <div class="mt-8 border-t border-gray-400 pt-2 text-center text-[10px] font-semibold text-gray-700">
-                <span id="pv_sucursal_direccion">José de Soto OE4-35 Y Ave. La Prensa, San José Del Condado, Quito, Provincia Pichincha</span> <br>
-                TELEF. <span id="pv_sucursal_telefono">0998899655</span>
+            <div class="mt-3 border-t border-gray-400 pt-1.5 text-center text-[9.5px] font-semibold text-gray-700">
+                <span id="pv_sucursal_direccion">Ave Mariscal Sucre e Illescas S10-462, Chilibulo, Pichincha, Quito</span> <br>
+                TELEF. <span id="pv_sucursal_telefono">0939752666</span>
             </div>
 
         </div>
@@ -444,7 +450,7 @@
                             <th class="py-2.5 px-3">Fecha Emisión</th>
                             <th class="py-2.5 px-3">Paciente</th>
                             <th class="py-2.5 px-3">Cédula</th>
-                            <th class="py-2.5 px-3">Empresa</th>
+                            <th class="py-2.5 px-3">Centro Laboral</th>
                             <th class="py-2.5 px-3">Diagnóstico</th>
                             <th class="py-2.5 px-3">Días</th>
                             <th class="py-2.5 px-3">Doctor</th>
@@ -494,7 +500,7 @@
             
             const numWords = {
                 1: "Un", 2: "Dos", 3: "Tres", 4: "Cuatro", 5: "Cinco", 6: "Seis", 7: "Siete", 8: "Ocho", 9: "Nueve", 10: "Diez",
-                11: "Once", 12: "Doce", 13: "Trece", 14: "Catorce", 15: "Quince", 16: "Dieciséis", 17: "Diecisiete", 18: "Dieciocho",
+                11: "Once", 12: "Doce", 13: "Trece", 14: "Catorce", 15: "Quince", 16: "Dieciséis", 17: "Diecisiete", 18: "Diecisiete",
                 19: "Diecinueve", 20: "Veinte", 21: "Veintiuno", 22: "Veintidós", 23: "Veintitrés", 24: "Veinticuatro", 25: "Veinticinco",
                 26: "Veintiséis", 27: "Veintisiete", 28: "Veintiocho", 29: "Veintinueve", 30: "Treinta", 31: "Treinta y uno"
             };
@@ -535,7 +541,7 @@
             document.getElementById("fecha_hasta_texto").value = dateToSpanishText(dHasta);
 
             const numTexto = diasVal === 1 ? "1 (un) día" : `${diasVal} (${diasValEnLetras(diasVal)}) días`;
-            document.getElementById("reposo_descripcion").value = `REPOSO ABSOLUTO. No realizar esfuerzo físico, no sol, comidas blandas durante ${numTexto}`;
+            document.getElementById("reposo_descripcion").value = `REPOSO ABSOLUTO. Durante ${numTexto}. No realizar esfuerzo físico, no sol, comidas blandas`;
             updatePreview();
         }
 
@@ -612,7 +618,6 @@
                 sel.innerHTML = `<option value="">-- Seleccionar Sucursal --</option>` + 
                     sucursalesList.map(s => `<option value="${s.id}">${s.nombre}</option>`).join("");
                 
-                // Set default sucursal if available
                 if (sucursalesList.length > 0) {
                     sel.value = sucursalesList[0].id;
                     onSelectSucursal(sucursalesList[0].id);
@@ -625,8 +630,8 @@
         function onSelectSucursal(sId) {
             const suc = sucursalesList.find(s => String(s.id) === String(sId));
             if (suc) {
-                document.getElementById("sucursal_emision_direccion").value = suc.direccion || "José de Soto OE4-35 Y Ave. La Prensa, San José Del Condado, Quito, Provincia Pichincha";
-                document.getElementById("sucursal_emision_telefono").value = suc.telefono || "0998899655";
+                document.getElementById("sucursal_emision_direccion").value = suc.direccion || "Ave Mariscal Sucre e Illescas S10-462, Chilibulo, Pichincha, Quito";
+                document.getElementById("sucursal_emision_telefono").value = suc.telefono || "0939752666";
             }
             updatePreview();
         }
@@ -657,8 +662,8 @@
             if (doc) {
                 document.getElementById("doctor_nombre").value = `Dra. ${doc.nombres} ${doc.apellidos}`.toUpperCase();
                 document.getElementById("doctor_cedula").value = doc.cedula || "";
-                document.getElementById("doctor_email").value = doc.email || "davidalej2010@yahoo.es";
-                document.getElementById("doctor_telefono").value = doc.telefono || "0998899655";
+                document.getElementById("doctor_email").value = doc.email || "michel.fuentes.wert@gmail.com";
+                document.getElementById("doctor_telefono").value = doc.telefono || "0939752666";
             }
             updatePreview();
         }
@@ -698,8 +703,8 @@
             document.getElementById("pv_doctor_especialidad").innerText = dEsp;
 
             // Sucursal Pie de Página
-            const sDir = document.getElementById("sucursal_emision_direccion").value || "José de Soto OE4-35 Y Ave. La Prensa, San José Del Condado, Quito, Provincia Pichincha";
-            const sTel = document.getElementById("sucursal_emision_telefono").value || "0998899655";
+            const sDir = document.getElementById("sucursal_emision_direccion").value || "Ave Mariscal Sucre e Illescas S10-462, Chilibulo, Pichincha, Quito";
+            const sTel = document.getElementById("sucursal_emision_telefono").value || "0939752666";
             document.getElementById("pv_sucursal_direccion").innerText = sDir;
             document.getElementById("pv_sucursal_telefono").innerText = sTel;
         }
@@ -741,6 +746,16 @@
                 sucursal_emision_direccion: document.getElementById("sucursal_emision_direccion").value,
                 sucursal_emision_telefono: document.getElementById("sucursal_emision_telefono").value
             };
+        }
+
+        function imprimirCertificadoPDF() {
+            const pNombre = (document.getElementById("paciente_nombre").value || "Paciente").trim();
+            const originalTitle = document.title;
+            document.title = `IESS ${pNombre}`;
+            window.print();
+            setTimeout(() => {
+                document.title = originalTitle;
+            }, 1000);
         }
 
         async function guardarCertificado() {
@@ -802,7 +817,7 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `Certificado_IESS_${data.paciente_nombre.replace(/\s+/g, '_')}.xlsx`;
+                a.download = `IESS_${data.paciente_nombre.trim().replace(/\s+/g, '_')}.xlsx`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();

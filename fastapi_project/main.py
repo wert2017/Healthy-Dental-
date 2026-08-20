@@ -5238,7 +5238,7 @@ def build_certificado_excel_workbook(data: dict) -> io.BytesIO:
     curr_row += 1
     
     empresa_rows = [
-        ("Empresa donde labora:", data.get("empresa_nombre", "")),
+        ("Centro laboral:", data.get("empresa_nombre", "")),
         ("Dirección:", data.get("empresa_direccion", "")),
         ("Puesto de trabajo:", data.get("puesto_trabajo", "")),
         ("Descripción del puesto:", data.get("descripcion_puesto", ""))
@@ -5446,7 +5446,8 @@ def generar_excel_directo(cert: CertificadoCreate, user: User = Depends(get_curr
         raise HTTPException(status_code=403, detail="Acceso denegado")
     data = cert.dict()
     stream = build_certificado_excel_workbook(data)
-    filename = f"Certificado_IESS_{cert.paciente_cedula or 'S_N'}.xlsx"
+    clean_p_name = (cert.paciente_nombre or 'Paciente').strip().replace(' ', '_')
+    filename = f"IESS_{clean_p_name}.xlsx"
     return Response(
         content=stream.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -5492,7 +5493,8 @@ def exportar_excel_certificado(cert_id: int, session: Session = Depends(get_sess
         "sucursal_emision_telefono": cert.sucursal_emision_telefono,
     }
     stream = build_certificado_excel_workbook(data)
-    filename = f"Certificado_IESS_{cert.id}_{cert.paciente_nombre.replace(' ', '_')}.xlsx"
+    clean_p_name = (cert.paciente_nombre or 'Paciente').strip().replace(' ', '_')
+    filename = f"IESS_{clean_p_name}.xlsx"
     return Response(
         content=stream.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
