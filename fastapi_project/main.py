@@ -10,7 +10,8 @@ except AttributeError:
 from fastapi import FastAPI, Depends, HTTPException, Query, status, Request, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import engine, create_db_and_tables, get_session
-from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto, Socio, SocioParticipacion, Cita, GoogleCalendarConfig, FotoPaciente, CertificadoMedico
+from models import Paciente, Doctor, Sucursal, DoctorSucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto, Socio, SocioParticipacion, Cita, GoogleCalendarConfig, FotoPaciente, CertificadoMedico
+from sqlalchemy import or_
 from sqlmodel import Field, Session, SQLModel, select, create_engine, Relationship
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -650,15 +651,16 @@ class PacienteAdmin(ModelView, model=Paciente):
 class DoctorAdmin(ModelView, model=Doctor):
     name = "Doctor"
     name_plural = "Doctores"
-    column_list = [Doctor.apellidos, Doctor.nombres, Doctor.cedula, Doctor.sucursal, Doctor.max_citas_simultaneas, Doctor.activo]
-    form_columns = [Doctor.nombres, Doctor.apellidos, Doctor.cedula, Doctor.telefono, Doctor.email, Doctor.sucursal, Doctor.max_citas_simultaneas, Doctor.activo]
+    column_list = [Doctor.apellidos, Doctor.nombres, Doctor.cedula, Doctor.sucursales, Doctor.max_citas_simultaneas, Doctor.activo]
+    form_columns = [Doctor.nombres, Doctor.apellidos, Doctor.cedula, Doctor.telefono, Doctor.email, Doctor.sucursales, Doctor.max_citas_simultaneas, Doctor.activo]
+    column_labels = {"sucursales": "Sucursales de Atención"}
     form_args = {
         "max_citas_simultaneas": {
             "label": "Máximo Citas Simultáneas",
             "default": 2
         },
-        "sucursal": {
-            "validators": [wtforms.validators.DataRequired(message="La sucursal es obligatoria")]
+        "sucursales": {
+            "label": "Sucursales de Atención (Seleccionar una o varias)"
         }
     }
 
@@ -671,13 +673,25 @@ class DoctorAdmin(ModelView, model=Doctor):
     def list_query(self, request: Request):
         stmt = super().list_query(request)
         sucursal_id = int(request.cookies.get("sucursal_id", "1"))
-        stmt = stmt.where(Doctor.sucursal_id == sucursal_id)
+        stmt = stmt.outerjoin(DoctorSucursal, Doctor.id == DoctorSucursal.doctor_id).where(
+            or_(
+                Doctor.sucursal_id == sucursal_id,
+                Doctor.sucursal_id == None,
+                DoctorSucursal.sucursal_id == sucursal_id
+            )
+        ).distinct()
         return stmt
 
     def count_query(self, request: Request):
         stmt = super().count_query(request)
         sucursal_id = int(request.cookies.get("sucursal_id", "1"))
-        stmt = stmt.where(Doctor.sucursal_id == sucursal_id)
+        stmt = stmt.outerjoin(DoctorSucursal, Doctor.id == DoctorSucursal.doctor_id).where(
+            or_(
+                Doctor.sucursal_id == sucursal_id,
+                Doctor.sucursal_id == None,
+                DoctorSucursal.sucursal_id == sucursal_id
+            )
+        ).distinct()
         return stmt
 
     async def on_model_change(self, data, model, is_created, request: Request):
@@ -1408,10 +1422,22 @@ async def importar_pacientes_excel(file: UploadFile = File(...), sucursal_id: Op
         raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
 @app.get("/api/doctores")
 def list_doctores(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """List active doctors, filtered strictly by the user's sucursal."""
+    """List active doctors, filtered by the user's sucursal (supporting multi-sucursal doctors)."""
     if not user.sucursal_id:
         return []
-    query = select(Doctor).where(Doctor.activo == True).where(Doctor.sucursal_id == user.sucursal_id)
+    query = (
+        select(Doctor)
+        .outerjoin(DoctorSucursal, Doctor.id == DoctorSucursal.doctor_id)
+        .where(Doctor.activo == True)
+        .where(
+            or_(
+                Doctor.sucursal_id == user.sucursal_id,
+                Doctor.sucursal_id == None,
+                DoctorSucursal.sucursal_id == user.sucursal_id
+            )
+        )
+        .distinct()
+    )
     return session.exec(query).all()
 
 @app.get("/api/vendedores")
@@ -4345,9 +4371,15 @@ def get_nomina_pendientes(start_date: str = None, end_date: str = None, session:
         raise HTTPException(status_code=400, detail="El usuario no tiene una sucursal asignada")
     
     doctores_pendientes = {}
-    doc_query = select(Doctor).where(Doctor.activo == True)
+    doc_query = select(Doctor).outerjoin(DoctorSucursal, Doctor.id == DoctorSucursal.doctor_id).where(Doctor.activo == True)
     if user.sucursal_id:
-        doc_query = doc_query.where((Doctor.sucursal_id == user.sucursal_id) | (Doctor.sucursal_id == None))
+        doc_query = doc_query.where(
+            or_(
+                Doctor.sucursal_id == user.sucursal_id,
+                Doctor.sucursal_id == None,
+                DoctorSucursal.sucursal_id == user.sucursal_id
+            )
+        ).distinct()
     all_docs = session.exec(doc_query).all()
     
     for doc in all_docs:

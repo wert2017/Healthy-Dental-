@@ -5,6 +5,11 @@ from sqlmodel import Field, Relationship, SQLModel
 
 # --- Enums (Simulated with CONSTANTS or just Strings for simplicity) ---
 
+class DoctorSucursal(SQLModel, table=True):
+    doctor_id: Optional[int] = Field(default=None, foreign_key="doctor.id", primary_key=True)
+    sucursal_id: Optional[int] = Field(default=None, foreign_key="sucursal.id", primary_key=True)
+
+
 class Sucursal(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     nombre: str = Field(unique=True)
@@ -12,7 +17,7 @@ class Sucursal(SQLModel, table=True):
     fondo_caja: Decimal = Field(default=Decimal("0"), max_digits=10, decimal_places=2)
     fondo_banco: Decimal = Field(default=Decimal("0"), max_digits=10, decimal_places=2)
 
-    doctores: List["Doctor"] = Relationship(back_populates="sucursal")
+    doctores: List["Doctor"] = Relationship(back_populates="sucursales", link_model=DoctorSucursal)
 
     def __str__(self):
         return self.nombre
@@ -30,7 +35,9 @@ class Doctor(SQLModel, table=True):
     max_citas_simultaneas: int = Field(default=2, description="Citas simultáneas permitidas")
     
     sucursal_id: Optional[int] = Field(default=None, foreign_key="sucursal.id")
-    sucursal: Optional[Sucursal] = Relationship(back_populates="doctores")
+    sucursal: Optional[Sucursal] = Relationship()
+
+    sucursales: List[Sucursal] = Relationship(back_populates="doctores", link_model=DoctorSucursal)
 
     atenciones: List["Atencion"] = Relationship(back_populates="doctor")
     citas: List["Cita"] = Relationship(back_populates="doctor")
