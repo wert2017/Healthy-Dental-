@@ -385,3 +385,54 @@ class GoogleCalendarConfig(SQLModel, table=True):
     token_expiry: datetime
 
     sucursal: Optional[Sucursal] = Relationship()
+
+
+class CertificadoMedico(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    fecha_emision: str = Field(default="")
+    
+    # Datos Paciente (Editables)
+    paciente_id: Optional[int] = Field(default=None, foreign_key="paciente.id")
+    paciente_nombre: str = Field(index=True)
+    paciente_cedula: Optional[str] = Field(default="")
+    paciente_edad: Optional[str] = Field(default="")
+    paciente_historia_clinica: Optional[str] = Field(default="")
+    paciente_domicilio: Optional[str] = Field(default="")
+    paciente_provincia: Optional[str] = Field(default="Pichincha")
+    paciente_canton: Optional[str] = Field(default="Quito")
+    paciente_telefono: Optional[str] = Field(default="")
+    
+    # Datos Laborales
+    empresa_nombre: Optional[str] = Field(default="")
+    empresa_direccion: Optional[str] = Field(default="")
+    puesto_trabajo: Optional[str] = Field(default="")
+    descripcion_puesto: Optional[str] = Field(default="")
+    
+    # Datos Médicos / Contingencia / Reposo
+    tipo_contingencia: Optional[str] = Field(default="Enfermedad General")
+    sintomas: Optional[str] = Field(default="")
+    diagnostico: Optional[str] = Field(default="")
+    tratamiento: Optional[str] = Field(default="")
+    reposo_descripcion: Optional[str] = Field(default="")
+    dias_reposo: Optional[int] = Field(default=1)
+    fecha_desde: Optional[str] = Field(default="")
+    fecha_hasta: Optional[str] = Field(default="")
+    
+    # Doctor firmante
+    doctor_id: Optional[int] = Field(default=None, foreign_key="doctor.id")
+    doctor_nombre: Optional[str] = Field(default="")
+    doctor_cedula: Optional[str] = Field(default="")
+    doctor_email: Optional[str] = Field(default="")
+    doctor_telefono: Optional[str] = Field(default="")
+    doctor_especialidad: Optional[str] = Field(default="")
+    
+    # Relaciones del sistema
+    sucursal_id: int = Field(foreign_key="sucursal.id")
+    usuario_id: int = Field(foreign_key="user.id")
+    fecha_creacion: datetime = Field(default_factory=datetime.now)
+    
+    paciente: Optional[Paciente] = Relationship()
+    doctor: Optional[Doctor] = Relationship()
+    sucursal: Optional[Sucursal] = Relationship()
+    usuario: Optional[User] = Relationship()
+

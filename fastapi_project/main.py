@@ -10,7 +10,7 @@ except AttributeError:
 from fastapi import FastAPI, Depends, HTTPException, Query, status, Request, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import engine, create_db_and_tables, get_session
-from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto, Socio, SocioParticipacion, Cita, GoogleCalendarConfig, FotoPaciente
+from models import Paciente, Doctor, Sucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto, Socio, SocioParticipacion, Cita, GoogleCalendarConfig, FotoPaciente, CertificadoMedico
 from sqlmodel import Field, Session, SQLModel, select, create_engine, Relationship
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -18,7 +18,7 @@ from sqladmin import Admin, ModelView, BaseView, expose
 from sqladmin.authentication import AuthenticationBackend
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.responses import RedirectResponse
 import uvicorn
 from typing import List, Optional
@@ -5111,7 +5111,374 @@ def get_disponibilidad(
     return [{"inicio": c.fecha_hora_inicio.isoformat(), "fin": c.fecha_hora_fin.isoformat(), "paciente": f"{c.paciente.nombres} {c.paciente.apellidos}" if c.paciente else "S/N"} for c in citas]
 
 
+# --- CERTIFICADOS MÉDICOS IESS HELPER & ENDPOINTS ---
+
+import io
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+def build_certificado_excel_workbook(data: dict) -> io.BytesIO:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Certificado Medico IESS"
+    
+    ws.views.sheetView[0].showGridLines = True
+    
+    font_title = Font(name="Calibri", size=14, bold=True, color="1F2937")
+    font_subtitle = Font(name="Calibri", size=12, bold=True, color="1F2937")
+    font_bold = Font(name="Calibri", size=10, bold=True)
+    font_regular = Font(name="Calibri", size=10)
+    font_small = Font(name="Calibri", size=9, italic=True)
+    
+    header_fill = PatternFill(start_color="F3F4F6", end_color="F3F4F6", fill_type="solid")
+    section_fill = PatternFill(start_color="E5E7EB", end_color="E5E7EB", fill_type="solid")
+    
+    thin_border_side = Side(style='thin', color='9CA3AF')
+    thin_border = Border(left=thin_border_side, right=thin_border_side, top=thin_border_side, bottom=thin_border_side)
+    
+    ws.column_dimensions['A'].width = 24
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 18
+    ws.column_dimensions['D'].width = 30
+    
+    ws.merge_cells('A1:D1')
+    ws['A1'] = "HEALTHY DENTAL"
+    ws['A1'].font = Font(name="Calibri", size=16, bold=True, color="0F766E")
+    ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
+    
+    ws.merge_cells('A2:D2')
+    ws['A2'] = "CLÍNICA DE ESPECIALIDADES ODONTOLÓGICAS"
+    ws['A2'].font = font_title
+    ws['A2'].alignment = Alignment(horizontal="center", vertical="center")
+    
+    ws.merge_cells('A3:D3')
+    ws['A3'] = "CERTIFICADO ODONTOLÓGICO / MÉDICO IESS"
+    ws['A3'].font = font_subtitle
+    ws['A3'].alignment = Alignment(horizontal="center", vertical="center")
+    
+    ws.merge_cells('A4:D4')
+    ws['A4'] = 'El suscrito Profesional del Centro de Odontología "HEALTHY DENTAL".'
+    ws['A4'].font = font_small
+    ws['A4'].alignment = Alignment(horizontal="center", vertical="center")
+    
+    ws['A6'] = "Fecha de emisión:"
+    ws['A6'].font = font_bold
+    ws['A6'].fill = header_fill
+    ws['A6'].border = thin_border
+    
+    ws.merge_cells('B6:D6')
+    ws['B6'] = data.get("fecha_emision", "")
+    ws['B6'].font = font_regular
+    ws['B6'].alignment = Alignment(horizontal="center")
+    for col in ['B', 'C', 'D']:
+        ws[f'{col}6'].border = thin_border
+        
+    ws.merge_cells('A8:D8')
+    ws['A8'] = "DATOS DEL PACIENTE"
+    ws['A8'].font = font_bold
+    ws['A8'].fill = section_fill
+    ws['A8'].alignment = Alignment(horizontal="center")
+    for col in ['A', 'B', 'C', 'D']:
+        ws[f'{col}8'].border = thin_border
+        
+    paciente_rows = [
+        ("Nombre:", data.get("paciente_nombre", ""), "Cédula:", data.get("paciente_cedula", "")),
+        ("Edad:", str(data.get("paciente_edad", "")), "Historia Clínica:", data.get("paciente_historia_clinica", "")),
+        ("Domicilio:", data.get("paciente_domicilio", ""), "Provincia:", data.get("paciente_provincia", "")),
+        ("Cantón:", data.get("paciente_canton", ""), "Teléfono:", data.get("paciente_telefono", ""))
+    ]
+    
+    curr_row = 9
+    for label1, val1, label2, val2 in paciente_rows:
+        ws[f'A{curr_row}'] = label1
+        ws[f'A{curr_row}'].font = font_bold
+        ws[f'A{curr_row}'].border = thin_border
+        ws[f'A{curr_row}'].fill = header_fill
+        
+        ws[f'B{curr_row}'] = val1
+        ws[f'B{curr_row}'].font = font_regular
+        ws[f'B{curr_row}'].border = thin_border
+        
+        ws[f'C{curr_row}'] = label2
+        ws[f'C{curr_row}'].font = font_bold
+        ws[f'C{curr_row}'].border = thin_border
+        ws[f'C{curr_row}'].fill = header_fill
+        
+        ws[f'D{curr_row}'] = val2
+        ws[f'D{curr_row}'].font = font_regular
+        ws[f'D{curr_row}'].border = thin_border
+        curr_row += 1
+        
+    curr_row += 1
+    ws.merge_cells(f'A{curr_row}:D{curr_row}')
+    ws[f'A{curr_row}'] = "DATOS LABORALES DE AFILIADO/A IESS"
+    ws[f'A{curr_row}'].font = font_bold
+    ws[f'A{curr_row}'].fill = section_fill
+    ws[f'A{curr_row}'].alignment = Alignment(horizontal="center")
+    for col in ['A', 'B', 'C', 'D']:
+        ws[f'{col}{curr_row}'].border = thin_border
+    curr_row += 1
+    
+    empresa_rows = [
+        ("Empresa donde labora:", data.get("empresa_nombre", "")),
+        ("Dirección:", data.get("empresa_direccion", "")),
+        ("Puesto de trabajo:", data.get("puesto_trabajo", "")),
+        ("Descripción del puesto:", data.get("descripcion_puesto", ""))
+    ]
+    for label, val in empresa_rows:
+        ws[f'A{curr_row}'] = label
+        ws[f'A{curr_row}'].font = font_bold
+        ws[f'A{curr_row}'].border = thin_border
+        ws[f'A{curr_row}'].fill = header_fill
+        
+        ws.merge_cells(f'B{curr_row}:D{curr_row}')
+        ws[f'B{curr_row}'] = val
+        ws[f'B{curr_row}'].font = font_regular
+        for col in ['B', 'C', 'D']:
+            ws[f'{col}{curr_row}'].border = thin_border
+        curr_row += 1
+        
+    curr_row += 1
+    ws.merge_cells(f'A{curr_row}:D{curr_row}')
+    ws[f'A{curr_row}'] = "DETALLES DEL DIAGNÓSTICO Y REPOSO MÉDICO"
+    ws[f'A{curr_row}'].font = font_bold
+    ws[f'A{curr_row}'].fill = section_fill
+    ws[f'A{curr_row}'].alignment = Alignment(horizontal="center")
+    for col in ['A', 'B', 'C', 'D']:
+        ws[f'{col}{curr_row}'].border = thin_border
+    curr_row += 1
+    
+    diag_rows = [
+        ("Tipo de contingencia:", data.get("tipo_contingencia", "")),
+        ("Síntomas:", data.get("sintomas", "")),
+        ("Diagnóstico:", data.get("diagnostico", "")),
+        ("Tratamiento:", data.get("tratamiento", "")),
+        ("Reposo:", data.get("reposo_descripcion", "")),
+        ("Desde:", data.get("fecha_desde", "")),
+        ("Hasta:", data.get("fecha_hasta", ""))
+    ]
+    for label, val in diag_rows:
+        ws[f'A{curr_row}'] = label
+        ws[f'A{curr_row}'].font = font_bold
+        ws[f'A{curr_row}'].border = thin_border
+        ws[f'A{curr_row}'].fill = header_fill
+        
+        ws.merge_cells(f'B{curr_row}:D{curr_row}')
+        ws[f'B{curr_row}'] = val
+        ws[f'B{curr_row}'].font = font_regular
+        for col in ['B', 'C', 'D']:
+            ws[f'{col}{curr_row}'].border = thin_border
+        curr_row += 1
+        
+    curr_row += 1
+    ws.merge_cells(f'A{curr_row}:D{curr_row+1}')
+    ws[f'A{curr_row}'] = "El presente certificado dental puede ser utilizado para los fines que fue requerido. Y es lo que esta Clínica Dental puede Certificar en honor a la verdad."
+    ws[f'A{curr_row}'].font = font_small
+    ws[f'A{curr_row}'].alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    for r in range(curr_row, curr_row+2):
+        for col in ['A', 'B', 'C', 'D']:
+            ws[f'{col}{r}'].border = thin_border
+    curr_row += 3
+    
+    ws.merge_cells(f'A{curr_row}:D{curr_row}')
+    ws[f'A{curr_row}'] = f"ATENTAMENTE: {data.get('doctor_nombre', '')} C.I {data.get('doctor_cedula', '')}"
+    ws[f'A{curr_row}'].font = font_bold
+    ws[f'A{curr_row}'].alignment = Alignment(horizontal="center")
+    curr_row += 1
+    
+    ws.merge_cells(f'A{curr_row}:D{curr_row}')
+    ws[f'A{curr_row}'] = f"{data.get('doctor_email', '')} Telef: {data.get('doctor_telefono', '')}"
+    ws[f'A{curr_row}'].font = font_regular
+    ws[f'A{curr_row}'].alignment = Alignment(horizontal="center")
+    curr_row += 1
+    
+    ws.merge_cells(f'A{curr_row}:D{curr_row}')
+    ws[f'A{curr_row}'] = f"{data.get('doctor_especialidad', 'ODONTÓLOGA ESPECIALISTA EN REHABILITACIÓN ORAL')}"
+    ws[f'A{curr_row}'].font = font_bold
+    ws[f'A{curr_row}'].alignment = Alignment(horizontal="center")
+    curr_row += 2
+    
+    ws.merge_cells(f'A{curr_row}:D{curr_row}')
+    ws[f'A{curr_row}'] = "José de Soto OE4-35 Y Ave. La Prensa, San José Del Condado, Quito, Provincia Pichincha | TELEF. 0998899655"
+    ws[f'A{curr_row}'].font = font_small
+    ws[f'A{curr_row}'].alignment = Alignment(horizontal="center")
+    
+    stream = io.BytesIO()
+    wb.save(stream)
+    stream.seek(0)
+    return stream
+
+
+class CertificadoCreate(BaseModel):
+    fecha_emision: str = ""
+    paciente_id: Optional[int] = None
+    paciente_nombre: str
+    paciente_cedula: Optional[str] = ""
+    paciente_edad: Optional[str] = ""
+    paciente_historia_clinica: Optional[str] = ""
+    paciente_domicilio: Optional[str] = ""
+    paciente_provincia: Optional[str] = "Pichincha"
+    paciente_canton: Optional[str] = "Quito"
+    paciente_telefono: Optional[str] = ""
+    empresa_nombre: Optional[str] = ""
+    empresa_direccion: Optional[str] = ""
+    puesto_trabajo: Optional[str] = ""
+    descripcion_puesto: Optional[str] = ""
+    tipo_contingencia: Optional[str] = "Enfermedad General"
+    sintomas: Optional[str] = ""
+    diagnostico: Optional[str] = ""
+    tratamiento: Optional[str] = ""
+    reposo_descripcion: Optional[str] = ""
+    dias_reposo: Optional[int] = 1
+    fecha_desde: Optional[str] = ""
+    fecha_hasta: Optional[str] = ""
+    doctor_id: Optional[int] = None
+    doctor_nombre: Optional[str] = ""
+    doctor_cedula: Optional[str] = ""
+    doctor_email: Optional[str] = ""
+    doctor_telefono: Optional[str] = ""
+    doctor_especialidad: Optional[str] = ""
+
+@app.get("/recepcion/certificados", response_class=HTMLResponse)
+def view_certificados_page(user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "recepcion"):
+        raise HTTPException(status_code=403, detail="Acceso denegado. Solo recepción y administradores.")
+    try:
+        with open("static/certificados.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Vista de certificados no encontrada")
+
+@app.get("/api/certificados")
+def list_certificados(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "recepcion"):
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    query = select(CertificadoMedico).where(CertificadoMedico.sucursal_id == user.sucursal_id).order_by(CertificadoMedico.id.desc())
+    return session.exec(query).all()
+
+@app.post("/api/certificados")
+def create_certificado(cert: CertificadoCreate, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "recepcion"):
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    if not user.sucursal_id:
+        raise HTTPException(status_code=400, detail="Usuario no tiene sucursal asignada")
+    
+    nuevo_cert = CertificadoMedico(
+        fecha_emision=cert.fecha_emision,
+        paciente_id=cert.paciente_id,
+        paciente_nombre=cert.paciente_nombre,
+        paciente_cedula=cert.paciente_cedula,
+        paciente_edad=cert.paciente_edad,
+        paciente_historia_clinica=cert.paciente_historia_clinica,
+        paciente_domicilio=cert.paciente_domicilio,
+        paciente_provincia=cert.paciente_provincia,
+        paciente_canton=cert.paciente_canton,
+        paciente_telefono=cert.paciente_telefono,
+        empresa_nombre=cert.empresa_nombre,
+        empresa_direccion=cert.empresa_direccion,
+        puesto_trabajo=cert.puesto_trabajo,
+        descripcion_puesto=cert.descripcion_puesto,
+        tipo_contingencia=cert.tipo_contingencia,
+        sintomas=cert.sintomas,
+        diagnostico=cert.diagnostico,
+        tratamiento=cert.tratamiento,
+        reposo_descripcion=cert.reposo_descripcion,
+        dias_reposo=cert.dias_reposo,
+        fecha_desde=cert.fecha_desde,
+        fecha_hasta=cert.fecha_hasta,
+        doctor_id=cert.doctor_id,
+        doctor_nombre=cert.doctor_nombre,
+        doctor_cedula=cert.doctor_cedula,
+        doctor_email=cert.doctor_email,
+        doctor_telefono=cert.doctor_telefono,
+        doctor_especialidad=cert.doctor_especialidad,
+        sucursal_id=user.sucursal_id,
+        usuario_id=user.id
+    )
+    session.add(nuevo_cert)
+    session.commit()
+    session.refresh(nuevo_cert)
+    return nuevo_cert
+
+@app.get("/api/certificados/{cert_id}")
+def get_certificado(cert_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "recepcion"):
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    cert = session.get(CertificadoMedico, cert_id)
+    if not cert or cert.sucursal_id != user.sucursal_id:
+        raise HTTPException(status_code=404, detail="Certificado no encontrado")
+    return cert
+
+@app.delete("/api/certificados/{cert_id}")
+def delete_certificado(cert_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "recepcion"):
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    cert = session.get(CertificadoMedico, cert_id)
+    if not cert or cert.sucursal_id != user.sucursal_id:
+        raise HTTPException(status_code=404, detail="Certificado no encontrado")
+    session.delete(cert)
+    session.commit()
+    return {"message": "Certificado eliminado exitosamente"}
+
+@app.post("/api/certificados/generar-excel-directo")
+def generar_excel_directo(cert: CertificadoCreate, user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "recepcion"):
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    data = cert.dict()
+    stream = build_certificado_excel_workbook(data)
+    filename = f"Certificado_IESS_{cert.paciente_cedula or 'S_N'}.xlsx"
+    return Response(
+        content=stream.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/api/certificados/{cert_id}/exportar-excel")
+def exportar_excel_certificado(cert_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "recepcion"):
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    cert = session.get(CertificadoMedico, cert_id)
+    if not cert or cert.sucursal_id != user.sucursal_id:
+        raise HTTPException(status_code=404, detail="Certificado no encontrado")
+    
+    data = {
+        "fecha_emision": cert.fecha_emision,
+        "paciente_nombre": cert.paciente_nombre,
+        "paciente_cedula": cert.paciente_cedula,
+        "paciente_edad": cert.paciente_edad,
+        "paciente_historia_clinica": cert.paciente_historia_clinica,
+        "paciente_domicilio": cert.paciente_domicilio,
+        "paciente_provincia": cert.paciente_provincia,
+        "paciente_canton": cert.paciente_canton,
+        "paciente_telefono": cert.paciente_telefono,
+        "empresa_nombre": cert.empresa_nombre,
+        "empresa_direccion": cert.empresa_direccion,
+        "puesto_trabajo": cert.puesto_trabajo,
+        "descripcion_puesto": cert.descripcion_puesto,
+        "tipo_contingencia": cert.tipo_contingencia,
+        "sintomas": cert.sintomas,
+        "diagnostico": cert.diagnostico,
+        "tratamiento": cert.tratamiento,
+        "reposo_descripcion": cert.reposo_descripcion,
+        "fecha_desde": cert.fecha_desde,
+        "fecha_hasta": cert.fecha_hasta,
+        "doctor_nombre": cert.doctor_nombre,
+        "doctor_cedula": cert.doctor_cedula,
+        "doctor_email": cert.doctor_email,
+        "doctor_telefono": cert.doctor_telefono,
+        "doctor_especialidad": cert.doctor_especialidad
+    }
+    stream = build_certificado_excel_workbook(data)
+    filename = f"Certificado_IESS_{cert.id}_{cert.paciente_nombre.replace(' ', '_')}.xlsx"
+    return Response(
+        content=stream.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
 # --- END API ROUTES ---
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
