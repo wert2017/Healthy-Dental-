@@ -5340,14 +5340,8 @@ class CertificadoCreate(BaseModel):
     doctor_especialidad: Optional[str] = ""
 
 @app.get("/recepcion/certificados", response_class=HTMLResponse)
-def view_certificados_page(user: User = Depends(get_current_user)):
-    if user.role not in ("admin", "recepcion"):
-        raise HTTPException(status_code=403, detail="Acceso denegado. Solo recepción y administradores.")
-    try:
-        with open("static/certificados.html", "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Vista de certificados no encontrada")
+def view_certificados_page():
+    return FileResponse("static/certificados.html")
 
 @app.get("/api/certificados")
 def list_certificados(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
