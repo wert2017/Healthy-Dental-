@@ -15,22 +15,20 @@
             background-color: #f3f4f6;
         }
 
-        /* --- STYLES FOR PRINTED CERTIFICATE (SINGLE PAGE FIT) --- */
+        /* --- STYLES FOR PRINTED CERTIFICATE (EXACT REFERENCE MATCH) --- */
         .cert-table {
-            width: 90%;
-            margin-left: auto;
-            margin-right: auto;
+            width: 100%;
             border-collapse: collapse;
             font-size: 11.5px;
-            line-height: 1.2;
+            line-height: 1.25;
         }
         .cert-table th, .cert-table td {
-            border: 1.2px solid #000;
-            padding: 3px 6px;
+            border: 1px solid #000;
+            padding: 3.5px 6px;
             vertical-align: middle;
         }
         .cert-header-cell {
-            background-color: #f9fafb;
+            background-color: #ffffff;
             font-weight: 700;
             color: #000;
             width: 22%;
@@ -55,13 +53,13 @@
                 box-shadow: none !important;
                 border: none !important;
                 margin: 0 !important;
-                padding: 3mm 6mm !important;
+                padding: 6mm 10mm !important;
                 page-break-after: avoid !important;
                 page-break-inside: avoid !important;
             }
             @page {
                 size: A4 portrait;
-                margin: 3mm 6mm;
+                margin: 6mm 10mm;
             }
         }
     </style>
@@ -425,14 +423,14 @@
             </table>
 
             <!-- SIGNATURE & DOCTOR INFO -->
-            <div class="mt-10 text-center text-[11px] space-y-0.5">
+            <div class="mt-24 text-center text-[11.5px] space-y-1">
                 <p class="font-bold text-xs uppercase" id="pv_doctor_atentamente">ATENTAMENTE: DRA. YUDELSIS LECHUGA PÉREZ C.I 1756719629</p>
                 <p id="pv_doctor_contacto" class="text-gray-700">michel.fuentes.wert@gmail.com Telef: 0939752666</p>
                 <p id="pv_doctor_especialidad" class="font-bold tracking-wider">ODONTÓLOGA ESPECIALISTA EN REHABILITACIÓN ORAL</p>
             </div>
 
             <!-- FOOTER WITH SUCURSAL ADDRESS & PHONE -->
-            <div class="mt-6 border-t border-gray-400 pt-2 text-center text-[9.5px] font-semibold text-gray-700 w-[90%] mx-auto">
+            <div class="mt-12 border-t border-gray-300 pt-3 text-center text-[10px] text-gray-700 w-full">
                 <span id="pv_sucursal_direccion">Ave Mariscal Sucre e Illescas S10-462, Chilibulo, Pichincha, Quito</span> <br>
                 TELEF. <span id="pv_sucursal_telefono">0939752666</span>
             </div>
