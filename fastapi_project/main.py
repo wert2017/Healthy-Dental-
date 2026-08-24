@@ -5472,10 +5472,25 @@ def view_certificados_page():
     return FileResponse("static/certificados.html")
 
 @app.get("/api/certificados")
-def list_certificados(session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+def list_certificados(
+    sucursal_id: Optional[str] = None,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
     if user.role not in ("admin", "recepcion"):
         raise HTTPException(status_code=403, detail="Acceso denegado")
-    query = select(CertificadoMedico).where(CertificadoMedico.sucursal_id == user.sucursal_id).order_by(CertificadoMedico.id.desc())
+    
+    query = select(CertificadoMedico)
+    if sucursal_id is not None and sucursal_id.strip() != "":
+        s_val = sucursal_id.strip().lower()
+        if s_val not in ("all", "0"):
+            try:
+                target_s_id = int(s_val)
+                query = query.where(CertificadoMedico.sucursal_id == target_s_id)
+            except ValueError:
+                pass
+
+    query = query.order_by(CertificadoMedico.id.desc())
     return session.exec(query).all()
 
 @app.post("/api/certificados")
@@ -5530,7 +5545,7 @@ def get_certificado(cert_id: int, session: Session = Depends(get_session), user:
     if user.role not in ("admin", "recepcion"):
         raise HTTPException(status_code=403, detail="Acceso denegado")
     cert = session.get(CertificadoMedico, cert_id)
-    if not cert or cert.sucursal_id != user.sucursal_id:
+    if not cert:
         raise HTTPException(status_code=404, detail="Certificado no encontrado")
     return cert
 
@@ -5539,7 +5554,7 @@ def delete_certificado(cert_id: int, session: Session = Depends(get_session), us
     if user.role not in ("admin", "recepcion"):
         raise HTTPException(status_code=403, detail="Acceso denegado")
     cert = session.get(CertificadoMedico, cert_id)
-    if not cert or cert.sucursal_id != user.sucursal_id:
+    if not cert:
         raise HTTPException(status_code=404, detail="Certificado no encontrado")
     session.delete(cert)
     session.commit()
@@ -5564,7 +5579,7 @@ def exportar_excel_certificado(cert_id: int, session: Session = Depends(get_sess
     if user.role not in ("admin", "recepcion"):
         raise HTTPException(status_code=403, detail="Acceso denegado")
     cert = session.get(CertificadoMedico, cert_id)
-    if not cert or cert.sucursal_id != user.sucursal_id:
+    if not cert:
         raise HTTPException(status_code=404, detail="Certificado no encontrado")
     
     data = {

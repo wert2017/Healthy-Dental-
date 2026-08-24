@@ -482,7 +482,7 @@
             </div>
 
             <!-- FILTROS DE BÚSQUEDA DEL HISTORIAL -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Buscar Paciente / Cédula / Empresa</label>
                     <div class="relative">
@@ -490,6 +490,12 @@
                                class="w-full border border-gray-300 rounded px-3 py-1.5 text-xs focus:ring-1 focus:ring-teal-500 outline-none"
                                oninput="filtrarHistorial()">
                     </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Clínica / Sucursal</label>
+                    <select id="filtro_historial_sucursal" class="w-full border border-gray-300 rounded px-3 py-1.5 text-xs bg-white focus:ring-1 focus:ring-teal-500" onchange="filtrarHistorial()">
+                        <option value="">Todas las Clínicas</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Doctor Firmante</label>
@@ -513,6 +519,7 @@
                         <tr class="bg-gray-100 border-b text-gray-600 font-semibold text-xs">
                             <th class="py-2.5 px-3">#</th>
                             <th class="py-2.5 px-3">Fecha Emisión</th>
+                            <th class="py-2.5 px-3">Clínica</th>
                             <th class="py-2.5 px-3">Paciente</th>
                             <th class="py-2.5 px-3">Cédula</th>
                             <th class="py-2.5 px-3">Centro Laboral</th>
@@ -524,7 +531,7 @@
                     </thead>
                     <tbody id="history_tbody" class="divide-y divide-gray-200">
                         <tr>
-                            <td colspan="9" class="text-center py-4 text-gray-500">Cargando historial...</td>
+                            <td colspan="10" class="text-center py-4 text-gray-500">Cargando historial...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -695,6 +702,13 @@
                 if (searchSel) {
                     searchSel.innerHTML = `<option value="all">🌐 Todas las Clínicas</option>` + 
                         sucursalesList.map(s => `<option value="${s.id}">${s.nombre}</option>`).join("");
+                }
+
+                // History sucursal filter
+                const historySucSel = document.getElementById("filtro_historial_sucursal");
+                if (historySucSel) {
+                    historySucSel.innerHTML = `<option value="">Todas las Clínicas</option>` + 
+                        sucursalesList.map(s => `<option value="${s.nombre}">${s.nombre}</option>`).join("");
                 }
 
                 if (sucursalesList.length > 0) {
@@ -927,6 +941,7 @@
 
         function filtrarHistorial() {
             const q = (document.getElementById("filtro_historial_query").value || "").toLowerCase().trim();
+            const sucursalFiltro = (document.getElementById("filtro_historial_sucursal").value || "").toLowerCase().trim();
             const doctorFiltro = (document.getElementById("filtro_historial_doctor").value || "").toLowerCase().trim();
             const fDesde = document.getElementById("filtro_historial_fecha_desde").value;
             const fHasta = document.getElementById("filtro_historial_fecha_hasta").value;
@@ -938,6 +953,10 @@
                     (c.paciente_cedula && c.paciente_cedula.toLowerCase().includes(q)) ||
                     (c.empresa_nombre && c.empresa_nombre.toLowerCase().includes(q)) ||
                     (c.diagnostico && c.diagnostico.toLowerCase().includes(q));
+
+                // Filtro sucursal / clínica
+                const matchesSucursal = !sucursalFiltro ||
+                    (c.sucursal_emision_nombre && c.sucursal_emision_nombre.toLowerCase().includes(sucursalFiltro));
 
                 // Filtro doctor
                 const matchesDoctor = !doctorFiltro || 
@@ -951,7 +970,7 @@
                     if (fHasta && cDateStr > fHasta) matchesDate = false;
                 }
 
-                return matchesText && matchesDoctor && matchesDate;
+                return matchesText && matchesSucursal && matchesDoctor && matchesDate;
             });
 
             renderHistorialTable(filtrados);
@@ -963,7 +982,7 @@
             badge.innerText = `${list.length} de ${historialCertificadosOriginal.length} registrados`;
 
             if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-gray-500">No se encontraron certificados con los filtros seleccionados.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-gray-500">No se encontraron certificados con los filtros seleccionados.</td></tr>`;
                 return;
             }
 
@@ -971,6 +990,7 @@
                 <tr class="hover:bg-gray-50 text-xs">
                     <td class="py-2.5 px-3 font-mono font-bold text-gray-700">#${c.id}</td>
                     <td class="py-2.5 px-3">${c.fecha_emision || 'S/N'}</td>
+                    <td class="py-2.5 px-3"><span class="bg-teal-50 text-teal-700 font-semibold px-2 py-0.5 rounded border border-teal-200">${c.sucursal_emision_nombre || 'General'}</span></td>
                     <td class="py-2.5 px-3 font-semibold text-gray-900">${c.paciente_nombre}</td>
                     <td class="py-2.5 px-3">${c.paciente_cedula || '---'}</td>
                     <td class="py-2.5 px-3">${c.empresa_nombre || '---'}</td>
@@ -988,6 +1008,7 @@
 
         function limpiarFiltrosHistorial() {
             document.getElementById("filtro_historial_query").value = "";
+            document.getElementById("filtro_historial_sucursal").value = "";
             document.getElementById("filtro_historial_doctor").value = "";
             document.getElementById("filtro_historial_fecha_desde").value = "";
             document.getElementById("filtro_historial_fecha_hasta").value = "";
