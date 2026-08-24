@@ -5486,12 +5486,44 @@ def list_certificados(
         if s_val not in ("all", "0"):
             try:
                 target_s_id = int(s_val)
-                query = query.where(CertificadoMedico.sucursal_id == target_s_id)
+                query = query.outerjoin(Paciente, CertificadoMedico.paciente_id == Paciente.id).where(
+                    or_(CertificadoMedico.sucursal_id == target_s_id, Paciente.sucursal_id == target_s_id)
+                )
             except ValueError:
                 pass
 
     query = query.order_by(CertificadoMedico.id.desc())
-    return session.exec(query).all()
+    certs = session.exec(query).all()
+
+    results = []
+    for c in certs:
+        c_dict = c.dict()
+        p_suc_nombre = ""
+        
+        # 1. Try finding patient sucursal by paciente_id
+        if c.paciente_id:
+            p = session.get(Paciente, c.paciente_id)
+            if p and p.sucursal:
+                p_suc_nombre = p.sucursal.nombre
+
+        # 2. If missing, try by historia_clinica match
+        if not p_suc_nombre and c.paciente_historia_clinica:
+            p = session.exec(select(Paciente).where(Paciente.historia_clinica == c.paciente_historia_clinica)).first()
+            if p and p.sucursal:
+                p_suc_nombre = p.sucursal.nombre
+
+        # 3. Fallback by HC prefix if still unknown
+        if not p_suc_nombre and c.paciente_historia_clinica:
+            hc_upper = c.paciente_historia_clinica.upper()
+            if "HC-EL" in hc_upper or "HC-CON" in hc_upper:
+                p_suc_nombre = "SAN JOSE DEL CONDADO"
+            elif "HC-LA" in hc_upper or "HC-MAG" in hc_upper:
+                p_suc_nombre = "LA MAGDALENA HEALTHY DENTAL"
+
+        c_dict["paciente_sucursal_nombre"] = p_suc_nombre or c.sucursal_emision_nombre or "General"
+        results.append(c_dict)
+
+    return results
 
 @app.post("/api/certificados")
 def create_certificado(cert: CertificadoCreate, session: Session = Depends(get_session), user: User = Depends(get_current_user)):

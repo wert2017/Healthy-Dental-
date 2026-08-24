@@ -955,8 +955,9 @@
                     (c.empresa_nombre && c.empresa_nombre.toLowerCase().includes(q)) ||
                     (c.diagnostico && c.diagnostico.toLowerCase().includes(q));
 
-                // Filtro sucursal / clínica
+                // Filtro sucursal / clínica (coincide con sucursal del paciente o de emisión)
                 const matchesSucursal = !sucursalFiltro ||
+                    (c.paciente_sucursal_nombre && c.paciente_sucursal_nombre.toLowerCase().includes(sucursalFiltro)) ||
                     (c.sucursal_emision_nombre && c.sucursal_emision_nombre.toLowerCase().includes(sucursalFiltro));
 
                 // Filtro doctor
@@ -987,11 +988,21 @@
                 return;
             }
 
-            tbody.innerHTML = list.map(c => `
+            tbody.innerHTML = list.map(c => {
+                const clinicName = c.paciente_sucursal_nombre || c.sucursal_emision_nombre || 'General';
+                let emitSubtext = '';
+                if (c.sucursal_emision_nombre && c.paciente_sucursal_nombre && c.sucursal_emision_nombre.toLowerCase().trim() !== c.paciente_sucursal_nombre.toLowerCase().trim()) {
+                    emitSubtext = `<div class="text-[9.5px] text-gray-500 italic mt-0.5">Emitido en: ${c.sucursal_emision_nombre}</div>`;
+                }
+
+                return `
                 <tr class="hover:bg-gray-50 text-xs">
                     <td class="py-2.5 px-3 font-mono font-bold text-gray-700">#${c.id}</td>
                     <td class="py-2.5 px-3">${c.fecha_emision || 'S/N'}</td>
-                    <td class="py-2.5 px-3"><span class="bg-teal-50 text-teal-700 font-semibold px-2 py-0.5 rounded border border-teal-200">${c.sucursal_emision_nombre || 'General'}</span></td>
+                    <td class="py-2.5 px-3">
+                        <span class="bg-teal-50 text-teal-800 font-semibold px-2 py-0.5 rounded border border-teal-200">${clinicName}</span>
+                        ${emitSubtext}
+                    </td>
                     <td class="py-2.5 px-3 font-semibold text-gray-900">${c.paciente_nombre}</td>
                     <td class="py-2.5 px-3">${c.paciente_cedula || '---'}</td>
                     <td class="py-2.5 px-3 font-mono font-bold text-teal-800">${c.paciente_historia_clinica || '---'}</td>
@@ -1004,7 +1015,8 @@
                         <button onclick="eliminarCertificado(${c.id})" class="bg-red-100 text-red-700 hover:bg-red-200 px-2 py-1 rounded font-medium">Borrar</button>
                     </td>
                 </tr>
-            `).join("");
+                `;
+            }).join("");
         }
 
         function limpiarFiltrosHistorial() {
