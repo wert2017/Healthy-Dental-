@@ -5240,10 +5240,10 @@ def build_certificado_excel_workbook(data: dict) -> io.BytesIO:
     thin_border_side = Side(style='thin', color='9CA3AF')
     thin_border = Border(left=thin_border_side, right=thin_border_side, top=thin_border_side, bottom=thin_border_side)
     
-    ws.column_dimensions['A'].width = 24
-    ws.column_dimensions['B'].width = 30
-    ws.column_dimensions['C'].width = 18
-    ws.column_dimensions['D'].width = 30
+    ws.column_dimensions['A'].width = 16
+    ws.column_dimensions['B'].width = 42
+    ws.column_dimensions['C'].width = 16
+    ws.column_dimensions['D'].width = 28
     
     ws.merge_cells('A1:D1')
     ws['A1'] = "HEALTHY DENTAL"

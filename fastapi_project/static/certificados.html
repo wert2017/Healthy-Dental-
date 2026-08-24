@@ -31,7 +31,9 @@
             background-color: #ffffff;
             font-weight: 700;
             color: #000;
-            width: 22%;
+            white-space: nowrap;
+        }
+        .cert-val-nowrap {
             white-space: nowrap;
         }
 
@@ -343,6 +345,12 @@
 
             <!-- CERTIFICATE TABLE -->
             <table class="cert-table my-2">
+                <colgroup>
+                    <col style="width: 14%;">
+                    <col style="width: 48%;">
+                    <col style="width: 14%;">
+                    <col style="width: 24%;">
+                </colgroup>
                 <tr>
                     <td class="cert-header-cell">Fecha de emisión:</td>
                     <td colspan="3" class="text-center font-semibold text-sm py-0.5" id="pv_fecha_emision">20 de Agosto del 2026</td>
@@ -354,25 +362,25 @@
                     <td class="cert-header-cell">Nombre:</td>
                     <td id="pv_paciente_nombre" class="font-medium"></td>
                     <td class="cert-header-cell">Cédula:</td>
-                    <td id="pv_paciente_cedula"></td>
+                    <td id="pv_paciente_cedula" class="cert-val-nowrap"></td>
                 </tr>
                 <tr>
                     <td class="cert-header-cell">Edad:</td>
                     <td id="pv_paciente_edad"></td>
                     <td class="cert-header-cell">Historia Clínica:</td>
-                    <td id="pv_paciente_historia_clinica"></td>
+                    <td id="pv_paciente_historia_clinica" class="cert-val-nowrap"></td>
                 </tr>
                 <tr>
                     <td class="cert-header-cell">Domicilio:</td>
                     <td id="pv_paciente_domicilio"></td>
                     <td class="cert-header-cell">Provincia:</td>
-                    <td id="pv_paciente_provincia">Pichincha</td>
+                    <td id="pv_paciente_provincia" class="cert-val-nowrap">Pichincha</td>
                 </tr>
                 <tr>
                     <td class="cert-header-cell">Cantón:</td>
                     <td id="pv_paciente_canton">Quito</td>
                     <td class="cert-header-cell">Teléfono:</td>
-                    <td id="pv_paciente_telefono"></td>
+                    <td id="pv_paciente_telefono" class="cert-val-nowrap"></td>
                 </tr>
 
                 <!-- DATOS LABORALES (CENTRO LABORAL) -->
