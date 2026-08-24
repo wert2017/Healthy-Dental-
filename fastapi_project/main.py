@@ -1151,13 +1151,29 @@ def buscar_pacientes_doctor(q: str = "", session: Session = Depends(get_session)
 
 
 @app.get("/api/pacientes")
-def search_pacientes(q: str = "", session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+def search_pacientes(
+    q: str = "",
+    sucursal_id: Optional[str] = None,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
     if not q:
         return []
     
+    statement = select(Paciente)
+    if sucursal_id is not None and sucursal_id.strip() != "":
+        s_val = sucursal_id.strip().lower()
+        if s_val not in ("all", "0"):
+            try:
+                target_s_id = int(s_val)
+                statement = statement.where(Paciente.sucursal_id == target_s_id)
+            except ValueError:
+                statement = statement.where(Paciente.sucursal_id == user.sucursal_id)
+        # if 'all' or '0', do not filter by sucursal_id
+    else:
+        statement = statement.where(Paciente.sucursal_id == user.sucursal_id)
+
     terms = q.strip().split()
-    statement = select(Paciente).where(Paciente.sucursal_id == user.sucursal_id)
-    
     for term in terms:
         t = f"%{term}%"
         statement = statement.where(
@@ -1183,6 +1199,7 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
         elif balance > 0.01:
             status = "FAVOR"
             
+        suc_nombre = p.sucursal.nombre if p.sucursal else ""
         results_data.append({
             "id": p.id,
             "nombres": p.nombres,
@@ -1194,6 +1211,8 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
             "sexo": p.sexo,
             "edad": p.edad,
             "ciudad": p.ciudad,
+            "sucursal_id": p.sucursal_id,
+            "sucursal_nombre": suc_nombre,
             "fecha_creacion": p.fecha_creacion,
             "total_pagado": total_pagado,
             "balance": balance,
