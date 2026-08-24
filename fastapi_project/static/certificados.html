@@ -523,7 +523,6 @@
                             <th class="py-2.5 px-3">Paciente</th>
                             <th class="py-2.5 px-3">Cédula</th>
                             <th class="py-2.5 px-3">Historia Clínica</th>
-                            <th class="py-2.5 px-3">Centro Laboral</th>
                             <th class="py-2.5 px-3">Diagnóstico</th>
                             <th class="py-2.5 px-3">Doctor</th>
                             <th class="py-2.5 px-3 text-right">Acciones</th>
@@ -531,7 +530,7 @@
                     </thead>
                     <tbody id="history_tbody" class="divide-y divide-gray-200">
                         <tr>
-                            <td colspan="10" class="text-center py-4 text-gray-500">Cargando historial...</td>
+                            <td colspan="9" class="text-center py-4 text-gray-500">Cargando historial...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -984,7 +983,7 @@
             badge.innerText = `${list.length} de ${historialCertificadosOriginal.length} registrados`;
 
             if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-gray-500">No se encontraron certificados con los filtros seleccionados.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-gray-500">No se encontraron certificados con los filtros seleccionados.</td></tr>`;
                 return;
             }
 
@@ -1006,7 +1005,6 @@
                     <td class="py-2.5 px-3 font-semibold text-gray-900">${c.paciente_nombre}</td>
                     <td class="py-2.5 px-3">${c.paciente_cedula || '---'}</td>
                     <td class="py-2.5 px-3 font-mono font-bold text-teal-800">${c.paciente_historia_clinica || '---'}</td>
-                    <td class="py-2.5 px-3">${c.empresa_nombre || '---'}</td>
                     <td class="py-2.5 px-3 text-gray-700">${c.diagnostico || '---'}</td>
                     <td class="py-2.5 px-3">${c.doctor_nombre || '---'}</td>
                     <td class="py-2.5 px-3 text-right space-x-1">
