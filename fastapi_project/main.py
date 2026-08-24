@@ -1191,6 +1191,9 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
             "historia_clinica": p.historia_clinica,
             "telefono": p.telefono,
             "email": p.email,
+            "sexo": p.sexo,
+            "edad": p.edad,
+            "ciudad": p.ciudad,
             "fecha_creacion": p.fecha_creacion,
             "total_pagado": total_pagado,
             "balance": balance,
@@ -1199,6 +1202,89 @@ def search_pacientes(q: str = "", session: Session = Depends(get_session), user:
         })
         
     return results_data
+
+
+class PacienteUpdateSchema(BaseModel):
+    nombres: str
+    apellidos: Optional[str] = ""
+    tipo_identificacion: Optional[str] = "CEDULA"
+    numero_identificacion: Optional[str] = None
+    historia_clinica: Optional[str] = None
+    telefono: Optional[str] = ""
+    email: Optional[str] = None
+    sexo: Optional[str] = None
+    edad: Optional[int] = None
+    ciudad: Optional[str] = None
+
+@app.get("/api/pacientes/{paciente_id}")
+def get_paciente_detail(paciente_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    paciente = session.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    return {
+        "id": paciente.id,
+        "nombres": paciente.nombres,
+        "apellidos": paciente.apellidos or "",
+        "tipo_identificacion": paciente.tipo_identificacion or "CEDULA",
+        "numero_identificacion": paciente.numero_identificacion or "",
+        "historia_clinica": paciente.historia_clinica or "",
+        "telefono": paciente.telefono or "",
+        "email": paciente.email or "",
+        "sexo": paciente.sexo or "",
+        "edad": paciente.edad,
+        "ciudad": paciente.ciudad or "",
+        "saldo_favor": paciente.saldo_favor
+    }
+
+@app.put("/api/pacientes/{paciente_id}")
+def update_paciente_detail(paciente_id: int, data: PacienteUpdateSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    paciente = session.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    
+    if data.numero_identificacion and data.numero_identificacion.strip():
+        new_ced = data.numero_identificacion.strip()
+        existing_ced = session.exec(select(Paciente).where(Paciente.numero_identificacion == new_ced).where(Paciente.id != paciente_id)).first()
+        if existing_ced:
+            raise HTTPException(status_code=400, detail=f"La cédula/ID '{new_ced}' ya está registrada con el paciente {existing_ced.nombres} {existing_ced.apellidos or ''}")
+        paciente.numero_identificacion = new_ced
+
+    if data.historia_clinica and data.historia_clinica.strip():
+        new_hc = data.historia_clinica.strip()
+        existing_hc = session.exec(select(Paciente).where(Paciente.historia_clinica == new_hc).where(Paciente.id != paciente_id)).first()
+        if existing_hc:
+            raise HTTPException(status_code=400, detail=f"La historia clínica '{new_hc}' ya está asignada a otro paciente")
+        paciente.historia_clinica = new_hc
+
+    paciente.nombres = data.nombres.strip()
+    paciente.apellidos = (data.apellidos or "").strip()
+    if data.tipo_identificacion:
+        paciente.tipo_identificacion = data.tipo_identificacion
+    paciente.telefono = (data.telefono or "").strip()
+    paciente.email = (data.email or "").strip() or None
+    paciente.sexo = data.sexo or None
+    paciente.edad = data.edad
+    paciente.ciudad = (data.ciudad or "").strip() or None
+
+    session.add(paciente)
+    session.commit()
+    session.refresh(paciente)
+
+    return {
+        "id": paciente.id,
+        "nombres": paciente.nombres,
+        "apellidos": paciente.apellidos or "",
+        "tipo_identificacion": paciente.tipo_identificacion or "CEDULA",
+        "numero_identificacion": paciente.numero_identificacion or "",
+        "historia_clinica": paciente.historia_clinica or "",
+        "telefono": paciente.telefono or "",
+        "email": paciente.email or "",
+        "sexo": paciente.sexo or "",
+        "edad": paciente.edad,
+        "ciudad": paciente.ciudad or "",
+        "saldo_favor": paciente.saldo_favor
+    }
+
 
 
 
