@@ -69,29 +69,30 @@
         }
 
         .fc .fc-toolbar-title {
-            font-size: 1.05rem !important; /* Más compacto */
-            font-weight: 700 !important;
+            font-size: 0.95rem !important;
+            font-weight: 800 !important;
             color: #1e293b !important;
         }
 
         .fc .fc-header-toolbar {
-            margin-bottom: 0.2rem !important; /* Menor separación vertical */
+            margin-top: 2px !important;
+            margin-bottom: 2px !important;
             gap: 0.25rem !important;
         }
 
         .fc .fc-button {
-            padding: 4px 10px !important; /* Botones más compactos */
+            padding: 2px 8px !important;
             font-size: 11px !important;
             font-weight: 600 !important;
             border-radius: 6px !important;
-            height: 28px !important;
+            height: 24px !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
         }
 
         .fc .fc-button .fc-icon {
-            font-size: 12px !important; /* Íconos de flecha más pequeños */
+            font-size: 11px !important;
         }
 
         .fc .fc-col-header-cell-cushion {
@@ -353,19 +354,17 @@
                 </div>
 
                 <!-- Calendar Card -->
-                <div class="lg:col-span-9 xl:col-span-10 bg-white rounded-xl pt-2 px-4 pb-3 shadow-sm space-y-1.5 border-t-4 transition-all duration-300"
+                <div class="lg:col-span-9 xl:col-span-10 bg-white rounded-xl pt-1.5 px-3 pb-2 shadow-sm space-y-1 border-t-4 transition-all duration-300"
                     :style="{ borderTopColor: filterDoctorId ? getDoctorColor(filterDoctorId) : '#4f46e5' }">
-                    <!-- Header with Active Doctor's Name -->
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-1 gap-2">
-                        <div>
-                            <h2 class="text-base font-bold text-gray-800 flex items-center gap-1.5">
-                                <span :style="{ color: filterDoctorId ? getDoctorColor(filterDoctorId) : '#4f46e5' }">📅</span>
-                                <span :style="{ color: filterDoctorId ? getDoctorColor(filterDoctorId) : '' }">{{ activeDoctorName }}</span>
+                    <!-- Header Ultra-Compacto -->
+                    <div class="flex items-center justify-between gap-2 border-b border-gray-100 pb-0.5">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-sm">🗓️</span>
+                            <h2 class="text-sm font-extrabold text-gray-800" :style="{ color: filterDoctorId ? getDoctorColor(filterDoctorId) : '#1e293b' }">
+                                {{ activeDoctorName }}
                             </h2>
-                            <p class="text-[11px] text-gray-500">Visualizando citas y horarios de atención de la sucursal</p>
                         </div>
-                        <!-- Quick indicator of current date range / status -->
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100 self-start sm:self-center">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100">
                             {{ sucursalNombre }}
                         </span>
                     </div>
