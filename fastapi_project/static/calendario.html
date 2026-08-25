@@ -60,6 +60,14 @@
             border-top-color: #475569 !important;
         }
 
+        /* Altura de filas compacta para ajustar de 8am a 6pm sin scroll */
+        .fc .fc-timegrid-slot {
+            height: 1.5em !important;
+        }
+        .fc .fc-timegrid-slot-label {
+            font-size: 11px !important;
+        }
+
         .fc .fc-toolbar-title {
             font-size: 1.05rem !important; /* Más compacto */
             font-weight: 700 !important;
@@ -1006,8 +1014,9 @@
                     calendar = new FullCalendar.Calendar(calendarEl, {
                         locale: 'es',
                         initialView: 'timeGridWeek',
-                        slotMinTime: '07:00:00',
-                        slotMaxTime: '20:00:00',
+                        slotMinTime: '08:00:00',
+                        slotMaxTime: '18:00:00',
+                        expandRows: true,
                         allDaySlot: false,
                         slotEventOverlap: false,
                         displayEventTime: false, // Oculta la hora en el bloque de la cuadrícula
