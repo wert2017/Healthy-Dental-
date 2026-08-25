@@ -356,19 +356,6 @@
                 <!-- Calendar Card -->
                 <div class="lg:col-span-9 xl:col-span-10 bg-white rounded-xl pt-1.5 px-3 pb-2 shadow-sm space-y-1 border-t-4 transition-all duration-300"
                     :style="{ borderTopColor: filterDoctorId ? getDoctorColor(filterDoctorId) : '#4f46e5' }">
-                    <!-- Header Ultra-Compacto -->
-                    <div class="flex items-center justify-between gap-2 border-b border-gray-100 pb-0.5">
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-sm">🗓️</span>
-                            <h2 class="text-sm font-extrabold text-gray-800" :style="{ color: filterDoctorId ? getDoctorColor(filterDoctorId) : '#1e293b' }">
-                                {{ activeDoctorName }}
-                            </h2>
-                        </div>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                            {{ sucursalNombre }}
-                        </span>
-                    </div>
-
                     <div id="calendar" v-once></div>
                 </div>
             </div>
@@ -868,10 +855,52 @@
                     }
                 };
  
+                const renderUnifiedHeaderRow = () => {
+                    const firstChunk = document.querySelector('.fc-header-toolbar .fc-toolbar-chunk:first-child');
+                    const lastChunk = document.querySelector('.fc-header-toolbar .fc-toolbar-chunk:last-child');
+
+                    if (firstChunk) {
+                        firstChunk.style.display = 'flex';
+                        firstChunk.style.alignItems = 'center';
+                        
+                        let docDiv = document.getElementById('custom-doc-header');
+                        if (!docDiv) {
+                            docDiv = document.createElement('div');
+                            docDiv.id = 'custom-doc-header';
+                            docDiv.className = 'flex items-center gap-1.5 shrink-0 mr-4';
+                            docDiv.innerHTML = `
+                                <span class="text-sm">🗓️</span>
+                                <span id="custom-doc-name" class="text-sm font-extrabold text-slate-800 tracking-tight"></span>
+                            `;
+                            firstChunk.insertBefore(docDiv, firstChunk.firstChild);
+                        }
+                        const docNameEl = document.getElementById('custom-doc-name');
+                        if (docNameEl) {
+                            docNameEl.innerText = activeDoctorName.value;
+                            docNameEl.style.color = filterDoctorId.value ? getDoctorColor(filterDoctorId.value) : '#1e293b';
+                        }
+                    }
+
+                    if (lastChunk) {
+                        lastChunk.style.display = 'flex';
+                        lastChunk.style.alignItems = 'center';
+
+                        let badgeSpan = document.getElementById('custom-sucursal-badge');
+                        if (!badgeSpan) {
+                            badgeSpan = document.createElement('span');
+                            badgeSpan.id = 'custom-sucursal-badge';
+                            badgeSpan.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0 uppercase tracking-wider ml-2';
+                            badgeSpan.innerText = sucursalNombre.value;
+                            lastChunk.appendChild(badgeSpan);
+                        }
+                    }
+                };
+
                 // FullCalendar triggers
                 const refetchEvents = () => {
                     if (calendar) {
                         calendar.refetchEvents();
+                        setTimeout(renderUnifiedHeaderRow, 50);
                     }
                 };
 
@@ -1018,18 +1047,24 @@
                         expandRows: true,
                         allDaySlot: false,
                         slotEventOverlap: false,
-                        displayEventTime: false, // Oculta la hora en el bloque de la cuadrícula
-                        editable: true, // Enables drag & drop rescheduling
+                        displayEventTime: false,
+                        editable: true,
                         eventDidMount: function (info) {
                             const props = info.event.extendedProps;
                             const docColor = getDoctorColor(props.doctor?.id);
                             info.el.style.setProperty('--fc-event-border-color', docColor);
-                            info.el.style.setProperty('--fc-event-bg-color', docColor + '25'); // 15% opacity background
+                            info.el.style.setProperty('--fc-event-bg-color', docColor + '25');
                         },
                         headerToolbar: {
-                            left: 'prev,next today',
-                            center: 'title',
-                            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                            left: 'title',
+                            center: '',
+                            right: 'prev,next today dayGridMonth,timeGridWeek,timeGridDay'
+                        },
+                        buttonText: {
+                            today: 'today',
+                            month: 'month',
+                            week: 'week',
+                            day: 'day'
                         },
                         eventMouseEnter: function (info) {
                             mostrarTooltipCita(info);
@@ -1048,6 +1083,7 @@
                             const activeDate = dateInfo.view.calendar.getDate();
                             const pad = (num) => String(num).padStart(2, '0');
                             quickJumpDate.value = `${activeDate.getFullYear()}-${pad(activeDate.getMonth() + 1)}-${pad(activeDate.getDate())}`;
+                            setTimeout(renderUnifiedHeaderRow, 20);
                         },
                         events: async function (info, successCallback, failureCallback) {
                             try {
