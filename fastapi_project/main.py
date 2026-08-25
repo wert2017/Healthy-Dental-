@@ -4884,6 +4884,7 @@ class TransferenciaInternaSchema(BaseModel):
     monto: float
     descripcion: str
     responsable: str
+    fecha: Optional[str] = None
 
 @app.post("/api/gastos/transferencia")
 def internal_transfer(data: TransferenciaInternaSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
@@ -4897,10 +4898,20 @@ def internal_transfer(data: TransferenciaInternaSchema, session: Session = Depen
     if data.monto <= 0:
         raise HTTPException(status_code=400, detail="El monto debe ser positivo")
 
+    fecha_dt = datetime.now()
+    if data.fecha:
+        try:
+            fecha_dt = datetime.fromisoformat(data.fecha)
+        except Exception:
+            try:
+                fecha_dt = datetime.strptime(data.fecha, "%Y-%m-%d")
+            except Exception:
+                pass
+
     # 1. Negative entry (Income for the destination)
     # Since balances = Income - Expenses, a negative expense is an Income.
     entry_to = Gasto(
-        fecha=datetime.now(),
+        fecha=fecha_dt,
         descripcion=f"RECEPCIÓN TRANSFERENCIA: {data.descripcion}",
         monto=Decimal(-data.monto),
         metodo_pago=data.hacia,
@@ -4912,7 +4923,7 @@ def internal_transfer(data: TransferenciaInternaSchema, session: Session = Depen
     
     # 2. Positive entry (Expense for the origin)
     entry_from = Gasto(
-        fecha=datetime.now(),
+        fecha=fecha_dt,
         descripcion=f"SALIDA TRANSFERENCIA: {data.descripcion}",
         monto=Decimal(data.monto),
         metodo_pago=data.desde,
