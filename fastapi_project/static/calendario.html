@@ -68,6 +68,19 @@
             font-size: 11px !important;
         }
 
+        /* Franja horaria de almuerzo / mediodía (12:00 a 13:00) en gris claro */
+        .fc .fc-timegrid-slot[data-time^="12:"] {
+            background-color: #f1f5f9 !important; /* Gris claro para diferenciar mañana y tarde */
+        }
+        .fc .fc-timegrid-slot-label[data-time="12:00:00"] {
+            background-color: #e2e8f0 !important;
+            font-weight: 700 !important;
+            color: #334155 !important;
+        }
+        .fc .lunch-slot-highlight {
+            background-color: #f1f5f9 !important;
+        }
+
         .fc .fc-toolbar-title {
             font-size: 0.95rem !important;
             font-weight: 800 !important;
@@ -602,8 +615,27 @@
                     '#14b8a6'  // Teal
                 ];
 
+                const customDoctorColors = {
+                    7: '#ec4899',   // Dra. Gabriela Patricia Montoya -> Rosado (#ec4899)
+                    13: '#06b6d4',  // Dr. Leo -> Cyan
+                    15: '#8b5cf6',  // Dra. Paula -> Violeta
+                    19: '#10b981',  // Dr. Danilo -> Esmeralda
+                    23: '#f59e0b',  // Dr. Javier -> Ámbar
+                    27: '#4f46e5',  // Dr. Evaristo -> Índigo
+                    28: '#14b8a6',  // Dr. Yonder -> Teal
+                    29: '#3b82f6',  // Dr. Saúl -> Azul
+                    30: '#f97316'   // Dra. Liset -> Naranja
+                };
+
                 const getDoctorColor = (doctorId) => {
                     if (!doctorId) return '#94a3b8'; // Slate-400
+                    const doc = doctores.value.find(d => d.id === doctorId);
+                    if (doctorId === 7 || (doc && (doc.nombres.toLowerCase().includes('gabriela') || doc.apellidos.toLowerCase().includes('montoya')))) {
+                        return '#ec4899'; // Rosado exclusivo para Dra. Gabriela
+                    }
+                    if (customDoctorColors[doctorId]) {
+                        return customDoctorColors[doctorId];
+                    }
                     const index = doctorId % doctorColors.length;
                     return doctorColors[index];
                 };
@@ -1044,6 +1076,12 @@
                         initialView: 'timeGridWeek',
                         slotMinTime: '08:00:00',
                         slotMaxTime: '18:00:00',
+                        slotLaneClassNames: function (arg) {
+                            if (arg.date && arg.date.getHours() === 12) {
+                                return ['lunch-slot-highlight'];
+                            }
+                            return [];
+                        },
                         expandRows: true,
                         allDaySlot: false,
                         slotEventOverlap: false,
