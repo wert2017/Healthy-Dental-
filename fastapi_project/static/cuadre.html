@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cuadre Diario - Clínica HD</title>
+    <title>Cuadre de Caja - Clínica HD</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
@@ -29,7 +29,13 @@
 
         .page { max-width: 1300px; margin: 0 auto; padding: 20px 24px 48px; }
 
-        .section { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 16px; }
+        /* TABS */
+        .tabs { display: flex; border-bottom: 2px solid #cbd5e1; margin-bottom: 18px; gap: 6px; }
+        .tab-btn { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #475569; background: #e2e8f0; border: none; border-bottom: 3px solid transparent; margin-bottom: -2px; cursor: pointer; font-family: inherit; white-space: nowrap; transition: all .15s; border-radius: 8px 8px 0 0; }
+        .tab-btn:hover { color: #0f172a; background: #f1f5f9; }
+        .tab-btn.active { color: #1d4ed8; background: #fff; border-bottom-color: #1d4ed8; font-weight: 700; box-shadow: 0 -2px 6px rgba(0,0,0,0.03); }
+
+        .section { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
         .section-head { padding: 11px 18px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; min-height: 42px; }
         .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #374151; }
         .section-desc { font-size: 11px; color: #9ca3af; }
@@ -53,19 +59,21 @@
         .sc:last-child { border-right: none; }
         .sc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; margin-bottom: 4px; }
         .sc-value { font-size: 22px; font-weight: 800; color: #111827; line-height: 1.2; }
-        .sc-sub { font-size: 11px; color: #d1d5db; margin-top: 3px; }
+        .sc-sub { font-size: 11px; color: #9ca3af; margin-top: 3px; }
 
         .dt { width: 100%; border-collapse: collapse; font-size: 13px; }
         .dt th { padding: 10px 8px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
         .dt th.r, .dt td.r { text-align: right; }
         .dt th.c, .dt td.c { text-align: center; }
         .dt td { padding: 9px 8px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+        .dt tbody tr:hover td { background: #f8fafc; }
         .dt tbody tr:last-child td { border-bottom: none; }
-        .dt tfoot td { padding: 10px 8px 8px; border-top: 2px solid #e5e7eb; border-bottom: none; font-weight: 700; color: #111827; }
+        .dt tfoot td { padding: 11px 8px 9px; border-top: 2px solid #e5e7eb; border-bottom: none; font-weight: 700; color: #111827; }
 
         .badge { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; background: #f3f4f6; color: #374151; }
         .badge-ok   { background: #d1fae5; color: #065f46; }
         .badge-warn { background: #fef3c7; color: #92400e; }
+        .badge-month { background: #eff6ff; color: #1e40af; font-weight: 700; border: 1px solid #bfdbfe; }
         .empty { padding: 28px 0; text-align: center; color: #9ca3af; font-size: 13px; }
 
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -110,189 +118,362 @@
             <a v-if="role !== 'recepcion'" href="/recepcion/historial"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Historial</a>
             <a href="/static/fotos.html"><i class="fa-solid fa-camera mr-1"></i> Fotos Clínicas</a>
         </nav>
-
     </header>
 
     <div class="page">
 
-        <div style="margin-bottom:16px;">
-            <h1 style="font-size:18px; font-weight:700; color:#111827;">Cuadre Diario</h1>
-            <p style="font-size:12px; color:#6b7280; margin-top:2px;">
-                Detalle de cobros por hoja de cargo. EF + TR + TC = dinero físico recibido. AB = saldo de billetera usado (recibido en días anteriores).
-            </p>
-        </div>
-
-        <!-- Filtros -->
-        <div class="filter-bar">
-            <div class="filter-group">
-                <label>Fecha inicio</label>
-                <input type="date" v-model="startDate">
-            </div>
-            <div class="filter-group">
-                <label>Fecha fin</label>
-                <input type="date" v-model="endDate">
-            </div>
-            <button class="btn btn-primary" @click="loadCuadre" :disabled="isLoading">
-                <div v-if="isLoading" class="spin"></div>
-                {{ isLoading ? 'Cargando...' : 'Generar' }}
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <button class="tab-btn" :class="{ active: currentTab === 'diario' }" @click="switchTab('diario')">
+                <i class="fa-solid fa-calendar-day mr-1.5"></i> Cuadre Diario
             </button>
-            <button v-if="data.real_caja" class="btn btn-caja" @click="verTotalRealCaja">
-                📊 Total Real de Caja
+            <button class="tab-btn" :class="{ active: currentTab === 'general' }" @click="switchTab('general')">
+                <i class="fa-solid fa-chart-column mr-1.5"></i> Cuadre General (Por Meses)
             </button>
         </div>
 
-        <!-- Tarjetas resumen -->
-        <div v-if="data.totales" class="summary-bar">
-            <div class="sc">
-                <div class="sc-label">Efectivo</div>
-                <div class="sc-value" style="color:#059669;">${{ fmt(data.real_caja?.efectivo?.total ?? data.totales.efectivo) }}</div>
-                <div class="sc-sub" style="color:#059669;">
-                    Trat: ${{ fmt(data.totales.efectivo) }}
-                    <span v-if="data.real_caja?.efectivo?.abono > 0"> + Abono: ${{ fmt(data.real_caja.efectivo.abono) }}</span>
-                </div>
+        <!-- ============================================================= -->
+        <!-- ==================== TAB 1: CUADRE DIARIO ==================== -->
+        <!-- ============================================================= -->
+        <div v-show="currentTab === 'diario'">
+            <div style="margin-bottom:16px;">
+                <h1 style="font-size:18px; font-weight:700; color:#111827;">Cuadre Diario</h1>
+                <p style="font-size:12px; color:#6b7280; margin-top:2px;">
+                    Detalle de cobros por hoja de cargo. EF + TR + TC = dinero físico recibido. AB = saldo de billetera usado (recibido en días anteriores).
+                </p>
             </div>
-            <div class="sc">
-                <div class="sc-label">Transferencia</div>
-                <div class="sc-value" style="color:#2563eb;">${{ fmt(data.real_caja?.transferencia?.total ?? data.totales.transferencia) }}</div>
-                <div class="sc-sub" style="color:#2563eb;">
-                    Trat: ${{ fmt(data.totales.transferencia) }}
-                    <span v-if="data.real_caja?.transferencia?.abono > 0"> + Abono: ${{ fmt(data.real_caja.transferencia.abono) }}</span>
-                </div>
-            </div>
-            <div class="sc">
-                <div class="sc-label">Tarjeta</div>
-                <div class="sc-value" style="color:#7c3aed;">${{ fmt(data.real_caja?.tarjeta?.total ?? data.totales.tarjeta) }}</div>
-                <div class="sc-sub" style="color:#7c3aed;">
-                    Trat: ${{ fmt(data.totales.tarjeta) }}
-                    <span v-if="data.real_caja?.tarjeta?.abono > 0"> + Abono: ${{ fmt(data.real_caja.tarjeta.abono) }}</span>
-                </div>
-            </div>
-            <div class="sc">
-                <div class="sc-label">Abono Usado</div>
-                <div class="sc-value" style="color:#d97706;">${{ fmt(data.totales.abono_usado) }}</div>
-                <div class="sc-sub">De billetera paciente</div>
-            </div>
-            <div class="sc" style="background:#f0fdf4;">
-                <div class="sc-label" style="color:#059669;">Total Físico Real</div>
-                <div class="sc-value" style="color:#059669; font-size:26px;">${{ fmt(data.real_caja?.gran_total?.total ?? data.totales.total_fisico) }}</div>
-                <div class="sc-sub">EF + TR + TC (incl. abonos generados)</div>
-            </div>
-            <div class="sc">
-                <div class="sc-label">Total Cobrado</div>
-                <div class="sc-value">${{ fmt((data.real_caja?.gran_total?.total ?? data.totales.total_fisico) + data.totales.abono_usado) }}</div>
-                <div class="sc-sub">Físico + abono usado</div>
-            </div>
-        </div>
 
-        <!-- Fondos de referencia -->
-        <div v-if="data.totales && (data.fondo_caja > 0 || data.fondo_banco > 0)" style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 18px;display:flex;align-items:center;gap:10px;">
-                <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;">Fondo Caja</span>
-                <span style="font-size:16px;font-weight:800;color:#059669;">${{ fmt(data.fondo_caja) }}</span>
-                <span style="font-size:11px;color:#9ca3af;">referencia</span>
+            <!-- Filtros Diario -->
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>Fecha inicio</label>
+                    <input type="date" v-model="startDate">
+                </div>
+                <div class="filter-group">
+                    <label>Fecha fin</label>
+                    <input type="date" v-model="endDate">
+                </div>
+                <button class="btn btn-primary" @click="loadCuadre" :disabled="isLoading">
+                    <div v-if="isLoading" class="spin"></div>
+                    {{ isLoading ? 'Cargando...' : 'Generar' }}
+                </button>
+                <button v-if="data.real_caja" class="btn btn-caja" @click="verTotalRealCaja">
+                    📊 Total Real de Caja
+                </button>
             </div>
-            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 18px;display:flex;align-items:center;gap:10px;">
-                <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;">Fondo Banco</span>
-                <span style="font-size:16px;font-weight:800;color:#2563eb;">${{ fmt(data.fondo_banco) }}</span>
-                <span style="font-size:11px;color:#9ca3af;">referencia</span>
-            </div>
-        </div>
 
-        <!-- Tabla hojas de cargo -->
-        <div class="section">
-            <div class="section-head">
-                <span class="section-title">Detalle por Hoja de Cargo</span>
-                <span class="section-desc">{{ data.filas?.length || 0 }} atenciones</span>
-            </div>
-            <div class="section-body" style="overflow-x:auto;">
-                <table class="dt">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Paciente</th>
-                            <th class="c">HC</th>
-                            <th class="r">Total Trat.</th>
-                            <th class="r" style="color:#059669;">Efectivo</th>
-                            <th class="r" style="color:#2563eb;">Transf.</th>
-                            <th class="r" style="color:#7c3aed;">Tarjeta</th>
-                            <th class="r" style="color:#d97706;">Abono</th>
-                            <th class="r">Total Cobrado</th>
-                            <th class="r">Pendiente</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="f in data.filas || []" :key="f.atencion_id">
-                            <td style="white-space:nowrap; color:#6b7280; font-size:12px;">{{ f.fecha }}</td>
-                            <td style="font-weight:500;">{{ f.paciente }}</td>
-                            <td class="c" style="color:#6b7280; font-size:12px;">{{ f.historia_clinica }}</td>
-                            <td class="r">${{ fmt(f.total_tratamiento) }}</td>
-                            <td class="r" style="color:#059669; font-weight:600;">${{ fmt(f.efectivo) }}</td>
-                            <td class="r" style="color:#2563eb; font-weight:600;">${{ fmt(f.transferencia) }}</td>
-                            <td class="r" style="color:#7c3aed; font-weight:600;">${{ fmt(f.tarjeta) }}</td>
-                            <td class="r" style="color:#d97706; font-weight:600;">${{ fmt(f.abono_usado) }}</td>
-                            <td class="r" style="font-weight:700;">${{ fmt(f.total_cobrado) }}</td>
-                            <td class="r">
-                                <span :class="f.saldo_pendiente > 0.01 ? 'badge badge-warn' : 'badge badge-ok'">
-                                    ${{ fmt(f.saldo_pendiente) }}
-                                </span>
-                            </td>
-                        </tr>
-                        <tr v-if="!data.filas?.length">
-                            <td colspan="10" class="empty">Sin datos — selecciona una fecha y presiona Generar</td>
-                        </tr>
-                    </tbody>
-                    <tfoot v-if="data.filas?.length">
-                        <tr>
-                            <td colspan="3" style="font-weight:700;">TOTALES</td>
-                            <td class="r">${{ fmt(data.totales?.total_tratamiento) }}</td>
-                            <td class="r" style="color:#059669;">${{ fmt(data.totales?.efectivo) }}</td>
-                            <td class="r" style="color:#2563eb;">${{ fmt(data.totales?.transferencia) }}</td>
-                            <td class="r" style="color:#7c3aed;">${{ fmt(data.totales?.tarjeta) }}</td>
-                            <td class="r" style="color:#d97706;">${{ fmt(data.totales?.abono_usado) }}</td>
-                            <td class="r">${{ fmt(data.totales?.total_cobrado) }}</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        </div>
-
-        <!-- Abonos generados -->
-        <div class="section" v-if="data.abonos_generados?.length">
-            <div class="section-head">
-                <span class="section-title">Abonos Generados (Nuevo dinero a Billeteras)</span>
-                <span class="section-desc">Sobrepagos o recargas directas que acreditaron saldo a pacientes</span>
-            </div>
-            <div class="section-body" style="overflow-x:auto;">
-                <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
-                    <div v-for="(monto, metodo) in data.abonos_por_metodo || {}" :key="metodo"
-                        style="background:#fef9ec; border:1px solid #fde68a; border-radius:6px; padding:8px 16px; min-width:130px;">
-                        <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#92400e; margin-bottom:2px;">{{ metodo }}</div>
-                        <div style="font-size:18px; font-weight:800; color:#d97706;">${{ fmt(monto) }}</div>
-                    </div>
-                    <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:8px 16px; min-width:130px;">
-                        <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#c2410c; margin-bottom:2px;">Total</div>
-                        <div style="font-size:18px; font-weight:800; color:#ea580c;">${{ fmt(data.total_abonos_generados) }}</div>
+            <!-- Tarjetas resumen Diario -->
+            <div v-if="data.totales" class="summary-bar">
+                <div class="sc">
+                    <div class="sc-label">Efectivo</div>
+                    <div class="sc-value" style="color:#059669;">${{ fmt(data.real_caja?.efectivo?.total ?? data.totales.efectivo) }}</div>
+                    <div class="sc-sub" style="color:#059669;">
+                        Trat: ${{ fmt(data.totales.efectivo) }}
+                        <span v-if="data.real_caja?.efectivo?.abono > 0"> + Abono: ${{ fmt(data.real_caja.efectivo.abono) }}</span>
                     </div>
                 </div>
-                <table class="dt">
-                    <thead>
-                        <tr>
-                            <th>Fecha / Hora</th>
-                            <th>Paciente</th>
-                            <th>Método</th>
-                            <th class="r">Monto Acreditado</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="(ab, i) in data.abonos_generados" :key="i">
-                            <td style="color:#6b7280; font-size:12px; white-space:nowrap;">{{ ab.fecha }}</td>
-                            <td style="font-weight:500;">{{ ab.paciente }}</td>
-                            <td><span class="badge">{{ ab.metodo }}</span></td>
-                            <td class="r" style="font-weight:700; color:#d97706;">${{ fmt(ab.monto) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="sc">
+                    <div class="sc-label">Transferencia</div>
+                    <div class="sc-value" style="color:#2563eb;">${{ fmt(data.real_caja?.transferencia?.total ?? data.totales.transferencia) }}</div>
+                    <div class="sc-sub" style="color:#2563eb;">
+                        Trat: ${{ fmt(data.totales.transferencia) }}
+                        <span v-if="data.real_caja?.transferencia?.abono > 0"> + Abono: ${{ fmt(data.real_caja.transferencia.abono) }}</span>
+                    </div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Tarjeta</div>
+                    <div class="sc-value" style="color:#7c3aed;">${{ fmt(data.real_caja?.tarjeta?.total ?? data.totales.tarjeta) }}</div>
+                    <div class="sc-sub" style="color:#7c3aed;">
+                        Trat: ${{ fmt(data.totales.tarjeta) }}
+                        <span v-if="data.real_caja?.tarjeta?.abono > 0"> + Abono: ${{ fmt(data.real_caja.tarjeta.abono) }}</span>
+                    </div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Abono Usado</div>
+                    <div class="sc-value" style="color:#d97706;">${{ fmt(data.totales.abono_usado) }}</div>
+                    <div class="sc-sub">De billetera paciente</div>
+                </div>
+                <div class="sc" style="background:#f0fdf4;">
+                    <div class="sc-label" style="color:#059669;">Total Físico Real</div>
+                    <div class="sc-value" style="color:#059669; font-size:26px;">${{ fmt(data.real_caja?.gran_total?.total ?? data.totales.total_fisico) }}</div>
+                    <div class="sc-sub">EF + TR + TC (incl. abonos generados)</div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Total Cobrado</div>
+                    <div class="sc-value">${{ fmt((data.real_caja?.gran_total?.total ?? data.totales.total_fisico) + data.totales.abono_usado) }}</div>
+                    <div class="sc-sub">Físico + abono usado</div>
+                </div>
+            </div>
+
+            <!-- Fondos de referencia -->
+            <div v-if="data.totales && (data.fondo_caja > 0 || data.fondo_banco > 0)" style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+                <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 18px;display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;">Fondo Caja</span>
+                    <span style="font-size:16px;font-weight:800;color:#059669;">${{ fmt(data.fondo_caja) }}</span>
+                    <span style="font-size:11px;color:#9ca3af;">referencia</span>
+                </div>
+                <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 18px;display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;">Fondo Banco</span>
+                    <span style="font-size:16px;font-weight:800;color:#2563eb;">${{ fmt(data.fondo_banco) }}</span>
+                    <span style="font-size:11px;color:#9ca3af;">referencia</span>
+                </div>
+            </div>
+
+            <!-- Tabla hojas de cargo -->
+            <div class="section">
+                <div class="section-head">
+                    <span class="section-title">Detalle por Hoja de Cargo</span>
+                    <span class="section-desc">{{ data.filas?.length || 0 }} atenciones</span>
+                </div>
+                <div class="section-body" style="overflow-x:auto;">
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Paciente</th>
+                                <th class="c">HC</th>
+                                <th class="r">Total Trat.</th>
+                                <th class="r" style="color:#059669;">Efectivo</th>
+                                <th class="r" style="color:#2563eb;">Transf.</th>
+                                <th class="r" style="color:#7c3aed;">Tarjeta</th>
+                                <th class="r" style="color:#d97706;">Abono</th>
+                                <th class="r">Total Cobrado</th>
+                                <th class="r">Pendiente</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="f in data.filas || []" :key="f.atencion_id">
+                                <td style="white-space:nowrap; color:#6b7280; font-size:12px;">{{ f.fecha }}</td>
+                                <td style="font-weight:500;">{{ f.paciente }}</td>
+                                <td class="c" style="color:#6b7280; font-size:12px;">{{ f.historia_clinica }}</td>
+                                <td class="r">${{ fmt(f.total_tratamiento) }}</td>
+                                <td class="r" style="color:#059669; font-weight:600;">${{ fmt(f.efectivo) }}</td>
+                                <td class="r" style="color:#2563eb; font-weight:600;">${{ fmt(f.transferencia) }}</td>
+                                <td class="r" style="color:#7c3aed; font-weight:600;">${{ fmt(f.tarjeta) }}</td>
+                                <td class="r" style="color:#d97706; font-weight:600;">${{ fmt(f.abono_usado) }}</td>
+                                <td class="r" style="font-weight:700;">${{ fmt(f.total_cobrado) }}</td>
+                                <td class="r">
+                                    <span :class="f.saldo_pendiente > 0.01 ? 'badge badge-warn' : 'badge badge-ok'">
+                                        ${{ fmt(f.saldo_pendiente) }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr v-if="!data.filas?.length">
+                                <td colspan="10" class="empty">Sin datos — selecciona una fecha y presiona Generar</td>
+                            </tr>
+                        </tbody>
+                        <tfoot v-if="data.filas?.length">
+                            <tr>
+                                <td colspan="3" style="font-weight:700;">TOTALES</td>
+                                <td class="r">${{ fmt(data.totales?.total_tratamiento) }}</td>
+                                <td class="r" style="color:#059669;">${{ fmt(data.totales?.efectivo) }}</td>
+                                <td class="r" style="color:#2563eb;">${{ fmt(data.totales?.transferencia) }}</td>
+                                <td class="r" style="color:#7c3aed;">${{ fmt(data.totales?.tarjeta) }}</td>
+                                <td class="r" style="color:#d97706;">${{ fmt(data.totales?.abono_usado) }}</td>
+                                <td class="r">${{ fmt(data.totales?.total_cobrado) }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Abonos generados -->
+            <div class="section" v-if="data.abonos_generados?.length">
+                <div class="section-head">
+                    <span class="section-title">Abonos Generados (Nuevo dinero a Billeteras)</span>
+                    <span class="section-desc">Sobrepagos o recargas directas que acreditaron saldo a pacientes</span>
+                </div>
+                <div class="section-body" style="overflow-x:auto;">
+                    <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
+                        <div v-for="(monto, metodo) in data.abonos_por_metodo || {}" :key="metodo"
+                            style="background:#fef9ec; border:1px solid #fde68a; border-radius:6px; padding:8px 16px; min-width:130px;">
+                            <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#92400e; margin-bottom:2px;">{{ metodo }}</div>
+                            <div style="font-size:18px; font-weight:800; color:#d97706;">${{ fmt(monto) }}</div>
+                        </div>
+                        <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:8px 16px; min-width:130px;">
+                            <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#c2410c; margin-bottom:2px;">Total</div>
+                            <div style="font-size:18px; font-weight:800; color:#ea580c;">${{ fmt(data.total_abonos_generados) }}</div>
+                        </div>
+                    </div>
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th>Fecha / Hora</th>
+                                <th>Paciente</th>
+                                <th>Método</th>
+                                <th class="r">Monto Acreditado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(ab, i) in data.abonos_generados" :key="i">
+                                <td style="color:#6b7280; font-size:12px; white-space:nowrap;">{{ ab.fecha }}</td>
+                                <td style="font-weight:500;">{{ ab.paciente }}</td>
+                                <td><span class="badge">{{ ab.metodo }}</span></td>
+                                <td class="r" style="font-weight:700; color:#d97706;">${{ fmt(ab.monto) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- =================== TAB 2: CUADRE GENERAL =================== -->
+        <!-- ============================================================= -->
+        <div v-show="currentTab === 'general'">
+            <div style="margin-bottom:16px;">
+                <h1 style="font-size:18px; font-weight:700; color:#111827;">Cuadre General Consolidado</h1>
+                <p style="font-size:12px; color:#6b7280; margin-top:2px;">
+                    Consolidado sin filtro por meses del año. Contiene todos los saldos de Efectivo, Transferencia, Tarjeta y Billetera (Abono Usado) con totales acumulados en la parte superior.
+                </p>
+            </div>
+
+            <!-- Filtros General -->
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>Año</label>
+                    <select v-model="selectedYear" style="min-width: 140px;">
+                        <option value="">Todos los Años</option>
+                        <option v-for="y in generalData.anios_disponibles || []" :key="y" :value="y">{{ y }}</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" @click="loadCuadreGeneral" :disabled="isLoadingGeneral">
+                    <div v-if="isLoadingGeneral" class="spin"></div>
+                    {{ isLoadingGeneral ? 'Cargando...' : 'Generar / Actualizar' }}
+                </button>
+                <button v-if="generalData.totales" class="btn btn-caja" @click="verTotalRealGeneral">
+                    📊 Resumen Real Acumulado
+                </button>
+            </div>
+
+            <!-- Tarjetas de Totales Generales en la parte superior -->
+            <div v-if="generalData.totales" class="summary-bar">
+                <div class="sc">
+                    <div class="sc-label">Efectivo</div>
+                    <div class="sc-value" style="color:#059669;">${{ fmt(generalData.totales.efectivo_total) }}</div>
+                    <div class="sc-sub" style="color:#059669;">
+                        Trat: ${{ fmt(generalData.totales.efectivo_trat) }}
+                        <span v-if="generalData.totales.efectivo_abono > 0"> + Abono: ${{ fmt(generalData.totales.efectivo_abono) }}</span>
+                    </div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Transferencia</div>
+                    <div class="sc-value" style="color:#2563eb;">${{ fmt(generalData.totales.transferencia_total) }}</div>
+                    <div class="sc-sub" style="color:#2563eb;">
+                        Trat: ${{ fmt(generalData.totales.transferencia_trat) }}
+                        <span v-if="generalData.totales.transferencia_abono > 0"> + Abono: ${{ fmt(generalData.totales.transferencia_abono) }}</span>
+                    </div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Tarjeta</div>
+                    <div class="sc-value" style="color:#7c3aed;">${{ fmt(generalData.totales.tarjeta_total) }}</div>
+                    <div class="sc-sub" style="color:#7c3aed;">
+                        Trat: ${{ fmt(generalData.totales.tarjeta_trat) }}
+                        <span v-if="generalData.totales.tarjeta_abono > 0"> + Abono: ${{ fmt(generalData.totales.tarjeta_abono) }}</span>
+                    </div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Abono Usado</div>
+                    <div class="sc-value" style="color:#d97706;">${{ fmt(generalData.totales.abono_usado) }}</div>
+                    <div class="sc-sub">De billetera paciente</div>
+                </div>
+                <div class="sc" style="background:#f0fdf4;">
+                    <div class="sc-label" style="color:#059669;">Total Físico Real</div>
+                    <div class="sc-value" style="color:#059669; font-size:26px;">${{ fmt(generalData.totales.total_fisico) }}</div>
+                    <div class="sc-sub">EF + TR + TC (incl. abonos generados)</div>
+                </div>
+                <div class="sc">
+                    <div class="sc-label">Total Cobrado</div>
+                    <div class="sc-value">${{ fmt(generalData.totales.total_cobrado) }}</div>
+                    <div class="sc-sub">Físico + abono usado</div>
+                </div>
+            </div>
+
+            <!-- Tabla de Meses del Año -->
+            <div class="section">
+                <div class="section-head">
+                    <span class="section-title">Consolidado Mensual</span>
+                    <span class="section-desc">{{ generalData.meses?.length || 0 }} períodos registrados</span>
+                </div>
+                <div class="section-body" style="overflow-x:auto;">
+                    <table class="dt">
+                        <thead>
+                            <tr>
+                                <th>Mes / Período</th>
+                                <th class="c">Atenciones</th>
+                                <th class="r">Total Trat.</th>
+                                <th class="r" style="color:#059669;">Efectivo</th>
+                                <th class="r" style="color:#2563eb;">Transf.</th>
+                                <th class="r" style="color:#7c3aed;">Tarjeta</th>
+                                <th class="r" style="color:#d97706;">Abono Usado</th>
+                                <th class="r" style="color:#059669;">Total Físico Real</th>
+                                <th class="r">Total Cobrado</th>
+                                <th class="r">Pendiente</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="m in generalData.meses || []" :key="m.key">
+                                <td style="font-weight:700; color:#1e293b; white-space:nowrap;">
+                                    <span class="badge badge-month mr-1">{{ m.etiqueta }}</span>
+                                </td>
+                                <td class="c">
+                                    <span class="badge">{{ m.atenciones_count }}</span>
+                                </td>
+                                <td class="r">${{ fmt(m.total_tratamiento) }}</td>
+                                <td class="r" style="color:#059669; font-weight:600;">
+                                    ${{ fmt(m.efectivo_total) }}
+                                    <div v-if="m.efectivo_abono > 0" style="font-size:10px; color:#10b981; font-weight:400;">
+                                        Trat: ${{ fmt(m.efectivo_trat) }} | Ab: ${{ fmt(m.efectivo_abono) }}
+                                    </div>
+                                </td>
+                                <td class="r" style="color:#2563eb; font-weight:600;">
+                                    ${{ fmt(m.transferencia_total) }}
+                                    <div v-if="m.transferencia_abono > 0" style="font-size:10px; color:#3b82f6; font-weight:400;">
+                                        Trat: ${{ fmt(m.transferencia_trat) }} | Ab: ${{ fmt(m.transferencia_abono) }}
+                                    </div>
+                                </td>
+                                <td class="r" style="color:#7c3aed; font-weight:600;">
+                                    ${{ fmt(m.tarjeta_total) }}
+                                    <div v-if="m.tarjeta_abono > 0" style="font-size:10px; color:#8b5cf6; font-weight:400;">
+                                        Trat: ${{ fmt(m.tarjeta_trat) }} | Ab: ${{ fmt(m.tarjeta_abono) }}
+                                    </div>
+                                </td>
+                                <td class="r" style="color:#d97706; font-weight:600;">${{ fmt(m.abono_usado) }}</td>
+                                <td class="r" style="color:#059669; font-weight:800; background:#f0fdf4;">${{ fmt(m.total_fisico) }}</td>
+                                <td class="r" style="font-weight:700; color:#0f172a;">${{ fmt(m.total_cobrado) }}</td>
+                                <td class="r">
+                                    <span :class="m.saldo_pendiente > 0.01 ? 'badge badge-warn' : 'badge badge-ok'">
+                                        ${{ fmt(m.saldo_pendiente) }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr v-if="!generalData.meses?.length">
+                                <td colspan="10" class="empty">No se encontraron registros para el período seleccionado.</td>
+                            </tr>
+                        </tbody>
+                        <tfoot v-if="generalData.meses?.length && generalData.totales">
+                            <tr style="background:#f8fafc;">
+                                <td style="font-weight:800; color:#0f172a;">TOTAL GENERAL</td>
+                                <td class="c">
+                                    <span class="badge" style="font-weight:700;">{{ generalData.totales.atenciones_count }}</span>
+                                </td>
+                                <td class="r" style="font-weight:800;">${{ fmt(generalData.totales.total_tratamiento) }}</td>
+                                <td class="r" style="color:#059669; font-weight:800;">${{ fmt(generalData.totales.efectivo_total) }}</td>
+                                <td class="r" style="color:#2563eb; font-weight:800;">${{ fmt(generalData.totales.transferencia_total) }}</td>
+                                <td class="r" style="color:#7c3aed; font-weight:800;">${{ fmt(generalData.totales.tarjeta_total) }}</td>
+                                <td class="r" style="color:#d97706; font-weight:800;">${{ fmt(generalData.totales.abono_usado) }}</td>
+                                <td class="r" style="color:#059669; font-weight:900; font-size:14px; background:#e6f9ed;">${{ fmt(generalData.totales.total_fisico) }}</td>
+                                <td class="r" style="font-weight:800; font-size:14px;">${{ fmt(generalData.totales.total_cobrado) }}</td>
+                                <td class="r" style="font-weight:800;">
+                                    <span :class="generalData.totales.saldo_pendiente > 0.01 ? 'badge badge-warn' : 'badge badge-ok'">
+                                        ${{ fmt(generalData.totales.saldo_pendiente) }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -323,6 +504,14 @@
                     return Promise.reject(err)
                 }
             )
+
+            const currentTab = ref('diario')
+            const switchTab = (tabName) => {
+                currentTab.value = tabName
+                if (tabName === 'general' && (!generalData.value.meses || generalData.value.meses.length === 0)) {
+                    loadCuadreGeneral()
+                }
+            }
 
             const role = ref(localStorage.getItem('role') || 'recepcion')
             const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD')
@@ -359,6 +548,11 @@
             const data        = ref({ filas: [], totales: null, abonos_generados: [], abonos_normalizados: {}, total_abonos_generados: 0, real_caja: null, fondo_caja: 0, fondo_banco: 0 })
             const isLoading   = ref(false)
 
+            // Cuadre General States
+            const selectedYear = ref(_td.getFullYear())
+            const generalData  = ref({ meses: [], totales: null, anios_disponibles: [], anio_seleccionado: '' })
+            const isLoadingGeneral = ref(false)
+
             const fmt = (v) => Number(v || 0).toFixed(2)
 
             const loadCuadre = async () => {
@@ -373,6 +567,21 @@
                     console.error(err)
                 } finally {
                     isLoading.value = false
+                }
+            }
+
+            const loadCuadreGeneral = async () => {
+                isLoadingGeneral.value = true
+                try {
+                    const params = {}
+                    if (selectedYear.value) params.anio = selectedYear.value
+                    const res = await axios.get('/api/reportes/cuadre-general', { params })
+                    generalData.value = res.data
+                } catch (err) {
+                    console.error("Error al cargar cuadre general:", err)
+                    Swal.fire('Error', 'No se pudo cargar el cuadre general', 'error')
+                } finally {
+                    isLoadingGeneral.value = false
                 }
             }
 
@@ -430,12 +639,65 @@
                 })
             }
 
-            onMounted(() => loadCuadre())
+            const verTotalRealGeneral = () => {
+                const t = generalData.value.totales
+                if (!t) return
+                const periodo = selectedYear.value ? `Año ${selectedYear.value}` : 'Todos los Años'
+
+                const row = (label, trat, ab, total, bold) => `
+                    <tr style="${bold ? 'font-weight:700; border-top:2px solid #374151;' : ''}">
+                        <td style="padding:8px 12px; text-align:left;">${label}</td>
+                        <td style="padding:8px 12px; text-align:right; color:#059669;">$${fmt(trat)}</td>
+                        <td style="padding:8px 12px; text-align:right; color:#d97706;">$${fmt(ab)}</td>
+                        <td style="padding:8px 12px; text-align:right; font-weight:700;">$${fmt(total)}</td>
+                    </tr>`
+
+                const html = `
+                    <p style="font-size:12px; color:#6b7280; margin-bottom:12px;">Período Consolidado: <strong>${periodo}</strong></p>
+                    <table style="width:100%; border-collapse:collapse; font-size:13px; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
+                        <thead style="background:#f3f4f6;">
+                            <tr>
+                                <th style="padding:8px 12px; text-align:left; font-size:11px; text-transform:uppercase; color:#6b7280;">Método</th>
+                                <th style="padding:8px 12px; text-align:right; font-size:11px; text-transform:uppercase; color:#059669;">Pago Tratamiento</th>
+                                <th style="padding:8px 12px; text-align:right; font-size:11px; text-transform:uppercase; color:#d97706;">Abonos a Billetera</th>
+                                <th style="padding:8px 12px; text-align:right; font-size:11px; text-transform:uppercase; color:#374151;">Total Real Físico</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${row('Efectivo', t.efectivo_trat, t.efectivo_abono, t.efectivo_total, false)}
+                            ${row('Transferencia', t.transferencia_trat, t.transferencia_abono, t.transferencia_total, false)}
+                            ${row('Tarjeta / TC', t.tarjeta_trat, t.tarjeta_abono, t.tarjeta_total, false)}
+                            ${row('TOTAL FÍSICO REAL', t.efectivo_trat + t.transferencia_trat + t.tarjeta_trat, t.total_abonos_generados, t.total_fisico, true)}
+                        </tbody>
+                    </table>
+                    <div style="margin-top:14px; font-size:12px; color:#374151; background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; padding:10px 14px; text-align:left; line-height:1.8;">
+                        <strong>Total Físico Real Recibido:</strong> $${fmt(t.total_fisico)}<br>
+                        <strong>Saldo de Billetera Usado en Tratamientos:</strong> $${fmt(t.abono_usado)}<br>
+                        <strong>Gran Total Cobrado:</strong> $${fmt(t.total_cobrado)}
+                    </div>`
+
+                Swal.fire({
+                    title: '📊 Resumen Consolidado de Caja',
+                    html,
+                    width: '600px',
+                    confirmButtonText: 'Cerrar',
+                    confirmButtonColor: '#1e40af',
+                    showClass: { popup: '' },
+                })
+            }
+
+            onMounted(() => {
+                loadCuadre()
+                loadCuadreGeneral()
+            })
 
             return {
+                currentTab, switchTab,
                 role, sucursalNombre, currentUser, branchColorStyle, branchTextColor, logout,
                 startDate, endDate, data, isLoading, fmt,
-                loadCuadre, verTotalRealCaja
+                loadCuadre, verTotalRealCaja,
+                selectedYear, generalData, isLoadingGeneral,
+                loadCuadreGeneral, verTotalRealGeneral
             }
         }
     }).mount('#app')
