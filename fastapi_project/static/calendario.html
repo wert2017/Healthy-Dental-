@@ -621,9 +621,9 @@
                     15: '#8b5cf6',  // Dra. Paula -> Violeta
                     19: '#10b981',  // Dr. Danilo -> Esmeralda
                     23: '#f59e0b',  // Dr. Javier -> Ámbar
-                    27: '#eab308',  // Dr. Evaristo -> Amarillo
+                    27: '#3b82f6',  // Dr. Evaristo -> Azul
                     28: '#14b8a6',  // Dr. Yonder -> Teal
-                    29: '#3b82f6',  // Dr. Saúl -> Azul
+                    29: '#4f46e5',  // Dr. Saúl -> Índigo
                     30: '#f97316'   // Dra. Liset -> Naranja
                 };
 
@@ -634,7 +634,10 @@
                         return '#ec4899'; // Rosado exclusivo para Dra. Gabriela
                     }
                     if (doctorId === 27 || (doc && (doc.nombres.toLowerCase().includes('evaristo') || doc.apellidos.toLowerCase().includes('evaristo')))) {
-                        return '#eab308'; // Amarillo exclusivo para Dr. Evaristo
+                        return '#3b82f6'; // Azul exclusivo para Dr. Evaristo
+                    }
+                    if (doctorId === 29 || (doc && (doc.nombres.toLowerCase().includes('saul') || doc.nombres.toLowerCase().includes('saúl') || doc.apellidos.toLowerCase().includes('saul') || doc.apellidos.toLowerCase().includes('saúl')))) {
+                        return '#4f46e5'; // Índigo exclusivo para Dr. Saúl
                     }
                     if (customDoctorColors[doctorId]) {
                         return customDoctorColors[doctorId];
