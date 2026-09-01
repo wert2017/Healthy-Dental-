@@ -621,7 +621,7 @@
                     15: '#8b5cf6',  // Dra. Paula -> Violeta
                     19: '#10b981',  // Dr. Danilo -> Esmeralda
                     23: '#f59e0b',  // Dr. Javier -> Ámbar
-                    27: '#4f46e5',  // Dr. Evaristo -> Índigo
+                    27: '#eab308',  // Dr. Evaristo -> Amarillo
                     28: '#14b8a6',  // Dr. Yonder -> Teal
                     29: '#3b82f6',  // Dr. Saúl -> Azul
                     30: '#f97316'   // Dra. Liset -> Naranja
@@ -632,6 +632,9 @@
                     const doc = doctores.value.find(d => d.id === doctorId);
                     if (doctorId === 7 || (doc && (doc.nombres.toLowerCase().includes('gabriela') || doc.apellidos.toLowerCase().includes('montoya')))) {
                         return '#ec4899'; // Rosado exclusivo para Dra. Gabriela
+                    }
+                    if (doctorId === 27 || (doc && (doc.nombres.toLowerCase().includes('evaristo') || doc.apellidos.toLowerCase().includes('evaristo')))) {
+                        return '#eab308'; // Amarillo exclusivo para Dr. Evaristo
                     }
                     if (customDoctorColors[doctorId]) {
                         return customDoctorColors[doctorId];
