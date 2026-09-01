@@ -4119,46 +4119,55 @@ def get_cuadre_general(
     if not user.sucursal_id:
         raise HTTPException(status_code=400, detail="Usuario sin sucursal asignada")
 
-    query_atenciones = (
-        select(Atencion)
-        .where(Atencion.sucursal_id == user.sucursal_id)
-        .options(
-            selectinload(Atencion.paciente),
-            selectinload(Atencion.pagos),
-            selectinload(Atencion.detalles)
-        )
-        .order_by(Atencion.fecha.asc())
-    )
-
-    query_abonos = (
-        select(HistorialAbono)
-        .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
-        .where(Paciente.sucursal_id == user.sucursal_id)
-        .options(selectinload(HistorialAbono.paciente))
-        .order_by(HistorialAbono.fecha.asc())
-    )
-
-    query_gastos = (
-        select(Gasto)
-        .where(Gasto.sucursal_id == user.sucursal_id)
-        .order_by(Gasto.fecha.asc())
-    )
-
+    # 1. Definir rango de fechas si se especifica año
+    date_from = None
+    date_to = None
     if anio and anio > 0:
         date_from = datetime(anio, 1, 1, 0, 0, 0)
         date_to = datetime(anio, 12, 31, 23, 59, 59)
-        query_atenciones = query_atenciones.where(Atencion.fecha >= date_from, Atencion.fecha <= date_to)
+
+    # 2. Consultas directas filtradas por sucursal
+    query_pagos = (
+        select(Pago.forma_pago, Pago.monto, Pago.fecha)
+        .join(Atencion, Pago.atencion_id == Atencion.id)
+        .where(Atencion.sucursal_id == user.sucursal_id)
+    )
+    if date_from and date_to:
+        query_pagos = query_pagos.where(Pago.fecha >= date_from, Pago.fecha <= date_to)
+
+    query_abonos = (
+        select(HistorialAbono.metodo_pago, HistorialAbono.monto, HistorialAbono.fecha)
+        .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
+        .where(Paciente.sucursal_id == user.sucursal_id)
+    )
+    if date_from and date_to:
         query_abonos = query_abonos.where(HistorialAbono.fecha >= date_from, HistorialAbono.fecha <= date_to)
+
+    query_gastos = (
+        select(Gasto.metodo_pago, Gasto.monto, Gasto.tipo, Gasto.fecha)
+        .where(Gasto.sucursal_id == user.sucursal_id)
+    )
+    if date_from and date_to:
         query_gastos = query_gastos.where(Gasto.fecha >= date_from, Gasto.fecha <= date_to)
 
-    atenciones = session.exec(query_atenciones).all()
-    abonos_gen = session.exec(query_abonos).all()
-    gastos_list = session.exec(query_gastos).all()
+    query_atenciones = (
+        select(Atencion.fecha)
+        .where(Atencion.sucursal_id == user.sucursal_id)
+    )
+    if date_from and date_to:
+        query_atenciones = query_atenciones.where(Atencion.fecha >= date_from, Atencion.fecha <= date_to)
 
+    pagos_list = session.exec(query_pagos).all()
+    abonos_list = session.exec(query_abonos).all()
+    gastos_list = session.exec(query_gastos).all()
+    atenciones_list = session.exec(query_atenciones).all()
+
+    # Identificar años disponibles
     all_dates = (
-        [a.fecha for a in atenciones if a.fecha] +
-        [h.fecha for h in abonos_gen if h.fecha] +
-        [g.fecha for g in gastos_list if g.fecha]
+        [p[2] for p in pagos_list if p[2]] +
+        [h[2] for h in abonos_list if h[2]] +
+        [g[3] for g in gastos_list if g[3]] +
+        [a for a in atenciones_list if a]
     )
     anios_disponibles = sorted(list(set(d.year for d in all_dates if d)), reverse=True)
     if not anios_disponibles:
@@ -4179,18 +4188,15 @@ def get_cuadre_general(
             "nombre_mes": nombres_meses[m_num - 1],
             "etiqueta": f"{nombres_meses[m_num - 1]} {a_num}",
             "atenciones_count": 0,
-            # Ingresos por concepto
             "ingreso_efectivo": 0.0,
             "ingreso_transferencia": 0.0,
             "ingreso_tarjeta": 0.0,
             "abono_usado": 0.0,
             "total_ingresos": 0.0,
-            # Egresos por concepto
             "gasto_efectivo": 0.0,
             "gasto_transferencia": 0.0,
             "gasto_tarjeta": 0.0,
             "total_gastos": 0.0,
-            # Saldos finales (Neto = Ingresos - Egresos)
             "saldo_efectivo": 0.0,       # Caja Física
             "saldo_transferencia": 0.0,  # Banco
             "saldo_tarjeta": 0.0,        # Tarjeta / Datafaz
@@ -4202,76 +4208,81 @@ def get_cuadre_general(
             key = f"{anio}-{m:02d}"
             meses_dict[key] = init_mes(key, anio, m)
 
-    # 1. Procesar Pagos de Atenciones
-    for a in atenciones:
-        if not a.fecha:
+    # 1. Pagos de Atenciones
+    for p_forma, p_monto, p_fecha in pagos_list:
+        if not p_fecha:
             continue
-        key = a.fecha.strftime("%Y-%m")
+        key = p_fecha.strftime("%Y-%m")
         if key not in meses_dict:
-            meses_dict[key] = init_mes(key, a.fecha.year, a.fecha.month)
-
-        ef = sum(float(p.monto) for p in a.pagos if p.forma_pago == "EF")
-        tr = sum(float(p.monto) for p in a.pagos if p.forma_pago == "TR")
-        tc = sum(float(p.monto) for p in a.pagos if p.forma_pago == "TC")
-        ab = sum(float(p.monto) for p in a.pagos if p.forma_pago == "AB")
-
+            meses_dict[key] = init_mes(key, p_fecha.year, p_fecha.month)
         m = meses_dict[key]
-        m["atenciones_count"] += 1
-        m["ingreso_efectivo"] += ef
-        m["ingreso_transferencia"] += tr
-        m["ingreso_tarjeta"] += tc
-        m["abono_usado"] += ab
-
-    # 2. Procesar Recargas Directas a Billeteras
-    for h in abonos_gen:
-        if not h.fecha:
-            continue
-        key = h.fecha.strftime("%Y-%m")
-        if key not in meses_dict:
-            meses_dict[key] = init_mes(key, h.fecha.year, h.fecha.month)
-
-        metodo_raw = (h.metodo_pago or "").upper()
-        monto = float(h.monto)
-        m = meses_dict[key]
-
-        if "EF" in metodo_raw or "CASH" in metodo_raw:
+        forma = (p_forma or "").upper()
+        monto = float(p_monto or 0)
+        if forma == "EF":
             m["ingreso_efectivo"] += monto
-        elif "TRANS" in metodo_raw or "TR" in metodo_raw:
+        elif forma == "TR":
             m["ingreso_transferencia"] += monto
-        elif "TARJ" in metodo_raw or "TC" in metodo_raw or "CARD" in metodo_raw:
+        elif forma == "TC":
+            m["ingreso_tarjeta"] += monto
+        elif forma == "AB":
+            m["abono_usado"] += monto
+
+    # 2. Recargas directas a Billetera
+    for h_metodo, h_monto, h_fecha in abonos_list:
+        if not h_fecha:
+            continue
+        key = h_fecha.strftime("%Y-%m")
+        if key not in meses_dict:
+            meses_dict[key] = init_mes(key, h_fecha.year, h_fecha.month)
+        m = meses_dict[key]
+        metodo = (h_metodo or "").upper()
+        monto = float(h_monto or 0)
+        if "EF" in metodo or "CASH" in metodo:
+            m["ingreso_efectivo"] += monto
+        elif "TRANS" in metodo or "TR" in metodo:
+            m["ingreso_transferencia"] += monto
+        elif "TARJ" in metodo or "TC" in metodo or "CARD" in metodo:
             m["ingreso_tarjeta"] += monto
         else:
             m["ingreso_efectivo"] += monto
 
-    # 3. Procesar Gastos / Egresos e Ingresos Extra
-    for g in gastos_list:
-        if not g.fecha:
+    # 3. Gastos e Ingresos Extra
+    for g_metodo, g_monto, g_tipo, g_fecha in gastos_list:
+        if not g_fecha:
             continue
-        key = g.fecha.strftime("%Y-%m")
+        key = g_fecha.strftime("%Y-%m")
         if key not in meses_dict:
-            meses_dict[key] = init_mes(key, g.fecha.year, g.fecha.month)
-
-        metodo_raw = (g.metodo_pago or "").upper()
-        monto = float(g.monto)
-        tipo = (g.tipo or "EGRESO").upper()
+            meses_dict[key] = init_mes(key, g_fecha.year, g_fecha.month)
         m = meses_dict[key]
+        metodo = (g_metodo or "").upper()
+        monto = float(g_monto or 0)
+        tipo = (g_tipo or "EGRESO").upper()
 
         if tipo == "INGRESO":
-            if "TRANS" in metodo_raw or "TR" in metodo_raw:
+            if "TRANS" in metodo or "TR" in metodo:
                 m["ingreso_transferencia"] += monto
-            elif "TARJ" in metodo_raw or "TC" in metodo_raw:
+            elif "TARJ" in metodo or "TC" in metodo:
                 m["ingreso_tarjeta"] += monto
             else:
                 m["ingreso_efectivo"] += monto
         else:
-            if "TRANS" in metodo_raw or "TR" in metodo_raw:
+            if "TRANS" in metodo or "TR" in metodo:
                 m["gasto_transferencia"] += monto
-            elif "TARJ" in metodo_raw or "TC" in metodo_raw:
+            elif "TARJ" in metodo or "TC" in metodo:
                 m["gasto_tarjeta"] += monto
             else:
                 m["gasto_efectivo"] += monto
 
-    # 4. Calcular Saldos Finales por Mes y Totales Generales
+    # 4. Cantidad de atenciones
+    for a_fecha in atenciones_list:
+        if not a_fecha:
+            continue
+        key = a_fecha.strftime("%Y-%m")
+        if key not in meses_dict:
+            meses_dict[key] = init_mes(key, a_fecha.year, a_fecha.month)
+        meses_dict[key]["atenciones_count"] += 1
+
+    # 5. Calcular Saldos Finales por Mes y Totales Generales
     lista_meses = []
     totales_generales = {
         "atenciones_count": 0,
@@ -4294,7 +4305,7 @@ def get_cuadre_general(
         m = meses_dict[key]
         m["total_ingresos"] = m["ingreso_efectivo"] + m["ingreso_transferencia"] + m["ingreso_tarjeta"]
         m["total_gastos"] = m["gasto_efectivo"] + m["gasto_transferencia"] + m["gasto_tarjeta"]
-        
+
         # Saldos netos mensuales = Ingresos - Gastos
         m["saldo_efectivo"] = m["ingreso_efectivo"] - m["gasto_efectivo"]
         m["saldo_transferencia"] = m["ingreso_transferencia"] - m["gasto_transferencia"]
