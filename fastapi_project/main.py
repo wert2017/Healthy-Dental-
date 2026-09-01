@@ -4138,16 +4138,28 @@ def get_cuadre_general(
         .order_by(HistorialAbono.fecha.asc())
     )
 
+    query_gastos = (
+        select(Gasto)
+        .where(Gasto.sucursal_id == user.sucursal_id)
+        .order_by(Gasto.fecha.asc())
+    )
+
     if anio and anio > 0:
         date_from = datetime(anio, 1, 1, 0, 0, 0)
         date_to = datetime(anio, 12, 31, 23, 59, 59)
         query_atenciones = query_atenciones.where(Atencion.fecha >= date_from, Atencion.fecha <= date_to)
         query_abonos = query_abonos.where(HistorialAbono.fecha >= date_from, HistorialAbono.fecha <= date_to)
+        query_gastos = query_gastos.where(Gasto.fecha >= date_from, Gasto.fecha <= date_to)
 
     atenciones = session.exec(query_atenciones).all()
     abonos_gen = session.exec(query_abonos).all()
+    gastos_list = session.exec(query_gastos).all()
 
-    all_dates = [a.fecha for a in atenciones if a.fecha] + [h.fecha for h in abonos_gen if h.fecha]
+    all_dates = (
+        [a.fecha for a in atenciones if a.fecha] +
+        [h.fecha for h in abonos_gen if h.fecha] +
+        [g.fecha for g in gastos_list if g.fecha]
+    )
     anios_disponibles = sorted(list(set(d.year for d in all_dates if d)), reverse=True)
     if not anios_disponibles:
         anios_disponibles = [datetime.now().year]
@@ -4159,187 +4171,168 @@ def get_cuadre_general(
 
     meses_dict = {}
 
+    def init_mes(key, a_num, m_num):
+        return {
+            "key": key,
+            "anio": a_num,
+            "mes_num": m_num,
+            "nombre_mes": nombres_meses[m_num - 1],
+            "etiqueta": f"{nombres_meses[m_num - 1]} {a_num}",
+            "atenciones_count": 0,
+            # Ingresos por concepto
+            "ingreso_efectivo": 0.0,
+            "ingreso_transferencia": 0.0,
+            "ingreso_tarjeta": 0.0,
+            "abono_usado": 0.0,
+            "total_ingresos": 0.0,
+            # Egresos por concepto
+            "gasto_efectivo": 0.0,
+            "gasto_transferencia": 0.0,
+            "gasto_tarjeta": 0.0,
+            "total_gastos": 0.0,
+            # Saldos finales (Neto = Ingresos - Egresos)
+            "saldo_efectivo": 0.0,       # Caja Física
+            "saldo_transferencia": 0.0,  # Banco
+            "saldo_tarjeta": 0.0,        # Tarjeta / Datafaz
+            "saldo_total": 0.0           # Total Global
+        }
+
     if anio and anio > 0:
         for m in range(1, 13):
             key = f"{anio}-{m:02d}"
-            meses_dict[key] = {
-                "key": key,
-                "anio": anio,
-                "mes_num": m,
-                "nombre_mes": nombres_meses[m - 1],
-                "etiqueta": f"{nombres_meses[m - 1]} {anio}",
-                "atenciones_count": 0,
-                "total_tratamiento": 0.0,
-                "efectivo_trat": 0.0,
-                "efectivo_abono": 0.0,
-                "efectivo_total": 0.0,
-                "transferencia_trat": 0.0,
-                "transferencia_abono": 0.0,
-                "transferencia_total": 0.0,
-                "tarjeta_trat": 0.0,
-                "tarjeta_abono": 0.0,
-                "tarjeta_total": 0.0,
-                "abono_usado": 0.0,
-                "total_fisico": 0.0,
-                "total_cobrado": 0.0,
-                "saldo_pendiente": 0.0,
-                "total_abonos_generados": 0.0
-            }
+            meses_dict[key] = init_mes(key, anio, m)
 
+    # 1. Procesar Pagos de Atenciones
     for a in atenciones:
         if not a.fecha:
             continue
         key = a.fecha.strftime("%Y-%m")
-        m_num = a.fecha.month
-        a_num = a.fecha.year
         if key not in meses_dict:
-            meses_dict[key] = {
-                "key": key,
-                "anio": a_num,
-                "mes_num": m_num,
-                "nombre_mes": nombres_meses[m_num - 1],
-                "etiqueta": f"{nombres_meses[m_num - 1]} {a_num}",
-                "atenciones_count": 0,
-                "total_tratamiento": 0.0,
-                "efectivo_trat": 0.0,
-                "efectivo_abono": 0.0,
-                "efectivo_total": 0.0,
-                "transferencia_trat": 0.0,
-                "transferencia_abono": 0.0,
-                "transferencia_total": 0.0,
-                "tarjeta_trat": 0.0,
-                "tarjeta_abono": 0.0,
-                "tarjeta_total": 0.0,
-                "abono_usado": 0.0,
-                "total_fisico": 0.0,
-                "total_cobrado": 0.0,
-                "saldo_pendiente": 0.0,
-                "total_abonos_generados": 0.0
-            }
+            meses_dict[key] = init_mes(key, a.fecha.year, a.fecha.month)
 
-        ef  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "EF")
-        tr  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "TR")
-        tc  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "TC")
-        ab  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "AB")
-        total_trat = sum(float(d.total_calculado) for d in a.detalles)
-        total_cobrado = ef + tr + tc + ab
-        saldo_pend = max(0.0, total_trat - total_cobrado)
+        ef = sum(float(p.monto) for p in a.pagos if p.forma_pago == "EF")
+        tr = sum(float(p.monto) for p in a.pagos if p.forma_pago == "TR")
+        tc = sum(float(p.monto) for p in a.pagos if p.forma_pago == "TC")
+        ab = sum(float(p.monto) for p in a.pagos if p.forma_pago == "AB")
 
         m = meses_dict[key]
         m["atenciones_count"] += 1
-        m["total_tratamiento"] += total_trat
-        m["efectivo_trat"] += ef
-        m["transferencia_trat"] += tr
-        m["tarjeta_trat"] += tc
+        m["ingreso_efectivo"] += ef
+        m["ingreso_transferencia"] += tr
+        m["ingreso_tarjeta"] += tc
         m["abono_usado"] += ab
-        m["saldo_pendiente"] += saldo_pend
 
+    # 2. Procesar Recargas Directas a Billeteras
     for h in abonos_gen:
         if not h.fecha:
             continue
         key = h.fecha.strftime("%Y-%m")
-        m_num = h.fecha.month
-        a_num = h.fecha.year
         if key not in meses_dict:
-            meses_dict[key] = {
-                "key": key,
-                "anio": a_num,
-                "mes_num": m_num,
-                "nombre_mes": nombres_meses[m_num - 1],
-                "etiqueta": f"{nombres_meses[m_num - 1]} {a_num}",
-                "atenciones_count": 0,
-                "total_tratamiento": 0.0,
-                "efectivo_trat": 0.0,
-                "efectivo_abono": 0.0,
-                "efectivo_total": 0.0,
-                "transferencia_trat": 0.0,
-                "transferencia_abono": 0.0,
-                "transferencia_total": 0.0,
-                "tarjeta_trat": 0.0,
-                "tarjeta_abono": 0.0,
-                "tarjeta_total": 0.0,
-                "abono_usado": 0.0,
-                "total_fisico": 0.0,
-                "total_cobrado": 0.0,
-                "saldo_pendiente": 0.0,
-                "total_abonos_generados": 0.0
-            }
+            meses_dict[key] = init_mes(key, h.fecha.year, h.fecha.month)
 
-        metodo_raw = (h.metodo_pago or "").lower()
+        metodo_raw = (h.metodo_pago or "").upper()
         monto = float(h.monto)
         m = meses_dict[key]
-        m["total_abonos_generados"] += monto
-        if any(x in metodo_raw for x in ["efectivo", "ef", "cash"]):
-            m["efectivo_abono"] += monto
-        elif any(x in metodo_raw for x in ["transfer", "tr"]):
-            m["transferencia_abono"] += monto
-        elif any(x in metodo_raw for x in ["tarjeta", "tc", "card", "credito", "debito"]):
-            m["tarjeta_abono"] += monto
-        else:
-            m["efectivo_abono"] += monto
 
+        if "EF" in metodo_raw or "CASH" in metodo_raw:
+            m["ingreso_efectivo"] += monto
+        elif "TRANS" in metodo_raw or "TR" in metodo_raw:
+            m["ingreso_transferencia"] += monto
+        elif "TARJ" in metodo_raw or "TC" in metodo_raw or "CARD" in metodo_raw:
+            m["ingreso_tarjeta"] += monto
+        else:
+            m["ingreso_efectivo"] += monto
+
+    # 3. Procesar Gastos / Egresos e Ingresos Extra
+    for g in gastos_list:
+        if not g.fecha:
+            continue
+        key = g.fecha.strftime("%Y-%m")
+        if key not in meses_dict:
+            meses_dict[key] = init_mes(key, g.fecha.year, g.fecha.month)
+
+        metodo_raw = (g.metodo_pago or "").upper()
+        monto = float(g.monto)
+        tipo = (g.tipo or "EGRESO").upper()
+        m = meses_dict[key]
+
+        if tipo == "INGRESO":
+            if "TRANS" in metodo_raw or "TR" in metodo_raw:
+                m["ingreso_transferencia"] += monto
+            elif "TARJ" in metodo_raw or "TC" in metodo_raw:
+                m["ingreso_tarjeta"] += monto
+            else:
+                m["ingreso_efectivo"] += monto
+        else:
+            if "TRANS" in metodo_raw or "TR" in metodo_raw:
+                m["gasto_transferencia"] += monto
+            elif "TARJ" in metodo_raw or "TC" in metodo_raw:
+                m["gasto_tarjeta"] += monto
+            else:
+                m["gasto_efectivo"] += monto
+
+    # 4. Calcular Saldos Finales por Mes y Totales Generales
     lista_meses = []
     totales_generales = {
-        "total_tratamiento": 0.0,
-        "efectivo_trat": 0.0,
-        "efectivo_abono": 0.0,
-        "efectivo_total": 0.0,
-        "transferencia_trat": 0.0,
-        "transferencia_abono": 0.0,
-        "transferencia_total": 0.0,
-        "tarjeta_trat": 0.0,
-        "tarjeta_abono": 0.0,
-        "tarjeta_total": 0.0,
+        "atenciones_count": 0,
+        "ingreso_efectivo": 0.0,
+        "ingreso_transferencia": 0.0,
+        "ingreso_tarjeta": 0.0,
         "abono_usado": 0.0,
-        "total_fisico": 0.0,
-        "total_cobrado": 0.0,
-        "saldo_pendiente": 0.0,
-        "total_abonos_generados": 0.0,
-        "atenciones_count": 0
+        "total_ingresos": 0.0,
+        "gasto_efectivo": 0.0,
+        "gasto_transferencia": 0.0,
+        "gasto_tarjeta": 0.0,
+        "total_gastos": 0.0,
+        "saldo_efectivo": 0.0,       # Total Caja Física
+        "saldo_transferencia": 0.0,  # Total Banco
+        "saldo_tarjeta": 0.0,        # Total Tarjeta / Datafaz
+        "saldo_total": 0.0           # Total Global
     }
 
     for key in sorted(meses_dict.keys()):
         m = meses_dict[key]
-        m["efectivo_total"] = m["efectivo_trat"] + m["efectivo_abono"]
-        m["transferencia_total"] = m["transferencia_trat"] + m["transferencia_abono"]
-        m["tarjeta_total"] = m["tarjeta_trat"] + m["tarjeta_abono"]
-        m["total_fisico"] = m["efectivo_total"] + m["transferencia_total"] + m["tarjeta_total"]
-        m["total_cobrado"] = m["total_fisico"] + m["abono_usado"]
+        m["total_ingresos"] = m["ingreso_efectivo"] + m["ingreso_transferencia"] + m["ingreso_tarjeta"]
+        m["total_gastos"] = m["gasto_efectivo"] + m["gasto_transferencia"] + m["gasto_tarjeta"]
+        
+        # Saldos netos mensuales = Ingresos - Gastos
+        m["saldo_efectivo"] = m["ingreso_efectivo"] - m["gasto_efectivo"]
+        m["saldo_transferencia"] = m["ingreso_transferencia"] - m["gasto_transferencia"]
+        m["saldo_tarjeta"] = m["ingreso_tarjeta"] - m["gasto_tarjeta"]
+        m["saldo_total"] = m["saldo_efectivo"] + m["saldo_transferencia"] + m["saldo_tarjeta"]
 
-        totales_generales["total_tratamiento"] += m["total_tratamiento"]
-        totales_generales["efectivo_trat"] += m["efectivo_trat"]
-        totales_generales["efectivo_abono"] += m["efectivo_abono"]
-        totales_generales["efectivo_total"] += m["efectivo_total"]
-        totales_generales["transferencia_trat"] += m["transferencia_trat"]
-        totales_generales["transferencia_abono"] += m["transferencia_abono"]
-        totales_generales["transferencia_total"] += m["transferencia_total"]
-        totales_generales["tarjeta_trat"] += m["tarjeta_trat"]
-        totales_generales["tarjeta_abono"] += m["tarjeta_abono"]
-        totales_generales["tarjeta_total"] += m["tarjeta_total"]
-        totales_generales["abono_usado"] += m["abono_usado"]
-        totales_generales["total_fisico"] += m["total_fisico"]
-        totales_generales["total_cobrado"] += m["total_cobrado"]
-        totales_generales["saldo_pendiente"] += m["saldo_pendiente"]
-        totales_generales["total_abonos_generados"] += m["total_abonos_generados"]
+        # Acumular a totales generales
         totales_generales["atenciones_count"] += m["atenciones_count"]
+        totales_generales["ingreso_efectivo"] += m["ingreso_efectivo"]
+        totales_generales["ingreso_transferencia"] += m["ingreso_transferencia"]
+        totales_generales["ingreso_tarjeta"] += m["ingreso_tarjeta"]
+        totales_generales["abono_usado"] += m["abono_usado"]
+        totales_generales["total_ingresos"] += m["total_ingresos"]
+        totales_generales["gasto_efectivo"] += m["gasto_efectivo"]
+        totales_generales["gasto_transferencia"] += m["gasto_transferencia"]
+        totales_generales["gasto_tarjeta"] += m["gasto_tarjeta"]
+        totales_generales["total_gastos"] += m["total_gastos"]
+        totales_generales["saldo_efectivo"] += m["saldo_efectivo"]
+        totales_generales["saldo_transferencia"] += m["saldo_transferencia"]
+        totales_generales["saldo_tarjeta"] += m["saldo_tarjeta"]
+        totales_generales["saldo_total"] += m["saldo_total"]
 
-        for field in [
-            "total_tratamiento", "efectivo_trat", "efectivo_abono", "efectivo_total",
-            "transferencia_trat", "transferencia_abono", "transferencia_total",
-            "tarjeta_trat", "tarjeta_abono", "tarjeta_total", "abono_usado",
-            "total_fisico", "total_cobrado", "saldo_pendiente", "total_abonos_generados"
+        # Redondear campos del mes
+        for f in [
+            "ingreso_efectivo", "ingreso_transferencia", "ingreso_tarjeta", "abono_usado", "total_ingresos",
+            "gasto_efectivo", "gasto_transferencia", "gasto_tarjeta", "total_gastos",
+            "saldo_efectivo", "saldo_transferencia", "saldo_tarjeta", "saldo_total"
         ]:
-            m[field] = round(m[field], 2)
+            m[f] = round(m[f], 2)
 
         lista_meses.append(m)
 
-    for field in [
-        "total_tratamiento", "efectivo_trat", "efectivo_abono", "efectivo_total",
-        "transferencia_trat", "transferencia_abono", "transferencia_total",
-        "tarjeta_trat", "tarjeta_abono", "tarjeta_total", "abono_usado",
-        "total_fisico", "total_cobrado", "saldo_pendiente", "total_abonos_generados"
+    for f in [
+        "ingreso_efectivo", "ingreso_transferencia", "ingreso_tarjeta", "abono_usado", "total_ingresos",
+        "gasto_efectivo", "gasto_transferencia", "gasto_tarjeta", "total_gastos",
+        "saldo_efectivo", "saldo_transferencia", "saldo_tarjeta", "saldo_total"
     ]:
-        totales_generales[field] = round(totales_generales[field], 2)
+        totales_generales[f] = round(totales_generales[f], 2)
 
     return {
         "meses": lista_meses,
