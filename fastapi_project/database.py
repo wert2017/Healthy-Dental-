@@ -32,6 +32,7 @@ def create_db_and_tables():
         "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_nombre VARCHAR(255) DEFAULT ''",
         "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_direccion VARCHAR(255) DEFAULT ''",
         "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_telefono VARCHAR(50) DEFAULT ''",
+        "DELETE FROM gasto WHERE monto = 40 AND fecha >= '2026-06-01' AND fecha < '2026-07-01'",
     ]
     with engine.connect() as conn:
         for sql in migrations:

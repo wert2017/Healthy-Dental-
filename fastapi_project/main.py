@@ -4492,6 +4492,23 @@ def update_gasto(
     session.refresh(gasto)
     return gasto
 
+@app.delete("/api/gastos/{gasto_id}")
+def delete_gasto(
+    gasto_id: int,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores pueden eliminar gastos")
+    gasto = session.get(Gasto, gasto_id)
+    if not gasto:
+        raise HTTPException(status_code=404, detail="Gasto no encontrado")
+    if gasto.sucursal_id != user.sucursal_id and user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este gasto")
+    session.delete(gasto)
+    session.commit()
+    return {"message": "Gasto eliminado correctamente", "id": gasto_id}
+
 @app.get("/api/gastos/balances")
 def get_gastos_balances(
     start_date: Optional[str] = None,
