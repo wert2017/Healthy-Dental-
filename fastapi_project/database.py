@@ -31,8 +31,7 @@ def create_db_and_tables():
         "ALTER TABLE historialabono ADD COLUMN IF NOT EXISTS concepto VARCHAR(255) DEFAULT 'Abono General'",
         "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_nombre VARCHAR(255) DEFAULT ''",
         "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_direccion VARCHAR(255) DEFAULT ''",
-        "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_telefono VARCHAR(50) DEFAULT ''",
-        "DELETE FROM gasto WHERE monto = 40 AND fecha >= '2026-06-01' AND fecha < '2026-07-01'",
+        "DELETE FROM gasto WHERE (monto = 40 OR monto = -40 OR categoria = 'TRANSFERENCIA INTERNA' OR descripcion LIKE '%TRANSFERENCIA%') AND fecha >= '2026-06-01' AND fecha < '2026-07-01'",
     ]
     with engine.connect() as conn:
         for sql in migrations:
