@@ -190,7 +190,74 @@
                 </p>
             </div>
 
-            <!-- Filtros -->
+            <!-- TARJETAS DE SALDO REAL ACUMULADO GLOBAL (Siempre visible en la parte superior) -->
+            <div v-if="role === 'admin' || role === 'recepcion'" style="margin-bottom:16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <div>
+                        <span style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#1e3a8a; display:inline-flex; align-items:center; gap:6px;">
+                            <i class="fa-solid fa-vault"></i> Saldo Real Acumulado Disponible (Caja y Cuentas)
+                        </span>
+                        <span style="font-size:11px; color:#64748b; margin-left:8px;">Dinero físico real en gaveta y cuentas bancarias acumulado a la fecha</span>
+                    </div>
+                </div>
+
+                <div class="summary-bar" style="margin-bottom: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-color: #cbd5e1;">
+                    <!-- Caja Efectivo Real -->
+                    <div class="sc" style="background:#f0fdf4;">
+                        <div class="sc-label" style="color:#059669; font-weight:800;">💵 Caja Física (Acumulado)</div>
+                        <div class="sc-value" style="color:#059669; font-size:24px;">${{ Number(balancesGlobales.efectivo || 0).toFixed(2) }}</div>
+                        <div class="sc-sub" style="color:#15803d;">Total físico real disponible en gaveta</div>
+                    </div>
+
+                    <!-- Cuenta Transferencias Real -->
+                    <div class="sc" style="background:#eff6ff;">
+                        <div class="sc-label" style="color:#2563eb; font-weight:800;">🏦 Banco (Acumulado)</div>
+                        <div class="sc-value" style="color:#2563eb; font-size:24px;">${{ Number(balancesGlobales.transferencia || 0).toFixed(2) }}</div>
+                        <div class="sc-sub" style="color:#1d4ed8;">Saldo real disponible en cuenta bancaria</div>
+                    </div>
+
+                    <!-- Tarjeta Real -->
+                    <div class="sc" style="background:#faf5ff;">
+                        <div class="sc-label" style="color:#7c3aed; font-weight:800;">💳 Tarjeta / Datafaz</div>
+                        <div class="sc-value" style="color:#7c3aed; font-size:24px;">${{ Number(balancesGlobales.tarjeta || 0).toFixed(2) }}</div>
+                        <div class="sc-sub" style="color:#6d28d9;">Pendiente depositado por operadora</div>
+                    </div>
+
+                    <!-- Total Global Real -->
+                    <div class="sc" style="background:#f8fafc; border-right: none;">
+                        <div class="sc-label" style="color:#0f172a; font-weight:900;">💎 Total Global Disponible</div>
+                        <div class="sc-value" style="color:#0f172a; font-size:26px;">
+                            ${{ (Number(balancesGlobales.efectivo || 0) + Number(balancesGlobales.transferencia || 0) + Number(balancesGlobales.tarjeta || 0)).toFixed(2) }}
+                        </div>
+                        <div class="sc-sub" style="color:#475569;">Efectivo + Banco + Tarjeta</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Acciones Rápidas -->
+            <div v-if="role === 'admin' || role === 'recepcion'" style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+                <button @click="openGastoModal" class="btn btn-gasto">
+                    💸 Registrar Gasto (Egreso)
+                </button>
+                <button @click="openIngresoModal" class="btn btn-ingreso">
+                    💰 Registrar Ingreso Extra
+                </button>
+                <button @click="openNominaModal" class="btn btn-nomina">
+                    👥 Nómina y Socios
+                </button>
+                <button @click="openTransferModal" class="btn btn-transfer">
+                    🔄 Transferencia Interna
+                </button>
+                
+                <!-- Indicador de abono usado (dinero en billetera) -->
+                <div v-if="balancesGlobales.abono_aplicado > 0 || balances.abono_aplicado > 0" style="background:#fff7ed; border:1px solid #ffedd5; border-radius:5px; padding:6px 12px; display:inline-flex; align-items:center; height:32px;">
+                    <span style="font-size:11px; color:#c2410c; font-weight:700; text-transform:uppercase; letter-spacing:.05em;">
+                        🌟 Dinero Abonado: <span style="color:#ea580c; font-size:12px; font-weight:800; margin-left:4px;">${{ Number(balances.abono_aplicado || balancesGlobales.abono_aplicado || 0).toFixed(2) }}</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Filtros de Consulta -->
             <div class="filter-bar">
                 <div class="filter-group">
                     <label>Desde</label>
@@ -229,83 +296,27 @@
                 </div>
             </div>
 
-            <!-- Balances (solo admin y recepcion) -->
-            <div v-if="role === 'admin' || role === 'recepcion'" class="summary-bar">
-                <!-- Caja Efectivo -->
-                <div class="sc">
-                    <div class="sc-label" style="color:#059669;">💵 Caja Física</div>
-                    <div class="sc-value" style="color:#059669;">${{ Number(balances.efectivo || 0).toFixed(2) }}</div>
-                    <div class="sc-sub">Pagos EFI + Recargas EFI - Gastos EFI</div>
-                </div>
-
-                <!-- Cuenta Transferencias -->
-                <div class="sc">
-                    <div class="sc-label" style="color:#2563eb;">🏦 Banco</div>
-                    <div class="sc-value" style="color:#2563eb;">${{ Number(balances.transferencia || 0).toFixed(2) }}</div>
-                    <div class="sc-sub">Pagos TR + Recargas TR - Gastos TR</div>
-                </div>
-
-                <!-- Tarjeta -->
-                <div class="sc">
-                    <div class="sc-label" style="color:#7c3aed;">💳 Tarjeta / Datafaz</div>
-                    <div class="sc-value" style="color:#7c3aed;">${{ Number(balances.tarjeta || 0).toFixed(2) }}</div>
-                    <div class="sc-sub">Pendiente depositado por operadora</div>
-                </div>
-
-                <!-- Total Global -->
-                <div class="sc" style="background:#f8fafc; border-right: none;">
-                    <div class="sc-label" style="color:#1e293b;">💎 Total Global</div>
-                    <div class="sc-value" style="color:#1e293b; font-size:26px;">
-                        ${{ (Number(balances.efectivo || 0) + Number(balances.transferencia || 0) + Number(balances.tarjeta || 0)).toFixed(2) }}
-                    </div>
-                    <div class="sc-sub">Suma de Efectivo, Banco y Tarjeta</div>
-                </div>
-            </div>
-
-            <!-- Acciones Rápidas -->
-            <div v-if="role === 'admin' || role === 'recepcion'" style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
-                <button @click="openGastoModal" class="btn btn-gasto">
-                    💸 Registrar Gasto (Egreso)
-                </button>
-                <button @click="openIngresoModal" class="btn btn-ingreso">
-                    💰 Registrar Ingreso Extra
-                </button>
-                <button @click="openNominaModal" class="btn btn-nomina">
-                    👥 Nómina y Socios
-                </button>
-                <button @click="openTransferModal" class="btn btn-transfer">
-                    🔄 Transferencia Interna
-                </button>
-                
-                <!-- Indicador de abono usado (dinero en billetera) -->
-                <div v-if="balances.abono_aplicado > 0" style="background:#fff7ed; border:1px solid #ffedd5; border-radius:5px; padding:6px 12px; display:inline-flex; align-items:center; height:32px;">
-                    <span style="font-size:11px; color:#c2410c; font-weight:700; text-transform:uppercase; letter-spacing:.05em;">
-                        🌟 Dinero Abonado: <span style="color:#ea580c; font-size:12px; font-weight:800; margin-left:4px;">${{ Number(balances.abono_aplicado || 0).toFixed(2) }}</span>
-                    </span>
-                </div>
-            </div>
-
-            <!-- Totales Filtrados de Gastos -->
+            <!-- Totales Filtrados del Período Seleccionado -->
             <div v-if="gastos.length > 0" class="summary-bar" style="margin-bottom:16px;">
                 <!-- Total Egresos -->
                 <div class="sc">
-                    <div class="sc-label" style="color:#ef4444;">💸 Total Egresos (Filtrado)</div>
+                    <div class="sc-label" style="color:#ef4444;">💸 Egresos del Período</div>
                     <div class="sc-value" style="color:#ef4444;">-${{ totalEgresosFiltrados }}</div>
-                    <div class="sc-sub">Suma de egresos según filtros y rango seleccionado</div>
+                    <div class="sc-sub">Suma de egresos según filtros</div>
                 </div>
 
                 <!-- Total Ingresos -->
                 <div class="sc">
-                    <div class="sc-label" style="color:#10b981;">📥 Total Ingresos (Filtrado)</div>
+                    <div class="sc-label" style="color:#10b981;">📥 Ingresos Extras del Período</div>
                     <div class="sc-value" style="color:#10b981;">+${{ totalIngresosFiltrados }}</div>
-                    <div class="sc-sub">Suma de ingresos extras y abonos en el período</div>
+                    <div class="sc-sub">Ingresos extras en el período</div>
                 </div>
 
                 <!-- Balance Neto -->
                 <div class="sc" :style="{ background: totalNetoFiltradosEsNegativo ? '#fef2f2' : '#f0fdf4' }" style="border-right: none;">
-                    <div class="sc-label" :style="{ color: totalNetoFiltradosEsNegativo ? '#ef4444' : '#10b981' }">📊 Balance Neto (Filtrado)</div>
+                    <div class="sc-label" :style="{ color: totalNetoFiltradosEsNegativo ? '#ef4444' : '#10b981' }">📊 Flujo Neto del Período</div>
                     <div class="sc-value" :style="{ color: totalNetoFiltradosEsNegativo ? '#ef4444' : '#10b981' }">{{ totalNetoFiltradosStr }}</div>
-                    <div class="sc-sub">Diferencia final (Ingresos menos Egresos) filtrada</div>
+                    <div class="sc-sub">Ingresos menos Egresos del rango</div>
                 </div>
             </div>
 
@@ -1103,6 +1114,12 @@
                 const showModal = ref(false)
                 const gastos = ref([])
                 const usuarios = ref([])
+                const balancesGlobales = ref({
+                    efectivo: 0,
+                    transferencia: 0,
+                    tarjeta: 0,
+                    abono_aplicado: 0
+                })
                 const balances = ref({
                     efectivo: 0,
                     transferencia: 0,
@@ -1478,12 +1495,17 @@
 
                 const fetchBalances = async () => {
                     try {
+                        // Balances filtrados por rango de fecha
                         const params = {}
                         if (startDate.value) params.start_date = startDate.value
                         if (endDate.value) params.end_date = endDate.value
                         const res = await axios.get('/api/gastos/balances', { params })
                         balances.value = res.data
-                    } catch (e) { console.error(e) }
+
+                        // Balances globales acumulados reales (sin filtro de fecha)
+                        const resGlobal = await axios.get('/api/gastos/balances')
+                        balancesGlobales.value = resGlobal.data
+                    } catch (e) { console.error('Error cargando balances:', e) }
                 }
 
                 const fetchCategoriasGasto = async () => {
@@ -2083,7 +2105,7 @@
                 })
 
                 return {
-                    role, currentUser, sucursalId, sucursalNombre, branchColorStyle, branchTextColor, showModal, gastos, balances, startDate, endDate, form, usuarios,
+                    role, currentUser, sucursalId, sucursalNombre, branchColorStyle, branchTextColor, showModal, gastos, balances, balancesGlobales, startDate, endDate, form, usuarios,
                     showNominaModal, nominaTab, pendientesNomina, retiroForm, socios,
                     retirosSocios, filterRetiroSocioId, filterRetiroStartDate, filterRetiroEndDate,
                     fetchRetirosHistorial, eliminarRetiro,
