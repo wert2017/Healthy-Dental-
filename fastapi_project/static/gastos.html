@@ -1712,9 +1712,9 @@
                                 return false;
                             }
                             
-                            const maxEfectivo = balances.value.efectivo || 0;
-                            const maxTrans = balances.value.transferencia || 0;
-                            const maxTarjeta = balances.value.tarjeta || 0;
+                            const maxEfectivo = balancesGlobales.value.efectivo || 0;
+                            const maxTrans = balancesGlobales.value.transferencia || 0;
+                            const maxTarjeta = balancesGlobales.value.tarjeta || 0;
                             if (efectivo > maxEfectivo) {
                                 Swal.showValidationMessage(`Hacen falta fondos en Efectivo. Disponible: $${maxEfectivo.toFixed(2)}`);
                                 return false;
@@ -1853,9 +1853,9 @@
                                 Swal.showValidationMessage(`La suma ($${total.toFixed(2)}) no coincide con el total ($${totalSel.toFixed(2)})`)
                                 return false
                             }
-                            const maxEfectivo = balances.value.efectivo || 0
-                            const maxTrans = balances.value.transferencia || 0
-                            const maxTarjeta = balances.value.tarjeta || 0
+                            const maxEfectivo = balancesGlobales.value.efectivo || 0
+                            const maxTrans = balancesGlobales.value.transferencia || 0
+                            const maxTarjeta = balancesGlobales.value.tarjeta || 0
                             if (efectivo > maxEfectivo + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Efectivo. Disponible: $${maxEfectivo.toFixed(2)}`); return false }
                             if (transferencia > maxTrans + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Banco. Disponible: $${maxTrans.toFixed(2)}`); return false }
                             if (tarjeta > maxTarjeta + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Tarjeta. Disponible: $${maxTarjeta.toFixed(2)}`); return false }
@@ -1966,9 +1966,9 @@
                                 Swal.showValidationMessage(`La suma ($${total.toFixed(2)}) no coincide con el Total ($${totalComisiones.toFixed(2)})`);
                                 return false;
                             }
-                            const maxEfectivo = balances.value.efectivo || 0;
-                            const maxTrans = balances.value.transferencia || 0;
-                            const maxTarjeta = balances.value.tarjeta || 0;
+                            const maxEfectivo = balancesGlobales.value.efectivo || 0;
+                            const maxTrans = balancesGlobales.value.transferencia || 0;
+                            const maxTarjeta = balancesGlobales.value.tarjeta || 0;
                             if (efectivo > maxEfectivo + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Efectivo. Disponible: $${maxEfectivo.toFixed(2)}`); return false; }
                             if (transferencia > maxTrans + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Banco. Disponible: $${maxTrans.toFixed(2)}`); return false; }
                             if (tarjeta > maxTarjeta + 0.02) { Swal.showValidationMessage(`Fondos insuficientes en Tarjeta. Disponible: $${maxTarjeta.toFixed(2)}`); return false; }
