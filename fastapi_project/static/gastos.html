@@ -249,10 +249,13 @@
                     🔄 Transferencia Interna
                 </button>
                 
-                <!-- Indicador de abono usado (dinero en billetera) -->
-                <div v-if="balancesGlobales.abono_aplicado > 0 || balances.abono_aplicado > 0" style="background:#fff7ed; border:1px solid #ffedd5; border-radius:5px; padding:6px 12px; display:inline-flex; align-items:center; height:32px;">
-                    <span style="font-size:11px; color:#c2410c; font-weight:700; text-transform:uppercase; letter-spacing:.05em;">
-                        🌟 Dinero Abonado: <span style="color:#ea580c; font-size:12px; font-weight:800; margin-left:4px;">${{ Number(balances.abono_aplicado || balancesGlobales.abono_aplicado || 0).toFixed(2) }}</span>
+                <!-- Indicador de saldo restante en abonos (billetera activa disponible de pacientes) -->
+                <div v-if="(balancesGlobales.saldo_abonos_disponible || 0) > 0 || (balances.saldo_abonos_disponible || 0) > 0" style="background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:6px 12px; display:inline-flex; align-items:center; height:32px; gap:6px;">
+                    <span style="font-size:11px; color:#c2410c; font-weight:700; text-transform:uppercase; letter-spacing:.05em; display:inline-flex; align-items:center; gap:4px;">
+                        <span>👛</span> Saldo Restante en Abonos: <span style="color:#ea580c; font-size:13px; font-weight:900; margin-left:2px;">${{ Number(balancesGlobales.saldo_abonos_disponible || balances.saldo_abonos_disponible || 0).toFixed(2) }}</span>
+                    </span>
+                    <span v-if="balances.abono_aplicado > 0" style="font-size:10.5px; color:#9a3412; font-weight:500; margin-left:6px; border-left:1px solid #fdba74; padding-left:8px;">
+                        (Usado en período: ${{ Number(balances.abono_aplicado).toFixed(2) }})
                     </span>
                 </div>
             </div>
@@ -1168,13 +1171,15 @@
                     efectivo: 0,
                     transferencia: 0,
                     tarjeta: 0,
-                    abono_aplicado: 0
+                    abono_aplicado: 0,
+                    saldo_abonos_disponible: 0
                 })
                 const balances = ref({
                     efectivo: 0,
                     transferencia: 0,
                     tarjeta: 0,
-                    abono_aplicado: 0
+                    abono_aplicado: 0,
+                    saldo_abonos_disponible: 0
                 })
                 // Default dates to current month's first and last day
                 const now = new Date()

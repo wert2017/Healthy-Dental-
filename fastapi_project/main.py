@@ -4621,11 +4621,17 @@ def get_gastos_balances(
     balance_transferencia = ingresos["TRANSFERENCIA"] - egresos.get("TRANSFERENCIA", 0)
     balance_tarjeta = ingresos["TARJETA"] - egresos.get("TARJETA", 0)
     
+    # Saldo de abonos pendiente/disponible en billeteras de pacientes de la sucursal
+    saldo_abonos_query = select(func.sum(Paciente.saldo_favor)).where(Paciente.sucursal_id == user.sucursal_id).where(Paciente.saldo_favor > 0)
+    saldo_abonos_val = session.exec(saldo_abonos_query).first()
+    saldo_abonos_disponible = float(saldo_abonos_val or 0.0)
+
     return {
         "efectivo": balance_efectivo,
         "transferencia": balance_transferencia,
         "tarjeta": balance_tarjeta,
         "abono_aplicado": ingresos["ABONO_APLICADO"],
+        "saldo_abonos_disponible": saldo_abonos_disponible,
         "desglose_ingresos": ingresos,
         "desglose_egresos": egresos,
         "desglose_recargas": recargas
