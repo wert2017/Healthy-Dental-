@@ -296,6 +296,50 @@
                 </div>
             </div>
 
+            <!-- Balances del Período Filtrado (solo admin y recepcion) -->
+            <div v-if="role === 'admin' || role === 'recepcion'" style="margin-bottom:16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <div>
+                        <span style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#334155; display:inline-flex; align-items:center; gap:6px;">
+                            <i class="fa-regular fa-calendar-check"></i> Saldos del Período Filtrado
+                        </span>
+                        <span style="font-size:11px; color:#64748b; margin-left:8px;">Ingresos menos Gastos según el rango de fechas seleccionado</span>
+                    </div>
+                </div>
+
+                <div class="summary-bar" style="margin-bottom: 0;">
+                    <!-- Caja Efectivo Período -->
+                    <div class="sc">
+                        <div class="sc-label" style="color:#059669;">💵 Caja Física (Período)</div>
+                        <div class="sc-value" style="color:#059669;">${{ Number(balances.efectivo || 0).toFixed(2) }}</div>
+                        <div class="sc-sub">Pagos EFI + Recargas EFI - Gastos EFI</div>
+                    </div>
+
+                    <!-- Cuenta Transferencias Período -->
+                    <div class="sc">
+                        <div class="sc-label" style="color:#2563eb;">🏦 Banco (Período)</div>
+                        <div class="sc-value" style="color:#2563eb;">${{ Number(balances.transferencia || 0).toFixed(2) }}</div>
+                        <div class="sc-sub">Pagos TR + Recargas TR - Gastos TR</div>
+                    </div>
+
+                    <!-- Tarjeta Período -->
+                    <div class="sc">
+                        <div class="sc-label" style="color:#7c3aed;">💳 Tarjeta / Datafaz (Período)</div>
+                        <div class="sc-value" style="color:#7c3aed;">${{ Number(balances.tarjeta || 0).toFixed(2) }}</div>
+                        <div class="sc-sub">Pendiente depositado por operadora</div>
+                    </div>
+
+                    <!-- Total Período -->
+                    <div class="sc" style="background:#f8fafc; border-right: none;">
+                        <div class="sc-label" style="color:#1e293b;">💎 Saldo Total Período</div>
+                        <div class="sc-value" style="color:#1e293b; font-size:26px;">
+                            ${{ (Number(balances.efectivo || 0) + Number(balances.transferencia || 0) + Number(balances.tarjeta || 0)).toFixed(2) }}
+                        </div>
+                        <div class="sc-sub">Suma de Efectivo, Banco y Tarjeta del período</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Totales Filtrados del Período Seleccionado -->
             <div v-if="gastos.length > 0" class="summary-bar" style="margin-bottom:16px;">
                 <!-- Total Egresos -->
