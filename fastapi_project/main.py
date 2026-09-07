@@ -5961,14 +5961,7 @@ def get_dashboard_economico(
             .where(extract('year', Pago.fecha) == target_anio)
         ).first() or 0
         
-        # Sum Abonos (Ingresos)
-        abonos = session.exec(
-            select(func.sum(HistorialAbono.monto))
-            .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
-            .where(Paciente.sucursal_id == suc.id)
-            .where(extract('month', HistorialAbono.fecha) == target_mes)
-            .where(extract('year', HistorialAbono.fecha) == target_anio)
-        ).first() or 0
+        # Eliminado: Sum Abonos (Ya no se consideran como ingresos directos hasta que se consumen en un Pago)
         
         # Sum Gastos (Egresos)
         gastos = session.exec(
@@ -5978,7 +5971,7 @@ def get_dashboard_economico(
             .where(extract('year', Gasto.fecha) == target_anio)
         ).first() or 0
         
-        total_ingresos = float(pagos) + float(abonos)
+        total_ingresos = float(pagos)
         total_egresos = float(gastos)
         utilidad = total_ingresos - total_egresos
         
