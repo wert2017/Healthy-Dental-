@@ -5963,15 +5963,26 @@ def get_dashboard_economico(
         
         # Eliminado: Sum Abonos (Ya no se consideran como ingresos directos hasta que se consumen en un Pago)
         
-        # Sum Gastos (Egresos)
-        gastos = session.exec(
+        # Otros Ingresos (Registrados en tabla Gasto con tipo = 'INGRESO')
+        otros_ingresos = session.exec(
             select(func.sum(Gasto.monto))
             .where(Gasto.sucursal_id == suc.id)
+            .where(Gasto.tipo == 'INGRESO')
             .where(extract('month', Gasto.fecha) == target_mes)
             .where(extract('year', Gasto.fecha) == target_anio)
         ).first() or 0
         
-        total_ingresos = float(pagos)
+        # Sum Gastos Operativos (Egresos), excluyendo ingresos y RETIRO SOCIOS
+        gastos = session.exec(
+            select(func.sum(Gasto.monto))
+            .where(Gasto.sucursal_id == suc.id)
+            .where((Gasto.tipo == 'EGRESO') | (Gasto.tipo == None))
+            .where(Gasto.categoria != 'RETIRO SOCIOS')
+            .where(extract('month', Gasto.fecha) == target_mes)
+            .where(extract('year', Gasto.fecha) == target_anio)
+        ).first() or 0
+        
+        total_ingresos = float(pagos) + float(otros_ingresos)
         total_egresos = float(gastos)
         utilidad = total_ingresos - total_egresos
         
