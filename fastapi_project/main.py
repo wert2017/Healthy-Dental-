@@ -36,7 +36,7 @@ try:
 except ImportError:
     HAS_PIL = False
 
-from sqlalchemy import func
+from sqlalchemy import func, extract
 
 from sqlalchemy.orm import selectinload
 from wtforms import SelectField, DecimalField
@@ -5929,6 +5929,80 @@ def exportar_excel_certificado(cert_id: int, session: Session = Depends(get_sess
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+@app.get("/api/dashboard/economico")
+def get_dashboard_economico(
+    mes: Optional[int] = Query(default=None),
+    anio: Optional[int] = Query(default=None),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+        
+    hoy = datetime.now()
+    target_mes = mes or hoy.month
+    target_anio = anio or hoy.year
+    
+    sucursales = session.exec(select(Sucursal)).all()
+    
+    resultados = []
+    total_ingresos_red = 0
+    total_egresos_red = 0
+    
+    for suc in sucursales:
+        # Sum Pagos (Ingresos)
+        pagos = session.exec(
+            select(func.sum(Pago.monto))
+            .join(Atencion, Pago.atencion_id == Atencion.id)
+            .where(Atencion.sucursal_id == suc.id)
+            .where(extract('month', Pago.fecha) == target_mes)
+            .where(extract('year', Pago.fecha) == target_anio)
+        ).first() or 0
+        
+        # Sum Abonos (Ingresos)
+        abonos = session.exec(
+            select(func.sum(HistorialAbono.monto))
+            .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
+            .where(Paciente.sucursal_id == suc.id)
+            .where(extract('month', HistorialAbono.fecha) == target_mes)
+            .where(extract('year', HistorialAbono.fecha) == target_anio)
+        ).first() or 0
+        
+        # Sum Gastos (Egresos)
+        gastos = session.exec(
+            select(func.sum(Gasto.monto))
+            .where(Gasto.sucursal_id == suc.id)
+            .where(extract('month', Gasto.fecha) == target_mes)
+            .where(extract('year', Gasto.fecha) == target_anio)
+        ).first() or 0
+        
+        total_ingresos = float(pagos) + float(abonos)
+        total_egresos = float(gastos)
+        utilidad = total_ingresos - total_egresos
+        
+        resultados.append({
+            "sucursal_id": suc.id,
+            "sucursal_nombre": suc.nombre,
+            "ingresos": total_ingresos,
+            "egresos": total_egresos,
+            "utilidad": utilidad
+        })
+        
+        total_ingresos_red += total_ingresos
+        total_egresos_red += total_egresos
+        
+    return {
+        "mes": target_mes,
+        "anio": target_anio,
+        "detalles": resultados,
+        "consolidado": {
+            "ingresos": total_ingresos_red,
+            "egresos": total_egresos_red,
+            "utilidad": total_ingresos_red - total_egresos_red
+        }
+    }
 
 
 # --- END API ROUTES ---
