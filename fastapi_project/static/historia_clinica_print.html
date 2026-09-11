@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imprimir Historia Clínica - HD</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #e2e8f0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .a4-page {
+            width: 210mm;
+            height: 297mm;
+            background: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin: 10mm 0;
+            position: relative;
+            page-break-after: always;
+            overflow: hidden;
+        }
+
+        .bg-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; /* Poner la imagen POR ENCIMA del fondo blanco del contenedor */
+            object-fit: fill;
+        }
+
+        .no-print {
+            padding: 15px;
+            background: white;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        @media print {
+            body { background: white; display: block; }
+            .a4-page {
+                margin: 0 !important;
+                box-shadow: none !important;
+                page-break-after: always !important;
+                /* En impresión de Chrome, asegurar fondos */
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .no-print { display: none !important; }
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+        }
+
+        /* --- ABSOLUTE OVERLAYS FOR PAGE 1 --- */
+        /* Ajustar estos % con precisión según el JPG original */
+        .overlay {
+            position: absolute;
+            font-family: 'Roboto Condensed', 'Arial Narrow', Arial, sans-serif;
+            font-size: 15px; /* Aumentado a 15px por la fuente condensada */
+            font-weight: 700;
+            letter-spacing: -0.2px; /* Hace que quepa aún más texto */
+            color: #002060; /* Azul oscuro (tinta de lapicero) */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10; /* Texto por encima de la imagen */
+            text-align: center;
+            white-space: nowrap; /* Evita que el texto baje a otra línea si es muy largo */
+            /* border: 1px solid red; /* <- Para debugear si no alinean */
+        }
+
+        /* Bloque sobre "TELÉFONO" para cambiarlo a CÉDULA */
+        .label-cedula {
+            position: absolute;
+            top: 10.5%;
+            left: 53.1%;
+            width: 9.6%;
+            height: 1.8%;
+            background-color: white;
+            font-weight: bold;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10; /* Por encima de la imagen */
+        }
+
+        /* Valores del paciente */
+        #val_apellido_p { top: 12.2%; left: 6.8%; width: 14.8%; height: 2.2%; }
+        #val_apellido_m { top: 12.2%; left: 21.8%; width: 15.3%; height: 2.2%; }
+        #val_nombres    { top: 12.2%; left: 37.3%; width: 15.6%; height: 2.2%; }
+        #val_cedula     { top: 12.2%; left: 53.1%; width: 9.6%; height: 2.2%; }
+        #val_sexo       { top: 12.2%; left: 62.9%; width: 8.8%; height: 2.2%; }
+        #val_edad       { top: 12.2%; left: 71.9%; width: 6.1%; height: 2.2%; }
+        #val_hc         { top: 12.2%; left: 78.2%; width: 15.6%; height: 2.2%; font-size: 19px; }
+        #val_hc_big     { top: 4%; left: 84%; width: 15%; height: 5%; font-size: 44px; letter-spacing: 2px; justify-content: flex-start; }
+    </style>
+</head>
+<body>
+
+    <div class="no-print">
+        <h2 class="text-lg font-bold text-gray-800 mb-2">Impresión de Historia Clínica</h2>
+        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow mr-2">
+            🖨️ Imprimir Formato A4
+        </button>
+        <button onclick="window.close()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg shadow">
+            Cerrar
+        </button>
+    </div>
+
+    <!-- PÁGINA 1 -->
+    <div class="a4-page">
+        <img src="/static/hc_page_1.jpg" class="bg-img" alt="Página 1">
+        
+        <!-- Reemplazo de etiqueta -->
+        <div class="label-cedula">CÉDULA</div>
+        
+        <!-- Valores insertados -->
+        <div class="overlay" id="val_apellido_p"></div>
+        <div class="overlay" id="val_apellido_m"></div>
+        <div class="overlay" id="val_nombres"></div>
+        <div class="overlay" id="val_cedula"></div>
+        <div class="overlay" id="val_sexo"></div>
+        <div class="overlay" id="val_edad"></div>
+        <div class="overlay" id="val_hc"></div>
+        <div class="overlay" id="val_hc_big"></div>
+    </div>
+
+    <!-- PÁGINA 2 -->
+    <div class="a4-page">
+        <img src="/static/hc_page_2.jpg" class="bg-img" alt="Página 2">
+    </div>
+
+    <!-- PÁGINA 3 -->
+    <div class="a4-page">
+        <img src="/static/hc_page_3.jpg" class="bg-img" alt="Página 3">
+    </div>
+
+    <!-- PÁGINA 4 -->
+    <div class="a4-page">
+        <img src="/static/hc_page_4.jpg" class="bg-img" alt="Página 4">
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const pacienteId = urlParams.get('paciente_id');
+            const token = localStorage.getItem("token");
+
+            let p = {};
+
+            if (pacienteId) {
+                if (!token) {
+                    alert("Faltan credenciales.");
+                    return;
+                }
+                try {
+                    // Obtenemos los datos del paciente desde el backend
+                    const response = await fetch(`/api/pacientes/${pacienteId}`, {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("No se pudo cargar la información del paciente");
+                    }
+                    p = await response.json();
+                } catch (err) {
+                    console.error("Error:", err);
+                    alert("Ocurrió un error cargando los datos para la impresión.");
+                    return;
+                }
+            } else {
+                // Leer datos directamente de la URL si no hay ID
+                p = {
+                    nombres: urlParams.get('nombres') || "",
+                    apellidos: urlParams.get('apellidos') || "",
+                    numero_identificacion: urlParams.get('cedula') || "",
+                    genero: urlParams.get('sexo') || "",
+                    edad: urlParams.get('edad') || "",
+                    historia_clinica: urlParams.get('hc') || ""
+                };
+            }
+
+            try {
+                // Separar apellidos si es posible (asumiendo que están separados por espacio)
+                let apPaterno = "";
+                let apMaterno = "";
+                if (p.apellidos) {
+                    const partes = p.apellidos.trim().split(" ");
+                    apPaterno = partes[0] || "";
+                    apMaterno = partes.slice(1).join(" ") || "";
+                }
+
+                document.getElementById('val_apellido_p').textContent = apPaterno.toUpperCase();
+                document.getElementById('val_apellido_m').textContent = apMaterno.toUpperCase();
+                document.getElementById('val_nombres').textContent = (p.nombres || "").toUpperCase();
+                
+                // Usamos la celda de teléfono para la cédula, y le pusimos un label blanco encima que dice CÉDULA
+                document.getElementById('val_cedula').textContent = p.numero_identificacion || "";
+                
+                // Sexo (F/M)
+                let sexoText = p.genero || "";
+                if(sexoText.toLowerCase().startsWith('m')) sexoText = "M";
+                if(sexoText.toLowerCase().startsWith('f')) sexoText = "F";
+                document.getElementById('val_sexo').textContent = sexoText;
+                
+                document.getElementById('val_edad').textContent = p.edad != null ? p.edad : "";
+                
+                // Historia clínica en esquina superior derecha
+                let hcText = p.historia_clinica || "";
+                document.getElementById('val_hc').textContent = hcText;
+                
+                // Extraer solo los números para el número grande
+                let hcNumeric = hcText.replace(/\D/g, '');
+                document.getElementById('val_hc_big').textContent = hcNumeric;
+
+            } catch (err) {
+                console.error("Error:", err);
+                alert("Ocurrió un error cargando los datos para la impresión.");
+            }
+        });
+    </script>
+</body>
+</html>

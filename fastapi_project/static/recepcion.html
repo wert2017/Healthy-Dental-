@@ -1093,6 +1093,10 @@
                     }
                 }
 
+                const imprimirHistoriaClinica = (p) => {
+                    window.open(`/static/historia_clinica_print.html?paciente_id=${p.id}`, '_blank');
+                }
+
                 // --- WALLET LOGIC ---
                 const openRecargaModal = (p) => {
                     selectedPaciente.value = p
@@ -1217,6 +1221,7 @@
                     closeTratamientoModal,
                     iniciarTratamiento,
                     finishTreatment,
+                    imprimirHistoriaClinica,
                     // Wallet
                     showRecargaModal,
                     montoRecarga,

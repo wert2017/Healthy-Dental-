@@ -75,6 +75,23 @@ document.addEventListener("DOMContentLoaded", async () => {
                     badge.style.cssText = "padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.65em; vertical-align: middle;";
                     badge.innerHTML = `<i class="fa-solid fa-file-medical me-1"></i> Próxima Ficha: ${data.proxima_ficha}`;
                     titleTarget.appendChild(badge);
+                    
+                    const printBtn = document.createElement("button");
+                    printBtn.type = "button";
+                    printBtn.className = "btn btn-outline-primary ms-3 d-print-none";
+                    printBtn.innerHTML = '<i class="fa-solid fa-print me-2"></i> Imprimir Historia';
+                    printBtn.onclick = () => {
+                        const nombres = document.querySelector("input[name='nombres']")?.value || "";
+                        const apellidos = document.querySelector("input[name='apellidos']")?.value || "";
+                        const cedula = document.querySelector("input[name='numero_identificacion']")?.value || "";
+                        const sexo = document.querySelector("select[name='sexo']")?.value || document.querySelector("input[name='sexo']")?.value || "";
+                        const edad = document.querySelector("input[name='edad']")?.value || "";
+                        const hc = document.querySelector("input[name='historia_clinica']")?.value || "";
+                        
+                        const url = `/static/historia_clinica_print.html?nombres=${encodeURIComponent(nombres)}&apellidos=${encodeURIComponent(apellidos)}&cedula=${encodeURIComponent(cedula)}&sexo=${encodeURIComponent(sexo)}&edad=${encodeURIComponent(edad)}&hc=${encodeURIComponent(hc)}`;
+                        window.open(url, '_blank');
+                    };
+                    titleTarget.appendChild(printBtn);
                 }
                 
                 const hcInput = document.querySelector("input[name='historia_clinica']");
