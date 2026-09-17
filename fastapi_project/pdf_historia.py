@@ -106,8 +106,8 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
         
     if logo_path:
         try:
-            # Logo ajustado mas arriba en paginas 2, 3, 4 (y=page_height-35)
-            c_header.drawImage(logo_path, -20, page_height - 35, width=160, height=50, preserveAspectRatio=True, mask='auto')
+            # Logo ajustado mas arriba en paginas 2, 3, 4 (y=page_height-20)
+            c_header.drawImage(logo_path, -20, page_height - 20, width=160, height=50, preserveAspectRatio=True, mask='auto')
         except Exception:
             pass
             
