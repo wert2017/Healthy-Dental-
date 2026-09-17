@@ -14,7 +14,5 @@ gunicorn
 pandas
 openpyxl
 Pillow==10.3.0
-# trigger openpyxl dependency rebuild
-
-
-PyMuPDF>=1.22.0
+pypdf==4.3.1
+reportlab==4.2.2
