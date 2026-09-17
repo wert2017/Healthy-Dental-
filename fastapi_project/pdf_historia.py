@@ -59,7 +59,7 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
         
         # Reducir un poco el tamaño para el número de historia para que quepa bien
         c1.setFont("Helvetica", 8)
-        draw_text(c1, 535, y1, historia_clinica)
+        draw_text(c1, 540, y1, historia_clinica)
         
         # Insertar Logo en la Página 1
         logo_path = None
