@@ -61,6 +61,13 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
         c1.setFont("Helvetica", 7)
         draw_text(c1, 540, y1, historia_clinica)
         
+        # Escribir los 4 últimos dígitos de la HC arriba a la derecha SOLO en la pagina 1
+        if historia_clinica:
+            hc_digits = historia_clinica.split('-')[-1]
+            c1.setFont("Helvetica-Bold", 24)
+            c1.drawString(520, page_height - 35, hc_digits)
+            c1.setFont("Helvetica", 9)
+        
         # Insertar Logo en la Página 1
         logo_path = None
         if sucursal and sucursal.nombre:
@@ -85,21 +92,15 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
     packet_header = BytesIO()
     c_header = canvas.Canvas(packet_header, pagesize=(page_width, page_height))
     
-    # Crear un parche blanco para tapar la palabra "LOGO", subido un poco (de 60 a 50)
+    # Parche blanco subido (y=page_height-30) para no tapar la planilla
     c_header.setFillColorRGB(1, 1, 1)
-    c_header.rect(page_width/2 - 60, page_height - 50, 120, 40, stroke=0, fill=1)
+    c_header.rect(page_width/2 - 60, page_height - 30, 120, 30, stroke=0, fill=1)
     c_header.setFillColorRGB(0, 0, 0)
-    
-    # Escribir los 4 últimos dígitos de la HC arriba a la derecha en todas las paginas
-    if historia_clinica:
-        hc_digits = historia_clinica.split('-')[-1]
-        c_header.setFont("Helvetica-Bold", 24)
-        c_header.drawString(520, page_height - 35, hc_digits)
         
     if logo_path:
         try:
-            # Logo a la izquierda, subido y movido un poco a la derecha
-            c_header.drawImage(logo_path, 50, page_height - 45, width=160, height=50, preserveAspectRatio=True, mask='auto')
+            # Logo movido a la izquierda (x=20)
+            c_header.drawImage(logo_path, 20, page_height - 45, width=160, height=50, preserveAspectRatio=True, mask='auto')
         except Exception:
             pass
             
