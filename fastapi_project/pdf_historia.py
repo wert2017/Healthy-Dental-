@@ -57,8 +57,8 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
         draw_text(c1, 435, y1, sexo)
         draw_text(c1, 460, y1, edad)
         
-        # Reducir un poco el tamaño para el número de historia para que quepa bien
-        c1.setFont("Helvetica", 8)
+        # Reducir un punto el tamaño para el número de historia para que quepa bien
+        c1.setFont("Helvetica", 7)
         draw_text(c1, 540, y1, historia_clinica)
         
         # Insertar Logo en la Página 1
@@ -76,10 +76,23 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
             if os.path.exists(test_path):
                 logo_path = test_path
                 
+        # Crear un parche blanco para tapar la palabra "LOGO" de la plantilla original
+        c1.setFillColorRGB(1, 1, 1)
+        c1.rect(page_width/2 - 60, page_height - 60, 120, 40, stroke=0, fill=1)
+        c1.setFillColorRGB(0, 0, 0) # Restaurar el color negro
+        
+        # Escribir los 4 últimos dígitos de la HC en tamaño grande arriba a la derecha
+        if historia_clinica:
+            hc_digits = historia_clinica.split('-')[-1] # Extrae 0006 de HC-EL-0006
+            c1.setFont("Helvetica-Bold", 24)
+            # Dibujar los digitos arriba de la casilla de historia clinica
+            c1.drawString(520, page_height - 35, hc_digits)
+            c1.setFont("Helvetica", 9) # Restaurar fuente
+
         if logo_path:
             try:
-                # Centrado arriba, mas pequeño para no tapar NOMBRES
-                c1.drawImage(logo_path, page_width/2 - 60, page_height - 45, width=120, height=40, preserveAspectRatio=True, mask='auto')
+                # Logo a la izquierda
+                c1.drawImage(logo_path, 30, page_height - 60, width=160, height=50, preserveAspectRatio=True, mask='auto')
             except Exception:
                 pass
                 
