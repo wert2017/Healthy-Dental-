@@ -60,12 +60,26 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
         draw_text(c1, 545, y1, historia_clinica)
         
         # Insertar Logo en la Página 1
+        logo_path = None
         if sucursal and sucursal.nombre:
-            logo_name = f"logo_{sucursal.nombre.lower().replace(' ', '_')}.png"
-            logo_path = os.path.join(STATIC_DIR, logo_name)
-            if os.path.exists(logo_path):
+            norm_name = sucursal.nombre.strip().lower().replace(' ', '_')
+            logo_name = f"logo_{norm_name}.png"
+            test_path = os.path.join(STATIC_DIR, logo_name)
+            if os.path.exists(test_path):
+                logo_path = test_path
+                
+        if not logo_path:
+            # Fallback al logo general
+            test_path = os.path.join(STATIC_DIR, "logo.png")
+            if os.path.exists(test_path):
+                logo_path = test_path
+                
+        if logo_path:
+            try:
                 # Centrado arriba
                 c1.drawImage(logo_path, page_width/2 - 75, page_height - 60, width=150, height=50, preserveAspectRatio=True, mask='auto')
+            except Exception:
+                pass
                 
         c1.save()
         packet1.seek(0)
