@@ -68,9 +68,9 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
             c1.drawString(520, page_height - 35, hc_digits)
             c1.setFont("Helvetica", 9)
             
-        # Crear un parche blanco para tapar la palabra "LOGO", subido (y=page_height-30)
+        # Crear un parche blanco para tapar la palabra "LOGO", bajado (y=page_height-43) para tapar bien la palabra
         c1.setFillColorRGB(1, 1, 1)
-        c1.rect(page_width/2 - 60, page_height - 30, 120, 30, stroke=0, fill=1)
+        c1.rect(page_width/2 - 60, page_height - 43, 120, 40, stroke=0, fill=1)
         c1.setFillColorRGB(0, 0, 0)
         
         # Insertar Logo en la Página 1
@@ -99,8 +99,8 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
         
     if logo_path:
         try:
-            # Logo movido a la izquierda (x=20)
-            c_header.drawImage(logo_path, 20, page_height - 45, width=160, height=50, preserveAspectRatio=True, mask='auto')
+            # Logo movido mucho mas a la izquierda (x=-20)
+            c_header.drawImage(logo_path, -20, page_height - 45, width=160, height=50, preserveAspectRatio=True, mask='auto')
         except Exception:
             pass
             
