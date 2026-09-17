@@ -88,8 +88,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const edad = document.querySelector("input[name='edad']")?.value || "";
                         const hc = document.querySelector("input[name='historia_clinica']")?.value || "";
                         
-                        const url = `/static/historia_clinica_print.html?nombres=${encodeURIComponent(nombres)}&apellidos=${encodeURIComponent(apellidos)}&cedula=${encodeURIComponent(cedula)}&sexo=${encodeURIComponent(sexo)}&edad=${encodeURIComponent(edad)}&hc=${encodeURIComponent(hc)}`;
-                        window.open(url, '_blank');
+                        // Extraer paciente_id de la URL si estamos editando
+                        const match = window.location.pathname.match(/\/paciente\/edit\/(\d+)/);
+                        if (match) {
+                            const sucursalId = localStorage.getItem('sucursal_id') || '';
+                            const url = `/api/pacientes/${match[1]}/imprimir-historia${sucursalId ? '?sucursal_id=' + sucursalId : ''}`;
+                            window.open(url, '_blank');
+                        } else {
+                            alert("Guarde el paciente primero para imprimir la historia clínica.");
+                        }
                     };
                     titleTarget.appendChild(printBtn);
                 }

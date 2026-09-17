@@ -16,3 +16,5 @@ openpyxl
 Pillow==10.3.0
 # trigger openpyxl dependency rebuild
 
+
+PyMuPDF>=1.22.0

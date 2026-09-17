@@ -1094,7 +1094,8 @@
                 }
 
                 const imprimirHistoriaClinica = (p) => {
-                    window.open(`/static/historia_clinica_print.html?paciente_id=${p.id}`, '_blank');
+                    const sucursalId = localStorage.getItem('sucursal_id') || '';
+                    window.open(`/api/pacientes/${p.id}/imprimir-historia${sucursalId ? '?sucursal_id=' + sucursalId : ''}`, '_blank');
                 }
 
                 // --- WALLET LOGIC ---

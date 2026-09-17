@@ -23,6 +23,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.responses import RedirectResponse
 import uvicorn
 from typing import List, Optional
+from pdf_historia import generar_historia_clinica_pdf
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, time
 from passlib.context import CryptContext
@@ -1254,6 +1255,31 @@ def get_paciente_detail(paciente_id: int, session: Session = Depends(get_session
         "ciudad": paciente.ciudad or "",
         "saldo_favor": paciente.saldo_favor
     }
+
+@app.get("/api/pacientes/{paciente_id}/imprimir-historia")
+def print_historia_clinica(paciente_id: int, sucursal_id: Optional[int] = None, session: Session = Depends(get_session)):
+    # 1. Obtener el paciente
+    paciente = session.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+        
+    # 2. Obtener la sucursal (para el logo) si se proporciona
+    sucursal = None
+    if sucursal_id:
+        sucursal = session.get(Sucursal, sucursal_id)
+        
+    # 3. Generar PDF
+    try:
+        pdf_stream = generar_historia_clinica_pdf(paciente, sucursal)
+        # Devolver el archivo PDF para descarga/impresión
+        headers = {
+            'Content-Disposition': f'inline; filename="historia_{paciente_id}.pdf"'
+        }
+        return Response(content=pdf_stream.getvalue(), media_type="application/pdf", headers=headers)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generando PDF: {str(e)}")
 
 @app.put("/api/pacientes/{paciente_id}")
 def update_paciente_detail(paciente_id: int, data: PacienteUpdateSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
