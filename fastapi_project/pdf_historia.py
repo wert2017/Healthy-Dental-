@@ -53,11 +53,13 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
         draw_text(c1, 50, y1, apellido_paterno)
         draw_text(c1, 150, y1, apellido_materno)
         draw_text(c1, 250, y1, nombres)
-        draw_text(c1, 370, y1, cedula)
-        draw_text(c1, 415, y1, sexo)
-        draw_text(c1, 440, y1, edad)
-        # draw_text(c1, 465, y1, celular) # Omitido
-        draw_text(c1, 545, y1, historia_clinica)
+        draw_text(c1, 385, y1, cedula)
+        draw_text(c1, 425, y1, sexo)
+        draw_text(c1, 450, y1, edad)
+        
+        # Reducir un poco el tamaño para el número de historia para que quepa bien
+        c1.setFont("Helvetica", 8)
+        draw_text(c1, 525, y1, historia_clinica)
         
         # Insertar Logo en la Página 1
         logo_path = None
