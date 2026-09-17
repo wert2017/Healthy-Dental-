@@ -628,14 +628,14 @@ class PacienteAdmin(ModelView, model=Paciente):
                 # Find the Sucursal to get prefix
                 from models import Sucursal
                 suc = session.get(Sucursal, model.sucursal_id)
-                prefix = suc.nombre[:3].upper() if suc and len(suc.nombre) >= 3 else "GEN"
+                prefix = suc.nombre[:3].upper().strip() if suc and len(suc.nombre) >= 3 else "GEN"
                 
                 # Find the highest HC number already used for THIS branch specifically
                 # to avoid jumping to a global ID that belongs to other branches.
                 existing_hcs = session.exec(
                     select(Paciente.historia_clinica)
                     .where(Paciente.sucursal_id == model.sucursal_id)
-                    .where(Paciente.historia_clinica.ilike(f"HC-{prefix}-%"))
+                    .where(Paciente.historia_clinica.ilike(f"HC-{prefix}%-%"))
                 ).all()
                 max_num = 0
                 for hc in existing_hcs:
@@ -1107,12 +1107,12 @@ def get_proxima_ficha(request: Request, session: Session = Depends(get_session))
     sucursal_id = int(sucursal_id_cookie) if sucursal_id_cookie else 1
     
     suc = session.get(Sucursal, sucursal_id)
-    prefix = suc.nombre[:3].upper() if suc and len(suc.nombre) >= 3 else "GEN"
+    prefix = suc.nombre[:3].upper().strip() if suc and len(suc.nombre) >= 3 else "GEN"
     
     existing_hcs = session.exec(
         select(Paciente.historia_clinica)
         .where(Paciente.sucursal_id == sucursal_id)
-        .where(Paciente.historia_clinica.ilike(f"HC-{prefix}-%"))
+        .where(Paciente.historia_clinica.ilike(f"HC-{prefix}%-%"))
     ).all()
     max_num = 0
     for hc in existing_hcs:
@@ -1444,7 +1444,7 @@ async def importar_pacientes_excel(file: UploadFile = File(...), sucursal_id: Op
         
         target_sucursal_id = sucursal_id or user.sucursal_id
         suc = session.get(Sucursal, target_sucursal_id)
-        prefix = suc.nombre[:3].upper() if suc and len(suc.nombre) >= 3 else "GEN"
+        prefix = suc.nombre[:3].upper().strip() if suc and len(suc.nombre) >= 3 else "GEN"
         last_patient = session.exec(select(Paciente).order_by(Paciente.id.desc())).first()
         hc_counter = (last_patient.id + 1) if last_patient else 1
         prov_counter = 1
@@ -5289,7 +5289,7 @@ def secret_patch_db(session: Session = Depends(get_session)):
         if not p.sucursal_id:
             p.sucursal_id = sucursal.id
         suc = session.get(Sucursal, p.sucursal_id)
-        prefix = suc.nombre[:3].upper() if suc and len(suc.nombre) >= 3 else "GEN"
+        prefix = suc.nombre[:3].upper().strip() if suc and len(suc.nombre) >= 3 else "GEN"
         expected_hc = f"HC-{prefix}-{p.id:04d}"
         if p.historia_clinica != expected_hc:
             p.historia_clinica = expected_hc
