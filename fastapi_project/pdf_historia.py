@@ -88,19 +88,26 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
             if os.path.exists(test_path):
                 logo_path = test_path
                 
+        if logo_path:
+            try:
+                # Logo en pagina 1 (x=-20, y=page_height-45)
+                c1.drawImage(logo_path, -20, page_height - 45, width=160, height=50, preserveAspectRatio=True, mask='auto')
+            except Exception:
+                pass
+                
         c1.save()
         packet1.seek(0)
         overlay1 = PdfReader(packet1)
         page1_base.merge_page(overlay1.pages[0])
 
-    # --- Header Overlay for ALL pages ---
+    # --- Header Overlay for PAGES 2, 3, 4 ---
     packet_header = BytesIO()
     c_header = canvas.Canvas(packet_header, pagesize=(page_width, page_height))
         
     if logo_path:
         try:
-            # Logo movido mucho mas a la izquierda (x=-20)
-            c_header.drawImage(logo_path, -20, page_height - 45, width=160, height=50, preserveAspectRatio=True, mask='auto')
+            # Logo bajado un poco en paginas 2, 3, 4 (y=page_height-65)
+            c_header.drawImage(logo_path, -20, page_height - 65, width=160, height=50, preserveAspectRatio=True, mask='auto')
         except Exception:
             pass
             
@@ -110,7 +117,9 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
 
     for i in range(len(reader.pages)):
         page = reader.pages[i]
-        page.merge_page(overlay_header)
+        if i > 0:
+            # Aplicar overlay solo a paginas 2, 3, 4
+            page.merge_page(overlay_header)
         writer.add_page(page)
         
     output = BytesIO()
