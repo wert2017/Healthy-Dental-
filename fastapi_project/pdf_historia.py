@@ -76,33 +76,41 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
             if os.path.exists(test_path):
                 logo_path = test_path
                 
-        # Crear un parche blanco para tapar la palabra "LOGO" de la plantilla original
-        c1.setFillColorRGB(1, 1, 1)
-        c1.rect(page_width/2 - 60, page_height - 60, 120, 40, stroke=0, fill=1)
-        c1.setFillColorRGB(0, 0, 0) # Restaurar el color negro
-        
-        # Escribir los 4 últimos dígitos de la HC en tamaño grande arriba a la derecha
-        if historia_clinica:
-            hc_digits = historia_clinica.split('-')[-1] # Extrae 0006 de HC-EL-0006
-            c1.setFont("Helvetica-Bold", 24)
-            # Dibujar los digitos arriba de la casilla de historia clinica
-            c1.drawString(520, page_height - 35, hc_digits)
-            c1.setFont("Helvetica", 9) # Restaurar fuente
-
-        if logo_path:
-            try:
-                # Logo a la izquierda
-                c1.drawImage(logo_path, 30, page_height - 60, width=160, height=50, preserveAspectRatio=True, mask='auto')
-            except Exception:
-                pass
-                
         c1.save()
         packet1.seek(0)
         overlay1 = PdfReader(packet1)
         page1_base.merge_page(overlay1.pages[0])
 
+    # --- Header Overlay for ALL pages ---
+    packet_header = BytesIO()
+    c_header = canvas.Canvas(packet_header, pagesize=(page_width, page_height))
+    
+    # Crear un parche blanco para tapar la palabra "LOGO", subido un poco (de 60 a 50)
+    c_header.setFillColorRGB(1, 1, 1)
+    c_header.rect(page_width/2 - 60, page_height - 50, 120, 40, stroke=0, fill=1)
+    c_header.setFillColorRGB(0, 0, 0)
+    
+    # Escribir los 4 últimos dígitos de la HC arriba a la derecha en todas las paginas
+    if historia_clinica:
+        hc_digits = historia_clinica.split('-')[-1]
+        c_header.setFont("Helvetica-Bold", 24)
+        c_header.drawString(520, page_height - 35, hc_digits)
+        
+    if logo_path:
+        try:
+            # Logo a la izquierda, subido y movido un poco a la derecha
+            c_header.drawImage(logo_path, 50, page_height - 45, width=160, height=50, preserveAspectRatio=True, mask='auto')
+        except Exception:
+            pass
+            
+    c_header.save()
+    packet_header.seek(0)
+    overlay_header = PdfReader(packet_header).pages[0]
+
     for i in range(len(reader.pages)):
-        writer.add_page(reader.pages[i])
+        page = reader.pages[i]
+        page.merge_page(overlay_header)
+        writer.add_page(page)
         
     output = BytesIO()
     writer.write(output)
