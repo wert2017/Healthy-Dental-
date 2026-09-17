@@ -1,7 +1,7 @@
 import os
 from io import BytesIO
 from datetime import datetime
-from pypdf import PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter, Transformation
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 
@@ -120,6 +120,15 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
         if i > 0:
             # Aplicar overlay solo a paginas 2, 3, 4
             page.merge_page(overlay_header)
+            
+        # Reducir proporcionalmente un 3% las páginas 2 y 3 (índices 1 y 2) para impresión
+        if i in (1, 2):
+            w = float(page.mediabox.width)
+            h = float(page.mediabox.height)
+            # Escalar a 0.97 y trasladar para centrar en la hoja
+            op = Transformation().scale(0.97, 0.97).translate(tx=w * 0.015, ty=h * 0.015)
+            page.add_transformation(op)
+            
         writer.add_page(page)
         
     output = BytesIO()
