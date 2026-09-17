@@ -130,9 +130,8 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
             tx = w * 0.015
             ty = h * 0.015
             
-            # Ajuste adicional para página 3 (índice 2): desplazar 3mm a la izquierda (aprox 8.5 puntos)
-            if i == 2:
-                tx -= 8.5
+            # Ajuste adicional para páginas 2 y 3 (índices 1 y 2): desplazar 3mm a la izquierda (aprox 8.5 puntos)
+            tx -= 8.5
                 
             op = Transformation().scale(0.97, 0.97).translate(tx=tx, ty=ty)
             page.add_transformation(op)
