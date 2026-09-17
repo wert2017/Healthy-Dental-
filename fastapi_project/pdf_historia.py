@@ -67,6 +67,11 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
             c1.setFont("Helvetica-Bold", 24)
             c1.drawString(520, page_height - 35, hc_digits)
             c1.setFont("Helvetica", 9)
+            
+        # Crear un parche blanco para tapar la palabra "LOGO", subido (y=page_height-30)
+        c1.setFillColorRGB(1, 1, 1)
+        c1.rect(page_width/2 - 60, page_height - 30, 120, 30, stroke=0, fill=1)
+        c1.setFillColorRGB(0, 0, 0)
         
         # Insertar Logo en la Página 1
         logo_path = None
@@ -91,11 +96,6 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
     # --- Header Overlay for ALL pages ---
     packet_header = BytesIO()
     c_header = canvas.Canvas(packet_header, pagesize=(page_width, page_height))
-    
-    # Parche blanco subido (y=page_height-30) para no tapar la planilla
-    c_header.setFillColorRGB(1, 1, 1)
-    c_header.rect(page_width/2 - 60, page_height - 30, 120, 30, stroke=0, fill=1)
-    c_header.setFillColorRGB(0, 0, 0)
         
     if logo_path:
         try:
