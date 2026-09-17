@@ -98,14 +98,48 @@ document.addEventListener("DOMContentLoaded", async () => {
                 printBtn.type = "button";
                 printBtn.className = "btn btn-outline-primary ms-3 d-print-none";
                 printBtn.innerHTML = '<i class="fa-solid fa-print me-2"></i> Imprimir Historia';
-                printBtn.onclick = () => {
-                    const match = window.location.pathname.match(/\/paciente\/edit\/(\d+)/);
-                    if (match) {
-                        const sucursalId = localStorage.getItem('sucursal_id') || '';
-                        const url = `/api/pacientes/${match[1]}/imprimir-historia${sucursalId ? '?sucursal_id=' + sucursalId : ''}`;
-                        window.open(url, '_blank');
-                    } else {
-                        alert("Guarde el paciente primero para imprimir la historia clínica.");
+                printBtn.onclick = async () => {
+                    const form = document.querySelector("form");
+                    if (!form) return;
+                    
+                    const formData = new FormData(form);
+                    const sucursalId = localStorage.getItem('sucursal_id');
+                    
+                    const data = {
+                        apellidos: formData.get("apellidos") || "",
+                        nombres: formData.get("nombres") || "",
+                        numero_identificacion: formData.get("numero_identificacion") || "",
+                        edad: formData.get("edad") ? parseInt(formData.get("edad")) : null,
+                        sexo: formData.get("sexo") || "",
+                        historia_clinica: formData.get("historia_clinica") || "",
+                        sucursal_id: sucursalId ? parseInt(sucursalId) : null
+                    };
+
+                    try {
+                        printBtn.disabled = true;
+                        printBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Generando...';
+                        
+                        const response = await fetch("/api/pacientes/imprimir-historia-preview", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify(data)
+                        });
+
+                        if (response.ok) {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            window.open(url, '_blank');
+                        } else {
+                            alert("Error al generar la vista previa de la historia clínica.");
+                        }
+                    } catch (e) {
+                        console.error("Error generating preview", e);
+                        alert("Error al intentar imprimir la historia clínica.");
+                    } finally {
+                        printBtn.disabled = false;
+                        printBtn.innerHTML = '<i class="fa-solid fa-print me-2"></i> Imprimir Historia';
                     }
                 };
                 titleTarget.appendChild(printBtn);

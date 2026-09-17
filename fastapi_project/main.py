@@ -1256,6 +1256,43 @@ def get_paciente_detail(paciente_id: int, session: Session = Depends(get_session
         "saldo_favor": paciente.saldo_favor
     }
 
+class PacientePreviewRequest(BaseModel):
+    apellidos: str = ""
+    nombres: str = ""
+    numero_identificacion: str = ""
+    edad: Optional[int] = None
+    sexo: str = ""
+    historia_clinica: str = ""
+    sucursal_id: Optional[int] = None
+
+@app.post("/api/pacientes/imprimir-historia-preview")
+def print_historia_clinica_preview(data: PacientePreviewRequest, session: Session = Depends(get_session)):
+    sucursal = None
+    if data.sucursal_id:
+        sucursal = session.get(Sucursal, data.sucursal_id)
+        
+    class MockPaciente:
+        pass
+        
+    paciente_mock = MockPaciente()
+    paciente_mock.apellidos = data.apellidos
+    paciente_mock.nombres = data.nombres
+    paciente_mock.numero_identificacion = data.numero_identificacion
+    paciente_mock.edad = data.edad
+    paciente_mock.sexo = data.sexo
+    paciente_mock.historia_clinica = data.historia_clinica
+
+    try:
+        pdf_stream = generar_historia_clinica_pdf(paciente_mock, sucursal)
+        headers = {
+            'Content-Disposition': 'inline; filename="historia_preview.pdf"'
+        }
+        return Response(content=pdf_stream.getvalue(), media_type="application/pdf", headers=headers)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/pacientes/{paciente_id}/imprimir-historia")
 def print_historia_clinica(paciente_id: int, sucursal_id: Optional[int] = None, session: Session = Depends(get_session)):
     # 1. Obtener el paciente
