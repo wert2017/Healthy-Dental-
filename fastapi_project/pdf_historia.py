@@ -25,7 +25,7 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
     nombres = paciente.nombres or ""
     cedula = paciente.numero_identificacion or ""
     edad = str(paciente.edad) if paciente.edad else "" 
-    sexo = paciente.sexo or ""
+    sexo = paciente.sexo[0].upper() if paciente.sexo else ""
     # No mostramos el celular por petición del usuario
     historia_clinica = paciente.historia_clinica or ""
     
@@ -53,11 +53,11 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
         draw_text(c1, 50, y1, apellido_paterno)
         draw_text(c1, 150, y1, apellido_materno)
         draw_text(c1, 250, y1, nombres)
-        draw_text(c1, 365, y1, cedula)
-        draw_text(c1, 410, y1, sexo)
-        draw_text(c1, 435, y1, edad)
+        draw_text(c1, 370, y1, cedula)
+        draw_text(c1, 415, y1, sexo)
+        draw_text(c1, 440, y1, edad)
         # draw_text(c1, 465, y1, celular) # Omitido
-        draw_text(c1, 550, y1, historia_clinica)
+        draw_text(c1, 545, y1, historia_clinica)
         
         # Insertar Logo en la Página 1
         logo_path = None
