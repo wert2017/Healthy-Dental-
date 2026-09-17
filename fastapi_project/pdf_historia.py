@@ -125,8 +125,16 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
         if i in (1, 2):
             w = float(page.mediabox.width)
             h = float(page.mediabox.height)
-            # Escalar a 0.97 y trasladar para centrar en la hoja
-            op = Transformation().scale(0.97, 0.97).translate(tx=w * 0.015, ty=h * 0.015)
+            
+            # tx y ty base para centrar al escalar 0.97
+            tx = w * 0.015
+            ty = h * 0.015
+            
+            # Ajuste adicional para página 3 (índice 2): desplazar 3mm a la izquierda (aprox 8.5 puntos)
+            if i == 2:
+                tx -= 8.5
+                
+            op = Transformation().scale(0.97, 0.97).translate(tx=tx, ty=ty)
             page.add_transformation(op)
             
         writer.add_page(page)
