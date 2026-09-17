@@ -48,16 +48,16 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
         c1 = canvas.Canvas(packet1, pagesize=(page_width, page_height))
         c1.setFont("Helvetica", 9)
         
-        # y_from_top = 85 approx for the data row under the header
-        y1 = 85
+        # y_from_top = 70 para la fila blanca debajo de las cabeceras
+        y1 = 70
         draw_text(c1, 40, y1, apellido_paterno)
         draw_text(c1, 140, y1, apellido_materno)
         draw_text(c1, 250, y1, nombres)
-        draw_text(c1, 325, y1, cedula)
-        draw_text(c1, 365, y1, sexo)
-        draw_text(c1, 385, y1, edad)
-        draw_text(c1, 415, y1, celular)
-        draw_text(c1, 475, y1, historia_clinica)
+        draw_text(c1, 360, y1, cedula)
+        draw_text(c1, 405, y1, sexo)
+        draw_text(c1, 435, y1, edad)
+        draw_text(c1, 465, y1, celular)
+        draw_text(c1, 535, y1, historia_clinica)
         
         # Insertar Logo en la Página 1
         logo_path = None
@@ -76,8 +76,8 @@ def generar_historia_clinica_pdf(paciente, sucursal=None):
                 
         if logo_path:
             try:
-                # Centrado arriba
-                c1.drawImage(logo_path, page_width/2 - 75, page_height - 60, width=150, height=50, preserveAspectRatio=True, mask='auto')
+                # Centrado arriba, mas pequeño para no tapar NOMBRES
+                c1.drawImage(logo_path, page_width/2 - 60, page_height - 45, width=120, height=40, preserveAspectRatio=True, mask='auto')
             except Exception:
                 pass
                 
