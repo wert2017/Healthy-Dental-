@@ -364,12 +364,13 @@ createApp({
                 dashboardData.value = resEconomico.data;
                 dashboardMensual.value = resMensual.data;
                 
-                await nextTick();
-                renderCharts();
-                renderMensualCharts();
+                setTimeout(() => {
+                    renderCharts();
+                    renderMensualCharts();
+                }, 150);
             } catch(e) {
                 console.error(e);
-                Swal.fire('Error', 'No se pudo cargar el dashboard', 'error');
+                globalError.value = "Error al obtener datos: " + e.message;
             } finally {
                 loading.value = false;
             }
@@ -400,7 +401,9 @@ createApp({
 
             // Setup Bar Chart
             const ctxBar = document.getElementById('barChart');
-            if(ctxBar) {
+            if(!ctxBar) {
+                globalError.value = "DOM Error: Canvas 'barChart' no encontrado.";
+            } else {
                 if(barChartInstance) barChartInstance.destroy();
                 barChartInstance = new Chart(ctxBar, {
                     type: 'bar',
@@ -444,7 +447,9 @@ createApp({
 
             // Setup Pie Chart
             const ctxPie = document.getElementById('pieChart');
-            if(ctxPie) {
+            if(!ctxPie) {
+                globalError.value = "DOM Error: Canvas 'pieChart' no encontrado.";
+            } else {
                 if(pieChartInstance) pieChartInstance.destroy();
                 pieChartInstance = new Chart(ctxPie, {
                     type: 'doughnut',
@@ -536,7 +541,9 @@ createApp({
 
                 // 1. Render Consolidado
                 const ctxConsolidado = document.getElementById('mensualConsolidadoChart');
-                if (ctxConsolidado) {
+                if (!ctxConsolidado) {
+                    globalError.value = "DOM Error: Canvas 'mensualConsolidadoChart' no encontrado.";
+                } else {
                     mensualChartInstances['consolidado'] = new Chart(ctxConsolidado, {
                         type: 'bar',
                         data: {
