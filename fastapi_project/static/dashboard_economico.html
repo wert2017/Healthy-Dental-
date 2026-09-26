@@ -49,9 +49,13 @@
     </style>
 </head>
 <body class="bg-gray-50">
-<div id="app" v-cloak class="min-h-screen flex flex-col">
-
-    <!-- Header -->
+    <div id="app" v-cloak class="min-h-screen flex flex-col">
+        <!-- Error Banner for Debugging -->
+        <div v-if="globalError" class="bg-red-600 text-white p-4 text-sm font-mono whitespace-pre-wrap">
+            <strong>⚠️ Error Detectado:</strong> {{ globalError }}
+        </div>
+        
+        <!-- Header -->
     <header class="topbar">
         <div class="topbar-header" :style="branchColorStyle">
             <div class="topbar-brand" :style="{ color: branchTextColor }">
@@ -275,6 +279,11 @@ const { createApp, ref, onMounted, nextTick } = Vue;
 
 createApp({
     setup() {
+        const globalError = ref('');
+        window.addEventListener('error', (event) => {
+            globalError.value = event.message + '\n' + event.filename + ':' + event.lineno;
+        });
+
         const currentUser = ref('');
         const role = ref('');
         const sucursalNombre = ref('');
@@ -469,6 +478,7 @@ createApp({
             }
             } catch (err) {
                 console.error("Error in renderCharts:", err);
+                globalError.value = "Error in renderCharts: " + err.message;
             }
         };
 
@@ -554,6 +564,7 @@ createApp({
                 });
             } catch (err) {
                 console.error("Error rendering mensual charts:", err);
+                globalError.value = "Error in renderMensualCharts: " + err.message;
             }
         };
 
@@ -582,7 +593,7 @@ createApp({
         });
 
         return {
-            currentUser, role, sucursalNombre, branchColorStyle, branchTextColor, logout,
+            globalError, currentUser, role, sucursalNombre, branchColorStyle, branchTextColor, logout,
             meses, anios, selectedMes, selectedAnio, loading, dashboardData, dashboardMensual, fetchData, formatCurrency, exportToExcel
         };
     }
