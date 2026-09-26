@@ -2929,14 +2929,16 @@ def reporte_ingresos_mensuales(start_date: str = None, end_date: str = None, ses
         
     pagos = session.exec(query_pagos).all()
 
-    query_auditoria = select(AuditoriaAtencion).where(AuditoriaAtencion.accion == "RECARGA_BILLETERA")
+    query_abonos = select(HistorialAbono)
+    if user.sucursal_id:
+        query_abonos = query_abonos.join(Paciente, HistorialAbono.paciente_id == Paciente.id).where(Paciente.sucursal_id == user.sucursal_id)
     if start_date:
-        query_auditoria = query_auditoria.where(AuditoriaAtencion.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
+        query_abonos = query_abonos.where(HistorialAbono.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
     if end_date:
         end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
-        query_auditoria = query_auditoria.where(AuditoriaAtencion.fecha < end_dt)
+        query_abonos = query_abonos.where(HistorialAbono.fecha < end_dt)
         
-    recargas_logs = session.exec(query_auditoria).all()
+    abonos_logs = session.exec(query_abonos).all()
 
     ingresos_por_mes = {}
     
@@ -2946,14 +2948,11 @@ def reporte_ingresos_mensuales(start_date: str = None, end_date: str = None, ses
             ingresos_por_mes[mes_key] = 0.0
         ingresos_por_mes[mes_key] += float(p.monto)
         
-    import re
-    for log in recargas_logs:
+    for log in abonos_logs:
         mes_key = log.fecha.strftime("%Y-%m")
-        match = re.search(r"\$(\d+(\.\d+)?)", log.descripcion)
-        if match:
-            if mes_key not in ingresos_por_mes:
-                ingresos_por_mes[mes_key] = 0.0
-            ingresos_por_mes[mes_key] += float(match.group(1))
+        if mes_key not in ingresos_por_mes:
+            ingresos_por_mes[mes_key] = 0.0
+        ingresos_por_mes[mes_key] += float(log.monto)
 
     # 3. Otros Ingresos (registrados como Gasto con tipo='INGRESO')
     query_otros = select(Gasto).where(Gasto.tipo == "INGRESO")
@@ -4040,23 +4039,13 @@ def get_daily_summary(session: Session = Depends(get_session), user: User = Depe
     today = datetime.now().date()
     today_start = datetime.combine(today, datetime.min.time())
     
-    # Sum recharges from AuditoriaAtencion
-    logs = session.exec(
-        select(AuditoriaAtencion)
-        .where(AuditoriaAtencion.accion == "RECARGA_BILLETERA")
-        .where(AuditoriaAtencion.fecha >= today_start)
-    ).all()
+    query = select(HistorialAbono).where(HistorialAbono.fecha >= today_start)
+    if user.role != "admin" and user.sucursal_id:
+        query = query.join(Paciente, HistorialAbono.paciente_id == Paciente.id).where(Paciente.sucursal_id == user.sucursal_id)
+
+    logs = session.exec(query).all()
     
-    total_directo = 0
-    for l in logs:
-        try:
-            # Extract amount from description "Recarga directa de $X to..."
-            import re
-            match = re.search(r"\$(\d+(\.\d+)?)", l.descripcion)
-            if match:
-                total_directo += float(match.group(1))
-        except:
-            pass
+    total_directo = sum(float(l.monto) for l in logs)
             
     return {"recargas_directas": total_directo}
 
