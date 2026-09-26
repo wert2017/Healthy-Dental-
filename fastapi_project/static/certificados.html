@@ -541,6 +541,7 @@
     </main>
 
     <script>
+        let currentEditingCertId = null;
         let selectedPacienteId = null;
         let doctoresList = [];
         let sucursalesList = [];
@@ -672,6 +673,7 @@
         }
 
         function selectPaciente(p) {
+            currentEditingCertId = null;
             selectedPacienteId = p.id;
             document.getElementById("buscar_paciente").value = `${p.nombres} ${p.apellidos || ''}`.trim();
             document.getElementById("patient_dropdown").classList.add("hidden");
@@ -867,8 +869,11 @@
 
             try {
                 const token = localStorage.getItem("token");
-                const res = await fetch("/api/certificados", {
-                    method: "POST",
+                const method = currentEditingCertId ? "PUT" : "POST";
+                const url = currentEditingCertId ? `/api/certificados/${currentEditingCertId}` : "/api/certificados";
+
+                const res = await fetch(url, {
+                    method: method,
                     headers: {
                         "Content-Type": "application/json",
                         "Authorization": `Bearer ${token}`
@@ -883,6 +888,7 @@
                 }
 
                 alert("Certificado guardado exitosamente en el historial.");
+                currentEditingCertId = null;
                 loadHistorial();
             } catch (err) {
                 console.error("Error al guardar:", err);
@@ -1029,6 +1035,7 @@
 
         async function cargarEnFormulario(certId) {
             try {
+                currentEditingCertId = certId;
                 const token = localStorage.getItem("token");
                 const res = await fetch(`/api/certificados/${certId}`, {
                     headers: { "Authorization": `Bearer ${token}` }
@@ -1095,6 +1102,7 @@
         }
 
         function resetForm() {
+            currentEditingCertId = null;
             selectedPacienteId = null;
             document.getElementById("buscar_paciente").value = "";
             document.getElementById("paciente_nombre").value = "";

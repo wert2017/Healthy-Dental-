@@ -5912,6 +5912,54 @@ def create_certificado(cert: CertificadoCreate, session: Session = Depends(get_s
     session.refresh(nuevo_cert)
     return nuevo_cert
 
+@app.put("/api/certificados/{cert_id}")
+def update_certificado(cert_id: int, cert: CertificadoCreate, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    if user.role not in ("admin", "recepcion"):
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    
+    db_cert = session.get(CertificadoMedico, cert_id)
+    if not db_cert:
+        raise HTTPException(status_code=404, detail="Certificado no encontrado")
+        
+    if user.role != "admin" and db_cert.sucursal_id != user.sucursal_id:
+        raise HTTPException(status_code=403, detail="No puedes editar certificados de otra sucursal")
+
+    db_cert.fecha_emision = cert.fecha_emision
+    db_cert.paciente_id = cert.paciente_id
+    db_cert.paciente_nombre = cert.paciente_nombre
+    db_cert.paciente_cedula = cert.paciente_cedula
+    db_cert.paciente_edad = cert.paciente_edad
+    db_cert.paciente_historia_clinica = cert.paciente_historia_clinica
+    db_cert.paciente_domicilio = cert.paciente_domicilio
+    db_cert.paciente_provincia = cert.paciente_provincia
+    db_cert.paciente_canton = cert.paciente_canton
+    db_cert.paciente_telefono = cert.paciente_telefono
+    db_cert.empresa_nombre = cert.empresa_nombre
+    db_cert.empresa_direccion = cert.empresa_direccion
+    db_cert.puesto_trabajo = cert.puesto_trabajo
+    db_cert.descripcion_puesto = cert.descripcion_puesto
+    db_cert.tipo_contingencia = cert.tipo_contingencia
+    db_cert.sintomas = cert.sintomas
+    db_cert.diagnostico = cert.diagnostico
+    db_cert.tratamiento = cert.tratamiento
+    db_cert.reposo_descripcion = cert.reposo_descripcion
+    db_cert.dias_reposo = cert.dias_reposo
+    db_cert.fecha_desde = cert.fecha_desde
+    db_cert.fecha_hasta = cert.fecha_hasta
+    db_cert.doctor_id = cert.doctor_id
+    db_cert.doctor_nombre = cert.doctor_nombre
+    db_cert.doctor_cedula = cert.doctor_cedula
+    db_cert.doctor_email = cert.doctor_email
+    db_cert.doctor_telefono = cert.doctor_telefono
+    db_cert.doctor_especialidad = cert.doctor_especialidad
+    db_cert.sucursal_emision_nombre = cert.sucursal_emision_nombre
+    db_cert.sucursal_emision_direccion = cert.sucursal_emision_direccion
+    db_cert.sucursal_emision_telefono = cert.sucursal_emision_telefono
+    
+    session.commit()
+    session.refresh(db_cert)
+    return db_cert
+
 @app.get("/api/certificados/{cert_id}")
 def get_certificado(cert_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     if user.role not in ("admin", "recepcion"):
