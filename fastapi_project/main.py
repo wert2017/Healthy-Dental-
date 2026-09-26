@@ -3836,6 +3836,34 @@ def recargar_billetera(paciente_id: int, data: RecargaSchema, session: Session =
     session.commit()
     return {"message": "Recarga exitosa", "nuevo_saldo": paciente.saldo_favor}
 
+@app.post("/api/pacientes/{paciente_id}/devolver_abono")
+def devolver_billetera(paciente_id: int, data: RecargaSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    paciente = session.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    
+    if data.monto <= 0:
+        raise HTTPException(status_code=400, detail="El monto debe ser positivo")
+        
+    if Decimal(data.monto) > paciente.saldo_favor:
+        raise HTTPException(status_code=400, detail="El monto de devolución no puede exceder el saldo a favor actual")
+
+    paciente.saldo_favor -= Decimal(data.monto)
+    
+    historial = HistorialAbono(
+        paciente_id=paciente.id,
+        usuario_id=user.id if user else None,
+        monto=-Decimal(data.monto),
+        metodo_pago=data.metodo_pago,
+        concepto=data.concepto or "Devolución de Abono",
+        fecha=datetime.now()
+    )
+    session.add(historial)
+
+    session.add(paciente)
+    session.commit()
+    return {"message": "Devolución exitosa", "nuevo_saldo": paciente.saldo_favor}
+
 @app.get("/api/pacientes/{paciente_id}/estado-cuenta")
 def get_paciente_estado_cuenta(
     paciente_id: int, 

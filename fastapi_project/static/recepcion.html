@@ -306,6 +306,20 @@
                         </p>
 
                         <div class="mb-4">
+                            <label class="block text-xs font-bold text-gray-500 mb-2 uppercase">Tipo de Operación</label>
+                            <div class="flex gap-4">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" v-model="tipoOperacionAbono" value="AÑADIR" class="text-amber-500 focus:ring-amber-500">
+                                    <span class="text-sm font-medium text-gray-700">Añadir Abono</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" v-model="tipoOperacionAbono" value="DEVOLVER" class="text-amber-500 focus:ring-amber-500">
+                                    <span class="text-sm font-medium text-gray-700">Devolver Abono</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
                             <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Monto a Abonar
                                 ($)</label>
                             <input type="number" step="0.01" v-model.number="montoRecarga"
@@ -883,6 +897,7 @@
                 const montoRecarga = ref(0)
                 const metodoPagoRecarga = ref("EFECTIVO")
                 const conceptoRecarga = ref("Abono General")
+                const tipoOperacionAbono = ref("AÑADIR")
                 const isReportModalOpen = ref(false)
                 const directRecharges = ref(0)
 
@@ -1102,6 +1117,7 @@
                 const openRecargaModal = (p) => {
                     selectedPaciente.value = p
                     montoRecarga.value = ""
+                    tipoOperacionAbono.value = "AÑADIR"
                     showRecargaModal.value = true
                 }
 
@@ -1111,17 +1127,28 @@
                     montoRecarga.value = 0
                     metodoPagoRecarga.value = "EFECTIVO"
                     conceptoRecarga.value = "Abono General"
+                    tipoOperacionAbono.value = "AÑADIR"
                 }
 
                 const procesarRecarga = async () => {
                     if (!montoRecarga.value || montoRecarga.value <= 0) return
+                    
+                    if (tipoOperacionAbono.value === "DEVOLVER" && montoRecarga.value > selectedPaciente.value.saldo_favor) {
+                        Swal.fire('Error', `El monto a devolver ($${montoRecarga.value}) supera el saldo a favor actual ($${selectedPaciente.value.saldo_favor}).`, 'error');
+                        return;
+                    }
+
                     try {
-                        const res = await axios.post(`/api/pacientes/${selectedPaciente.value.id}/recargar`, {
+                        const url = tipoOperacionAbono.value === "DEVOLVER" 
+                            ? `/api/pacientes/${selectedPaciente.value.id}/devolver_abono` 
+                            : `/api/pacientes/${selectedPaciente.value.id}/recargar`;
+                            
+                        const res = await axios.post(url, {
                             monto: montoRecarga.value,
                             metodo_pago: metodoPagoRecarga.value,
-                            concepto: conceptoRecarga.value || "Abono General"
+                            concepto: conceptoRecarga.value || (tipoOperacionAbono.value === "DEVOLVER" ? "Devolución de Abono" : "Abono General")
                         })
-                        Swal.fire('Recarga Exitosa', `Se han recargado: $${montoRecarga.value}`, 'success')
+                        Swal.fire('Operación Exitosa', tipoOperacionAbono.value === "DEVOLVER" ? `Se han devuelto: $${montoRecarga.value}` : `Se han recargado: $${montoRecarga.value}`, 'success')
                         closeRecargaModal()
                         searchPacientes() // Refresh table to show new balance
                     } catch (error) {
