@@ -11,6 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -431,6 +432,23 @@ createApp({
                             legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
                             tooltip: { 
                                 callbacks: { label: (ctx) => `${ctx.dataset.label}: $${formatCurrency(ctx.raw)}` } 
+                            },
+                            datalabels: {
+                                color: '#fff',
+                                font: { weight: 'bold', size: 11 },
+                                formatter: (value, context) => {
+                                    if (!value || value === 0) return '';
+                                    // For this chart, the first dataset (index 0) is Ingresos (the total)
+                                    const totalIngresos = context.chart.data.datasets[0].data[context.dataIndex];
+                                    if (context.datasetIndex === 0) {
+                                        return '$' + formatCurrency(value); // Just show value for Ingresos
+                                    } else {
+                                        const pct = totalIngresos ? Math.round((value / totalIngresos) * 100) : 0;
+                                        return ['$' + formatCurrency(value), pct + '%'];
+                                    }
+                                },
+                                align: 'center',
+                                anchor: 'center'
                             }
                         },
                         scales: {
@@ -467,6 +485,9 @@ createApp({
                         maintainAspectRatio: false,
                         cutout: '65%',
                         plugins: {
+                            datalabels: {
+                                display: false // Don't show datalabels inside the thin pie slices
+                            },
                             legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 20 } },
                             tooltip: { 
                                 callbacks: { 
@@ -512,6 +533,21 @@ createApp({
                             callbacks: {
                                 label: (ctx) => `${ctx.dataset.label}: $${formatCurrency(ctx.raw)}`
                             }
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            font: { weight: 'bold', size: 10 },
+                            formatter: (value, context) => {
+                                if (!value || value === 0) return '';
+                                let total = 0;
+                                context.chart.data.datasets.forEach(ds => {
+                                    total += ds.data[context.dataIndex];
+                                });
+                                const pct = total ? Math.round((value / total) * 100) : 0;
+                                return ['$' + formatCurrency(value), pct + '%'];
+                            },
+                            align: 'center',
+                            anchor: 'center'
                         }
                     },
                     scales: {
@@ -596,6 +632,7 @@ createApp({
         };
 
         onMounted(() => {
+            Chart.register(ChartDataLabels);
             checkAuth();
         });
 
