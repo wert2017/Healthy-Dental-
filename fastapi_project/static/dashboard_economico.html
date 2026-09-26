@@ -367,9 +367,10 @@ createApp({
         };
         
         const renderCharts = () => {
-            if(!dashboardData.value) return;
-            
-            const detalles = dashboardData.value.detalles;
+            try {
+                if(!dashboardData.value) return;
+                
+                const detalles = dashboardData.value.detalles;
             const labels = detalles.map(d => d.sucursal_nombre);
             const ingresos = detalles.map(d => d.ingresos);
             const egresos = detalles.map(d => d.egresos);
@@ -466,85 +467,94 @@ createApp({
                     }
                 });
             }
+            } catch (err) {
+                console.error("Error in renderCharts:", err);
+            }
         };
 
         let mensualChartInstances = {};
 
         const renderMensualCharts = () => {
-            if(!dashboardMensual.value) return;
+            try {
+                if(!dashboardMensual.value) return;
 
-            // Destroy existing charts
-            Object.values(mensualChartInstances).forEach(chart => chart.destroy());
-            mensualChartInstances = {};
+                // Destroy existing charts
+                Object.values(mensualChartInstances).forEach(chart => {
+                    if (chart) chart.destroy();
+                });
+                mensualChartInstances = {};
 
-            const monthLabels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                const getMonthLabels = () => ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-            const commonOptions = {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: (ctx) => `${ctx.dataset.label}: $${formatCurrency(ctx.raw)}`
+                const getCommonOptions = () => ({
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: $${formatCurrency(ctx.raw)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { 
+                            stacked: true, 
+                            beginAtZero: true,
+                            ticks: { callback: (val) => '$' + val }
                         }
                     }
-                },
-                scales: {
-                    x: { stacked: true, grid: { display: false } },
-                    y: { 
-                        stacked: true, 
-                        beginAtZero: true,
-                        ticks: { callback: (val) => '$' + val }
-                    }
-                }
-            };
-
-            const buildDatasets = (data) => [
-                {
-                    label: 'Egresos (Gastos y Costos)',
-                    data: data.map(d => d.egresos),
-                    backgroundColor: 'rgba(244, 63, 94, 0.8)', // rose-500
-                    borderRadius: 4
-                },
-                {
-                    label: 'Utilidad',
-                    data: data.map(d => d.utilidad),
-                    backgroundColor: 'rgba(16, 185, 129, 0.8)', // emerald-500
-                    borderRadius: 4
-                }
-            ];
-
-            // 1. Render Consolidado
-            const ctxConsolidado = document.getElementById('mensualConsolidadoChart');
-            if (ctxConsolidado) {
-                mensualChartInstances['consolidado'] = new Chart(ctxConsolidado, {
-                    type: 'bar',
-                    data: {
-                        labels: monthLabels,
-                        datasets: buildDatasets(dashboardMensual.value.consolidado)
-                    },
-                    options: commonOptions
                 });
-            }
 
-            // 2. Render Sucursales
-            dashboardMensual.value.sucursales.forEach(suc => {
-                const canvasId = 'mensualChart_' + suc.nombre.replace(/\s+/g, '');
-                const ctxSuc = document.getElementById(canvasId);
-                if (ctxSuc) {
-                    mensualChartInstances[canvasId] = new Chart(ctxSuc, {
+                const buildDatasets = (data) => [
+                    {
+                        label: 'Egresos (Gastos y Costos)',
+                        data: data.map(d => d.egresos),
+                        backgroundColor: 'rgba(244, 63, 94, 0.8)', // rose-500
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Utilidad',
+                        data: data.map(d => d.utilidad),
+                        backgroundColor: 'rgba(16, 185, 129, 0.8)', // emerald-500
+                        borderRadius: 4
+                    }
+                ];
+
+                // 1. Render Consolidado
+                const ctxConsolidado = document.getElementById('mensualConsolidadoChart');
+                if (ctxConsolidado) {
+                    mensualChartInstances['consolidado'] = new Chart(ctxConsolidado, {
                         type: 'bar',
                         data: {
-                            labels: monthLabels,
-                            datasets: buildDatasets(suc.data)
+                            labels: getMonthLabels(),
+                            datasets: buildDatasets(dashboardMensual.value.consolidado)
                         },
-                        options: commonOptions
+                        options: getCommonOptions()
                     });
                 }
-            });
+
+                // 2. Render Sucursales
+                dashboardMensual.value.sucursales.forEach(suc => {
+                    const canvasId = 'mensualChart_' + suc.nombre.replace(/\s+/g, '');
+                    const ctxSuc = document.getElementById(canvasId);
+                    if (ctxSuc) {
+                        mensualChartInstances[canvasId] = new Chart(ctxSuc, {
+                            type: 'bar',
+                            data: {
+                                labels: getMonthLabels(),
+                                datasets: buildDatasets(suc.data)
+                            },
+                            options: getCommonOptions()
+                        });
+                    }
+                });
+            } catch (err) {
+                console.error("Error rendering mensual charts:", err);
+            }
         };
 
         const exportToExcel = () => {
