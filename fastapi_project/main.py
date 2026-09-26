@@ -6136,6 +6136,92 @@ def get_dashboard_economico(
         }
     }
 
+@app.get("/api/dashboard/economico/mensual")
+def get_dashboard_economico_mensual(
+    anio: Optional[int] = Query(default=None),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+        
+    target_anio = anio or datetime.now().year
+    sucursales = session.exec(select(Sucursal)).all()
+    
+    consolidado = {m: {"ingresos": 0.0, "egresos": 0.0, "utilidad": 0.0} for m in range(1, 13)}
+    sucursales_data = {}
+    
+    for suc in sucursales:
+        meses_data = {m: {"ingresos": 0.0, "egresos": 0.0, "utilidad": 0.0} for m in range(1, 13)}
+        
+        # Pagos
+        pagos = session.exec(
+            select(extract('month', Pago.fecha), func.sum(Pago.monto))
+            .join(Atencion, Pago.atencion_id == Atencion.id)
+            .where(Atencion.sucursal_id == suc.id)
+            .where(extract('year', Pago.fecha) == target_anio)
+            .group_by(extract('month', Pago.fecha))
+        ).all()
+        for p in pagos:
+            meses_data[int(p[0])]["ingresos"] += float(p[1])
+            
+        # Otros Ingresos
+        otros_ingresos = session.exec(
+            select(extract('month', Gasto.fecha), func.sum(Gasto.monto))
+            .where(Gasto.sucursal_id == suc.id)
+            .where(Gasto.tipo == 'INGRESO')
+            .where(extract('year', Gasto.fecha) == target_anio)
+            .group_by(extract('month', Gasto.fecha))
+        ).all()
+        for oi in otros_ingresos:
+            meses_data[int(oi[0])]["ingresos"] += float(oi[1])
+            
+        # Gastos
+        gastos = session.exec(
+            select(extract('month', Gasto.fecha), func.sum(Gasto.monto))
+            .where(Gasto.sucursal_id == suc.id)
+            .where((Gasto.tipo == 'EGRESO') | (Gasto.tipo == None))
+            .where(Gasto.categoria != 'RETIRO SOCIOS')
+            .where(extract('year', Gasto.fecha) == target_anio)
+            .group_by(extract('month', Gasto.fecha))
+        ).all()
+        for g in gastos:
+            meses_data[int(g[0])]["egresos"] += float(g[1])
+            
+        sucursales_data[suc.id] = {
+            "nombre": suc.nombre,
+            "data": []
+        }
+        
+        for m in range(1, 13):
+            util = meses_data[m]["ingresos"] - meses_data[m]["egresos"]
+            meses_data[m]["utilidad"] = util
+            
+            consolidado[m]["ingresos"] += meses_data[m]["ingresos"]
+            consolidado[m]["egresos"] += meses_data[m]["egresos"]
+            consolidado[m]["utilidad"] += util
+            
+            sucursales_data[suc.id]["data"].append({
+                "mes": m,
+                "ingresos": meses_data[m]["ingresos"],
+                "egresos": meses_data[m]["egresos"],
+                "utilidad": meses_data[m]["utilidad"]
+            })
+            
+    consolidado_list = []
+    for m in range(1, 13):
+        consolidado_list.append({
+            "mes": m,
+            "ingresos": consolidado[m]["ingresos"],
+            "egresos": consolidado[m]["egresos"],
+            "utilidad": consolidado[m]["utilidad"]
+        })
+        
+    return {
+        "anio": target_anio,
+        "consolidado": consolidado_list,
+        "sucursales": list(sucursales_data.values())
+    }
 
 # --- END API ROUTES ---
 

@@ -182,6 +182,29 @@
                 </div>
             </div>
 
+            <!-- Monthly Evolution Charts -->
+            <div class="mb-8" v-if="dashboardMensual">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Evolución Mensual ({{ selectedAnio }})</h2>
+                
+                <!-- Consolidado Anual Chart -->
+                <div class="glass-card p-6 mb-6">
+                    <h3 class="text-base font-bold text-gray-800 mb-4">Consolidado General - Mensual</h3>
+                    <div class="relative h-80 w-full">
+                        <canvas id="mensualConsolidadoChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <!-- Por Sucursal Charts -->
+                    <div v-for="suc in dashboardMensual.sucursales" :key="suc.nombre" class="glass-card p-6">
+                        <h3 class="text-base font-bold text-gray-800 mb-4">{{ suc.nombre }} - Mensual</h3>
+                        <div class="relative h-64 w-full">
+                            <canvas :id="'mensualChart_' + suc.nombre.replace(/\s+/g, '')"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Table Section -->
             <div class="glass-card overflow-hidden">
                 <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-white">
@@ -260,6 +283,7 @@ createApp({
 
         const loading = ref(false);
         const dashboardData = ref(null);
+        const dashboardMensual = ref(null);
         
         const meses = [
             { value: 1, text: 'Enero' }, { value: 2, text: 'Febrero' },
@@ -319,13 +343,21 @@ createApp({
             loading.value = true;
             try {
                 const token = localStorage.getItem('token');
-                const res = await axios.get(`/api/dashboard/economico?mes=${selectedMes.value}&anio=${selectedAnio.value}`, {
-                    headers: {'Authorization': `Bearer ${token}`}
-                });
-                dashboardData.value = res.data;
+                const [resEconomico, resMensual] = await Promise.all([
+                    axios.get(`/api/dashboard/economico?mes=${selectedMes.value}&anio=${selectedAnio.value}`, {
+                        headers: {'Authorization': `Bearer ${token}`}
+                    }),
+                    axios.get(`/api/dashboard/economico/mensual?anio=${selectedAnio.value}`, {
+                        headers: {'Authorization': `Bearer ${token}`}
+                    })
+                ]);
+                
+                dashboardData.value = resEconomico.data;
+                dashboardMensual.value = resMensual.data;
                 
                 await nextTick();
                 renderCharts();
+                renderMensualCharts();
             } catch(e) {
                 console.error(e);
                 Swal.fire('Error', 'No se pudo cargar el dashboard', 'error');
@@ -436,6 +468,85 @@ createApp({
             }
         };
 
+        let mensualChartInstances = {};
+
+        const renderMensualCharts = () => {
+            if(!dashboardMensual.value) return;
+
+            // Destroy existing charts
+            Object.values(mensualChartInstances).forEach(chart => chart.destroy());
+            mensualChartInstances = {};
+
+            const monthLabels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: (ctx) => `${ctx.dataset.label}: $${formatCurrency(ctx.raw)}`
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false } },
+                    y: { 
+                        stacked: true, 
+                        beginAtZero: true,
+                        ticks: { callback: (val) => '$' + val }
+                    }
+                }
+            };
+
+            const buildDatasets = (data) => [
+                {
+                    label: 'Egresos (Gastos y Costos)',
+                    data: data.map(d => d.egresos),
+                    backgroundColor: 'rgba(244, 63, 94, 0.8)', // rose-500
+                    borderRadius: 4
+                },
+                {
+                    label: 'Utilidad',
+                    data: data.map(d => d.utilidad),
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)', // emerald-500
+                    borderRadius: 4
+                }
+            ];
+
+            // 1. Render Consolidado
+            const ctxConsolidado = document.getElementById('mensualConsolidadoChart');
+            if (ctxConsolidado) {
+                mensualChartInstances['consolidado'] = new Chart(ctxConsolidado, {
+                    type: 'bar',
+                    data: {
+                        labels: monthLabels,
+                        datasets: buildDatasets(dashboardMensual.value.consolidado)
+                    },
+                    options: commonOptions
+                });
+            }
+
+            // 2. Render Sucursales
+            dashboardMensual.value.sucursales.forEach(suc => {
+                const canvasId = 'mensualChart_' + suc.nombre.replace(/\s+/g, '');
+                const ctxSuc = document.getElementById(canvasId);
+                if (ctxSuc) {
+                    mensualChartInstances[canvasId] = new Chart(ctxSuc, {
+                        type: 'bar',
+                        data: {
+                            labels: monthLabels,
+                            datasets: buildDatasets(suc.data)
+                        },
+                        options: commonOptions
+                    });
+                }
+            });
+        };
+
         const exportToExcel = () => {
             // Simple CSV download
             const csvRows = [];
@@ -462,7 +573,7 @@ createApp({
 
         return {
             currentUser, role, sucursalNombre, branchColorStyle, branchTextColor, logout,
-            meses, anios, selectedMes, selectedAnio, loading, dashboardData, fetchData, formatCurrency, exportToExcel
+            meses, anios, selectedMes, selectedAnio, loading, dashboardData, dashboardMensual, fetchData, formatCurrency, exportToExcel
         };
     }
 }).mount('#app');
