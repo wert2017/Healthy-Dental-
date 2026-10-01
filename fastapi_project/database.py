@@ -32,6 +32,9 @@ def create_db_and_tables():
         "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_nombre VARCHAR(255) DEFAULT ''",
         "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_direccion VARCHAR(255) DEFAULT ''",
         "ALTER TABLE certificadomedico ADD COLUMN IF NOT EXISTS sucursal_emision_telefono VARCHAR(50) DEFAULT ''",
+        # Nuevas columnas módulo Compras/Inventario (v2)
+        "ALTER TABLE proveedor ADD COLUMN IF NOT EXISTS ruc VARCHAR(50) DEFAULT NULL",
+        "ALTER TABLE proveedor ADD COLUMN IF NOT EXISTS direccion VARCHAR(255) DEFAULT NULL",
     ]
     with engine.connect() as conn:
         for sql in migrations:

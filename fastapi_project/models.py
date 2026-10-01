@@ -249,28 +249,69 @@ class HistorialAbono(SQLModel, table=True):
 
 # --- INVENTORY MODELS (Level 3) ---
 
+class Bodega(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nombre: str = Field(index=True)
+    tipo: str = Field(default="PRINCIPAL") # PRINCIPAL, DOCTOR
+    sucursal_id: int = Field(foreign_key="sucursal.id")
+    doctor_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    activo: bool = True
+    
+    sucursal: Optional["Sucursal"] = Relationship()
+    doctor: Optional["User"] = Relationship()
+
 class Proveedor(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    ruc: Optional[str] = None
     nombre: str = Field(index=True)
     contacto: Optional[str] = None
     telefono: Optional[str] = None
     email: Optional[str] = None
+    direccion: Optional[str] = None
     activo: bool = True
     
     insumos: List["Insumo"] = Relationship(back_populates="proveedor")
+    compras: List["Compra"] = Relationship(back_populates="proveedor")
 
-class InventarioSucursal(SQLModel, table=True):
-    """Tracks stock level of an Insumo at a specific Sucursal"""
+class Compra(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    proveedor_id: int = Field(foreign_key="proveedor.id")
+    bodega_id: int = Field(foreign_key="bodega.id")
+    usuario_id: int = Field(foreign_key="user.id")
+    fecha: datetime = Field(default_factory=datetime.now)
+    tipo_documento: str = Field(default="Factura") # Factura, Nota de Venta, Recibo
+    numero_documento: Optional[str] = None
+    gasto_id: Optional[int] = Field(default=None, foreign_key="gasto.id")
+    monto_total: Decimal = Field(default=0, max_digits=10, decimal_places=2)
+    observaciones: Optional[str] = None
+    
+    proveedor: Optional["Proveedor"] = Relationship(back_populates="compras")
+    bodega: Optional["Bodega"] = Relationship()
+    usuario: Optional["User"] = Relationship()
+    detalles: List["DetalleCompra"] = Relationship(back_populates="compra", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    
+class DetalleCompra(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    compra_id: int = Field(foreign_key="compra.id")
+    insumo_id: int = Field(foreign_key="insumo.id")
+    cantidad: int = Field(default=1)
+    precio_unitario: Decimal = Field(max_digits=10, decimal_places=2)
+    
+    compra: Optional["Compra"] = Relationship(back_populates="detalles")
+    insumo: Optional["Insumo"] = Relationship()
+
+class InventarioBodega(SQLModel, table=True):
+    """Tracks stock level of an Insumo at a specific Bodega"""
     id: Optional[int] = Field(default=None, primary_key=True)
     
-    sucursal_id: int = Field(foreign_key="sucursal.id")
+    bodega_id: int = Field(foreign_key="bodega.id")
     insumo_id: int = Field(foreign_key="insumo.id")
     
     stock_actual: int = Field(default=0)
     stock_minimo: int = Field(default=5)
     
-    sucursal: Optional[Sucursal] = Relationship()
-    insumo: Optional["Insumo"] = Relationship(back_populates="inventarios_sucursal")
+    bodega: Optional["Bodega"] = Relationship()
+    insumo: Optional["Insumo"] = Relationship(back_populates="inventarios_bodega")
 
 class InventarioDoctor(SQLModel, table=True):
     """Level 3: Personal stock assigned to a Doctor (The 'Maletin')"""
@@ -298,7 +339,7 @@ class Insumo(SQLModel, table=True):
     proveedor: Optional[Proveedor] = Relationship(back_populates="insumos")
     
     recetas: List["Receta"] = Relationship(back_populates="insumo")
-    inventarios_sucursal: List["InventarioSucursal"] = Relationship(back_populates="insumo")
+    inventarios_bodega: List["InventarioBodega"] = Relationship(back_populates="insumo")
     inventarios_doctor: List["InventarioDoctor"] = Relationship(back_populates="insumo")
 
     def __str__(self):

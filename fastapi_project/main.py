@@ -10,7 +10,7 @@ except AttributeError:
 from fastapi import FastAPI, Depends, HTTPException, Query, status, Request, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import engine, create_db_and_tables, get_session
-from models import Paciente, Doctor, Sucursal, DoctorSucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, InventarioSucursal, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto, Socio, SocioParticipacion, Cita, GoogleCalendarConfig, FotoPaciente, CertificadoMedico
+from models import Paciente, Doctor, Sucursal, DoctorSucursal, Tratamiento, Atencion, AtencionDetalle, Pago, User, TratamientoEnCurso, Insumo, Receta, Proveedor, Bodega, Compra, DetalleCompra, InventarioBodega, InventarioDoctor, AuditoriaAtencion, Gasto, HistorialAbono, CategoriaGasto, Socio, SocioParticipacion, Cita, GoogleCalendarConfig, FotoPaciente, CertificadoMedico
 from sqlalchemy import or_
 from sqlmodel import Field, Session, SQLModel, select, create_engine, Relationship
 from pydantic import BaseModel
@@ -822,15 +822,15 @@ class RecetaAdmin(ModelView, model=Receta):
     icon = "fa-solid fa-prescription-bottle-medical"
 
 class ProveedorAdmin(ModelView, model=Proveedor):
-    column_list = [Proveedor.nombre, Proveedor.contacto, Proveedor.telefono, Proveedor.email, Proveedor.activo]
-    form_columns = [Proveedor.nombre, Proveedor.contacto, Proveedor.telefono, Proveedor.email, Proveedor.activo]
+    column_list = [Proveedor.ruc, Proveedor.nombre, Proveedor.contacto, Proveedor.telefono, Proveedor.email, Proveedor.direccion, Proveedor.activo]
+    form_columns = [Proveedor.ruc, Proveedor.nombre, Proveedor.contacto, Proveedor.telefono, Proveedor.email, Proveedor.direccion, Proveedor.activo]
     icon = "fa-solid fa-truck"
 
-class InventarioSucursalAdmin(ModelView, model=InventarioSucursal):
-    name = "Stock por Sucursal"
-    name_plural = "Stock Sucursales"
-    column_list = [InventarioSucursal.sucursal, InventarioSucursal.insumo, InventarioSucursal.stock_actual]
-    form_columns = [InventarioSucursal.sucursal, InventarioSucursal.insumo, InventarioSucursal.stock_actual, InventarioSucursal.stock_minimo]
+class InventarioBodegaAdmin(ModelView, model=InventarioBodega):
+    name = "Stock por Bodega"
+    name_plural = "Stock Bodegas"
+    column_list = [InventarioBodega.bodega, InventarioBodega.insumo, InventarioBodega.stock_actual]
+    form_columns = [InventarioBodega.bodega, InventarioBodega.insumo, InventarioBodega.stock_actual, InventarioBodega.stock_minimo]
     icon = "fa-solid fa-store"
 
 class InventarioDoctorAdmin(ModelView, model=InventarioDoctor):
@@ -984,7 +984,7 @@ admin.add_view(PagoAdmin)
 admin.add_view(SucursalAdmin) 
 admin.add_view(InsumoAdmin)
 admin.add_view(ProveedorAdmin)
-admin.add_view(InventarioSucursalAdmin)
+admin.add_view(InventarioBodegaAdmin)
 admin.add_view(InventarioDoctorAdmin)
 admin.add_view(UserAdmin)
 admin.add_view(MovimientosLink)
@@ -1045,7 +1045,7 @@ def process_stock_deduction(atencion: Atencion, session: Session, sucursal_id: i
     """
     Deducts stock based on treatments in the attention.
     Should be called ONLY when validating an attention.
-    Now supports Multi-Clinic logic: Deducts from InventarioSucursal.
+    Now supports Multi-Clinic logic: Deducts from InventarioBodega.
     """
     if not sucursal_id:
         print("WARNING: No sucursal_id provided for stock deduction. Skipping.")
@@ -1069,32 +1069,23 @@ def process_stock_deduction(atencion: Atencion, session: Session, sucursal_id: i
                         InventarioDoctor.insumo_id == receta.insumo_id
                     )).first()
 
-                if inv_doctor and inv_doctor.stock_actual >= cantidad_a_descontar:
-                    # Deduct from Doctor personal stock
+                if inv_doctor:
+                    # Deduct from Doctor personal stock, allowing negatives if they used something not recorded
                     inv_doctor.stock_actual -= cantidad_a_descontar
                     session.add(inv_doctor)
                     deductions_made.append(f"{receta.insumo.nombre} (-{cantidad_a_descontar}) @ Doctor {current_doctor_id}")
                 else:
-                    # 2. FALLBACK: Sucursal Inventory (Level 2)
-                    inv_suc = session.exec(select(InventarioSucursal).where(
-                        InventarioSucursal.sucursal_id == sucursal_id,
-                        InventarioSucursal.insumo_id == receta.insumo_id
-                    )).first()
-                    
-                    if inv_suc:
-                        inv_suc.stock_actual -= cantidad_a_descontar
-                        session.add(inv_suc)
-                        deductions_made.append(f"{receta.insumo.nombre} (-{cantidad_a_descontar}) @ Sucursal {sucursal_id}")
-                    else:
-                        # Fallback Create negative record if not exists in sucursal
-                        new_inv = InventarioSucursal(
-                            sucursal_id=sucursal_id,
+                    if current_doctor_id:
+                        # Fallback Create negative record if not exists in doctor's maletin
+                        new_inv = InventarioDoctor(
+                            doctor_id=current_doctor_id,
                             insumo_id=receta.insumo_id,
-                            stock_actual=-cantidad_a_descontar,
-                            stock_minimo=0
+                            stock_actual=-cantidad_a_descontar
                         )
                         session.add(new_inv)
-                        deductions_made.append(f"{receta.insumo.nombre} (CREATED -{cantidad_a_descontar}) @ Sucursal {sucursal_id}")
+                        deductions_made.append(f"{receta.insumo.nombre} (CREATED -{cantidad_a_descontar}) @ Doctor {current_doctor_id}")
+                    else:
+                        print(f"STOCK WARNING: Atencion sin doctor asignado. No se dedujo {receta.insumo.nombre}")
     
     if deductions_made:
         print(f"STOCK UPDATE: Atencion {atencion.id} consumed: {', '.join(deductions_made)}")
@@ -4066,7 +4057,6 @@ def get_cuadre_diario(
     fondo_banco = float(sucursal.fondo_banco) if sucursal and sucursal.fondo_banco else 0.0
 
     today = datetime.now().date()
-
     if start_date:
         date_from = datetime.combine(datetime.strptime(start_date, "%Y-%m-%d").date(), datetime.min.time())
     elif fecha:
@@ -4081,60 +4071,34 @@ def get_cuadre_diario(
     else:
         date_to = datetime.combine(today, datetime.max.time())
 
-    atenciones = session.exec(
-        select(Atencion)
+    # 1. Ingresos por Hoja de Cargo (Pagos realizados en estas fechas)
+    pagos_bd = session.exec(
+        select(Pago)
+        .join(Atencion, Pago.atencion_id == Atencion.id)
         .where(Atencion.sucursal_id == user.sucursal_id)
-        .where(Atencion.fecha >= date_from)
-        .where(Atencion.fecha <= date_to)
-        .options(
-            selectinload(Atencion.paciente),
-            selectinload(Atencion.pagos),
-            selectinload(Atencion.detalles)
-        )
-        .order_by(Atencion.fecha.asc())
+        .where(Pago.fecha >= date_from)
+        .where(Pago.fecha <= date_to)
+        .options(selectinload(Pago.atencion).selectinload(Atencion.paciente))
+        .order_by(Pago.fecha.asc())
     ).all()
-
-    filas = []
-    totales = {"efectivo": 0.0, "transferencia": 0.0, "tarjeta": 0.0, "abono_usado": 0.0, "total_tratamiento": 0.0}
-
-    for a in atenciones:
-        ef  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "EF")
-        tr  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "TR")
-        tc  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "TC")
-        ab  = sum(float(p.monto) for p in a.pagos if p.forma_pago == "AB")
-        total_cobrado = ef + tr + tc + ab
-        total_trat = sum(float(d.total_calculado) for d in a.detalles)
-        saldo_pend = max(0.0, total_trat - total_cobrado)
-
-        if total_trat == 0 and total_cobrado == 0:
-            continue
-
-        filas.append({
-            "atencion_id": a.id,
-            "fecha": a.fecha.strftime("%Y-%m-%d"),
-            "paciente": f"{a.paciente.nombres} {a.paciente.apellidos}".strip() if a.paciente else "N/A",
-            "historia_clinica": a.paciente.historia_clinica if a.paciente else "",
-            "total_tratamiento": round(total_trat, 2),
-            "efectivo":      round(ef, 2),
-            "transferencia": round(tr, 2),
-            "tarjeta":       round(tc, 2),
-            "abono_usado":   round(ab, 2),
-            "total_cobrado": round(total_cobrado, 2),
-            "saldo_pendiente": round(saldo_pend, 2),
+    
+    pagos_tratamientos = []
+    # Normalizamos métodos para el frontend
+    metodo_map = {"EF": "EFECTIVO", "TR": "TRANSFERENCIA", "TC": "TARJETA", "AB": "ABONO_USADO"}
+    for p in pagos_bd:
+        paciente = p.atencion.paciente if p.atencion and p.atencion.paciente else None
+        pagos_tratamientos.append({
+            "id": p.id,
+            "fecha": p.fecha.strftime("%Y-%m-%d %H:%M"),
+            "paciente": f"{paciente.nombres} {paciente.apellidos}".strip() if paciente else "N/A",
+            "historia_clinica": paciente.historia_clinica if paciente else "",
+            "atencion_id": p.atencion_id,
+            "metodo": metodo_map.get(p.forma_pago, p.forma_pago),
+            "monto": float(p.monto)
         })
 
-        totales["efectivo"]        += ef
-        totales["transferencia"]   += tr
-        totales["tarjeta"]         += tc
-        totales["abono_usado"]     += ab
-        totales["total_tratamiento"] += total_trat
-
-    totales["total_fisico"]  = totales["efectivo"] + totales["transferencia"] + totales["tarjeta"]
-    totales["total_cobrado"] = totales["total_fisico"] + totales["abono_usado"]
-    totales = {k: round(v, 2) for k, v in totales.items()}
-
-    # Abonos generados: nuevo dinero que entró a billeteras en este período
-    abonos_gen = session.exec(
+    # 2. Ingresos por Abonos (Dinero que entró a billetera)
+    abonos_bd = session.exec(
         select(HistorialAbono)
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
         .where(Paciente.sucursal_id == user.sucursal_id)
@@ -4143,50 +4107,52 @@ def get_cuadre_diario(
         .options(selectinload(HistorialAbono.paciente))
         .order_by(HistorialAbono.fecha.asc())
     ).all()
-
-    abonos_lista = []
-    abonos_normalizados = {"efectivo": 0.0, "transferencia": 0.0, "tarjeta": 0.0}
-    for h in abonos_gen:
-        metodo_raw = (h.metodo_pago or "").lower()
-        monto = float(h.monto)
-        if any(x in metodo_raw for x in ["efectivo", "ef", "cash"]):
-            abonos_normalizados["efectivo"] += monto
-        elif any(x in metodo_raw for x in ["transfer", "tr"]):
-            abonos_normalizados["transferencia"] += monto
-        elif any(x in metodo_raw for x in ["tarjeta", "tc", "card", "credito", "debito"]):
-            abonos_normalizados["tarjeta"] += monto
-        else:
-            abonos_normalizados["efectivo"] += monto  # default desconocido → efectivo
-        abonos_lista.append({
-            "fecha":    h.fecha.strftime("%Y-%m-%d %H:%M"),
-            "paciente": f"{h.paciente.nombres} {h.paciente.apellidos}".strip() if h.paciente else "N/A",
-            "metodo":   h.metodo_pago or "Desconocido",
-            "monto":    round(monto, 2),
+    
+    abonos = []
+    for a in abonos_bd:
+        abonos.append({
+            "id": a.id,
+            "fecha": a.fecha.strftime("%Y-%m-%d %H:%M"),
+            "paciente": f"{a.paciente.nombres} {a.paciente.apellidos}".strip() if a.paciente else "N/A",
+            "historia_clinica": a.paciente.historia_clinica if a.paciente else "",
+            "concepto": a.concepto or "Abono General",
+            "metodo": (a.metodo_pago or "EFECTIVO").upper(),
+            "monto": float(a.monto)
         })
 
-    abonos_normalizados = {k: round(v, 2) for k, v in abonos_normalizados.items()}
-
-    # Tabla "Total Real de Caja": pago_tratamiento + abono_realizado por método
-    real_caja = {
-        "efectivo":      {"tratamiento": totales["efectivo"],      "abono": abonos_normalizados["efectivo"],      "total": round(totales["efectivo"]      + abonos_normalizados["efectivo"],      2)},
-        "transferencia": {"tratamiento": totales["transferencia"],  "abono": abonos_normalizados["transferencia"], "total": round(totales["transferencia"]  + abonos_normalizados["transferencia"], 2)},
-        "tarjeta":       {"tratamiento": totales["tarjeta"],        "abono": abonos_normalizados["tarjeta"],       "total": round(totales["tarjeta"]        + abonos_normalizados["tarjeta"],       2)},
-    }
-    real_caja["gran_total"] = {
-        "tratamiento": round(totales["efectivo"] + totales["transferencia"] + totales["tarjeta"], 2),
-        "abono":       round(sum(abonos_normalizados.values()), 2),
-        "total":       round(totales["efectivo"] + totales["transferencia"] + totales["tarjeta"] + sum(abonos_normalizados.values()), 2),
-    }
+    # 3. Otros Ingresos y Egresos
+    gastos_bd = session.exec(
+        select(Gasto)
+        .where(Gasto.sucursal_id == user.sucursal_id)
+        .where(Gasto.fecha >= date_from)
+        .where(Gasto.fecha <= date_to)
+        .order_by(Gasto.fecha.asc())
+    ).all()
+    
+    otros_ingresos = []
+    egresos = []
+    for g in gastos_bd:
+        item = {
+            "id": g.id,
+            "fecha": g.fecha.strftime("%Y-%m-%d %H:%M"),
+            "descripcion": g.descripcion,
+            "categoria": g.categoria or "",
+            "responsable": g.responsable or "N/A",
+            "metodo": (g.metodo_pago or "EFECTIVO").upper(),
+            "monto": float(g.monto)
+        }
+        if g.tipo == "INGRESO":
+            otros_ingresos.append(item)
+        else:
+            egresos.append(item)
 
     return {
-        "filas": filas,
-        "totales": totales,
-        "abonos_generados": abonos_lista,
-        "abonos_normalizados": abonos_normalizados,
-        "total_abonos_generados": round(sum(float(h.monto) for h in abonos_gen), 2),
-        "real_caja": real_caja,
         "fondo_caja": fondo_caja,
         "fondo_banco": fondo_banco,
+        "pagos_tratamientos": pagos_tratamientos,
+        "abonos": abonos,
+        "otros_ingresos": otros_ingresos,
+        "egresos": egresos
     }
 
 

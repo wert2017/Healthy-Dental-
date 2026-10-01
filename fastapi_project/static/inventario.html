@@ -1,216 +1,720 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clínica HD - Mantenimiento</title>
+    <title>Módulo de Compras e Inventario - Healthy Dental</title>
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/static/favicon.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js" crossorigin="anonymous"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
-        rel="stylesheet">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
-        *, *::before, *::after { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
-        body {
-            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-            background-color: #cbd5e0 !important;
-        }
-
-        .border-gray-100, .border-gray-200 {
-            border-color: #cbd5e1 !important;
-        }
-
-        .animate-fade-in {
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
         [v-cloak] { display: none !important; }
+        .tab-active { border-bottom: 2px solid #2563eb; color: #1e40af; font-weight: 600; }
+        .tab-inactive { color: #6b7280; }
+        .tab-inactive:hover { color: #374151; }
     </style>
 </head>
-
-<body class="bg-slate-50 min-h-screen">
-    <div id="app" v-cloak>
-        <!-- Header -->
-        <!-- Header Unificado -->
-        <header class="bg-white shadow-sm border-b border-gray-200 mb-8 sticky top-0 z-30">
-            <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-                <!-- Fila 1: Logo + Usuario + Salir -->
-                <div class="flex justify-between items-center h-12 border-b border-gray-100" :style="branchColorStyle">
-                    <div class="flex items-center gap-3">
-                        <img src="/static/logo.png" alt="Logo Clínica HD" class="h-8 w-auto">
-                        <h1 class="text-sm font-bold" :style="{ color: branchTextColor }">
-                            {{ sucursalNombre }}
-                        </h1>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                            </svg>
-                        </div>
-                        <span class="text-sm font-medium text-gray-700">{{ currentUser }}</span>
-                        <a href="#" @click.prevent="logout"
-                            class="ml-2 px-3 py-1 rounded-md text-xs font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors">
-                            Salir
-                        </a>
-                    </div>
-                </div>
-                <!-- Fila 2: Navegación -->
-                <div class="flex flex-wrap gap-x-1 gap-y-0.5 py-1.5">
-                    <!-- Recepción -->
-                    <a href="/recepcion"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/recepcion') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Recepción
-                    </a>
-                    <!-- CxC / Abonos -->
-                    <a href="/static/pagos.html"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/static/pagos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        CxC / Abonos
-                    </a>
-                    <!-- Calendario -->
-                    <a href="/static/calendario.html"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/static/calendario.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Calendario 📅
-                    </a>
-                    <!-- Cuadre Diario -->
-                    <a v-if="role !== 'doctor'" href="/cuadre"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/cuadre') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Cuadre Diario
-                    </a>
-                    <!-- Gastos -->
-                    <a v-if="role !== 'doctor'" href="/gastos"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/gastos') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">Egresos/Gastos</a>
-                    <!-- Administración -->
-                    <a v-if="role === 'admin'" href="/admin"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/admin') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Administración
-                    </a>
-                    <!-- Pacientes -->
-                    <a v-if="role !== 'doctor'" href="/admin/paciente/list"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/admin/paciente/list') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Pacientes
-                    </a>
-                    <!-- Reportes -->
-                    <a v-if="role === 'admin'" href="/static/reportes.html"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/static/reportes.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Reportes
-                    </a>
-                    <!-- Ingresos -->
-                    <a v-if="role === 'admin'" href="/static/ingresos.html"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/static/ingresos.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Ingresos
-                    </a>
-                    <!-- Doctores -->
-                    <a v-if="role !== 'doctor'" href="/static/doctores.html"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/static/doctores.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Doctores
-                    </a>
-                    <!-- Ortodoncia -->
-                    <a v-if="role !== 'doctor'" href="/static/ortodoncia.html"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/static/ortodoncia.html') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Ortodoncia
-                    </a>
-                    <!-- Historial -->
-                    <a v-if="role !== 'recepcion'" href="/recepcion/historial"
-                        class="px-3 py-1.5 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                        :class="isActive('/recepcion/historial') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'">
-                        Historial
-                    </a>
-                </div>
-            </div>
-        </header>
-
+<body class="bg-gray-50 h-screen flex overflow-hidden">
+    
+    <div id="app" v-cloak class="w-full flex h-full">
         <!-- Main Content -->
-        <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-            <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-16 text-center animate-fade-in">
-                <div class="inline-flex items-center justify-center w-24 h-24 bg-amber-50 rounded-full mb-8">
-                    <svg class="w-12 h-12 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
+        <div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto relative">
+            <!-- Header -->
+            <header class="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+                <div class="px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-boxes-stacked mr-2 text-blue-600"></i> Compras e Inventarios</h1>
+                        <p class="text-sm text-gray-500 mt-1">Gestión de proveedores, productos y recepción de compras.</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button onclick="window.location.href='/static/admin_dashboard.html'" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors shadow-sm font-medium">
+                            <i class="fa-solid fa-arrow-left mr-2"></i> Volver al Panel
+                        </button>
+                    </div>
                 </div>
-                <h2 class="text-3xl font-bold text-gray-800 mb-4 uppercase tracking-tighter italic">Sección en
-                    Mantenimiento</h2>
-                <p class="text-xl text-gray-500 max-w-lg mx-auto leading-relaxed">
-                    Estamos trabajando intensamente en optimizar el sistema de gestión de insumos para brindarte un
-                    mejor servicio. Por el momento, esta sección no está disponible.
-                </p>
-                <div class="mt-10 flex justify-center gap-4">
-                    <a href="/recepcion"
-                        class="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-600/20">
-                        Volver a Recepción
-                    </a>
+            </header>
+            
+            <main class="flex-1 p-6 pb-24">
+                
+                <!-- Navigation Tabs -->
+                <div class="flex border-b border-gray-200 mb-6">
+                    <button @click="currentTab = 'compras'" :class="currentTab === 'compras' ? 'tab-active' : 'tab-inactive'" class="px-6 py-3 text-sm focus:outline-none transition-colors duration-200 flex items-center">
+                        <i class="fa-solid fa-cart-shopping mr-2"></i> Registrar Compra
+                    </button>
+                    <button @click="currentTab = 'proveedores'" :class="currentTab === 'proveedores' ? 'tab-active' : 'tab-inactive'" class="px-6 py-3 text-sm focus:outline-none transition-colors duration-200 flex items-center">
+                        <i class="fa-solid fa-truck-field mr-2"></i> Proveedores
+                    </button>
+                    <button @click="currentTab = 'bodegas'" :class="currentTab === 'bodegas' ? 'tab-active' : 'tab-inactive'" class="px-6 py-3 text-sm focus:outline-none transition-colors duration-200 flex items-center">
+                        <i class="fa-solid fa-warehouse mr-2"></i> Bodegas
+                    </button>
+                    <button @click="currentTab = 'productos'" :class="currentTab === 'productos' ? 'tab-active' : 'tab-inactive'" class="px-6 py-3 text-sm focus:outline-none transition-colors duration-200 flex items-center">
+                        <i class="fa-solid fa-box-open mr-2"></i> Productos / Insumos
+                    </button>
+                    <button @click="currentTab = 'recetas'" :class="currentTab === 'recetas' ? 'tab-active' : 'tab-inactive'" class="px-6 py-3 text-sm focus:outline-none transition-colors duration-200 flex items-center">
+                        <i class="fa-solid fa-notes-medical mr-2"></i> Kits de Tratamiento
+                    </button>
+                </div>
+
+                <!-- ALERT ERROR -->
+                <div v-if="errorMsg" class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-md">
+                    <div class="flex items-start">
+                        <i class="fa-solid fa-circle-exclamation text-red-500 mt-0.5 mr-3"></i>
+                        <div>
+                            <h3 class="text-sm font-medium text-red-800">Error detectado</h3>
+                            <p class="text-sm text-red-700 mt-1">{{ errorMsg }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB: PROVEEDORES -->
+                <div v-show="currentTab === 'proveedores'" class="space-y-6">
+                    <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-800">Directorio de Proveedores</h2>
+                        <button @click="showProveedorModal = true" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center">
+                            <i class="fa-solid fa-plus mr-2"></i> Nuevo Proveedor
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-gray-50 text-gray-600 font-medium border-b border-gray-100">
+                                <tr>
+                                    <th class="px-6 py-4">RUC</th>
+                                    <th class="px-6 py-4">Empresa / Nombre</th>
+                                    <th class="px-6 py-4">Contacto (Persona)</th>
+                                    <th class="px-6 py-4">Teléfono</th>
+                                    <th class="px-6 py-4">Email</th>
+                                    <th class="px-6 py-4">Dirección</th>
+                                    <th class="px-6 py-4 text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                <tr v-for="prov in proveedores" :key="prov.id" class="hover:bg-blue-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-mono text-gray-600">{{ prov.ruc || '-' }}</td>
+                                    <td class="px-6 py-4 font-semibold text-gray-800">{{ prov.nombre }}</td>
+                                    <td class="px-6 py-4 text-gray-600">{{ prov.contacto || '-' }}</td>
+                                    <td class="px-6 py-4 text-gray-600">{{ prov.telefono || '-' }}</td>
+                                    <td class="px-6 py-4 text-gray-600">{{ prov.email || '-' }}</td>
+                                    <td class="px-6 py-4 text-gray-600">{{ prov.direccion || '-' }}</td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span v-if="prov.activo" class="bg-green-100 text-green-700 px-2 py-1 rounded-md text-xs font-bold">Activo</span>
+                                        <span v-else class="bg-red-100 text-red-700 px-2 py-1 rounded-md text-xs font-bold">Inactivo</span>
+                                    </td>
+                                </tr>
+                                <tr v-if="proveedores.length === 0">
+                                    <td colspan="7" class="px-6 py-8 text-center text-gray-400">No hay proveedores registrados.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB: BODEGAS -->
+                <div v-show="currentTab === 'bodegas'" class="space-y-6">
+                    <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-800">Bodegas por Sucursal</h2>
+                        <button @click="showBodegaModal = true" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center">
+                            <i class="fa-solid fa-plus mr-2"></i> Nueva Bodega
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-gray-50 text-gray-600 font-medium border-b border-gray-100">
+                                <tr>
+                                    <th class="px-6 py-4">Nombre de Bodega</th>
+                                    <th class="px-6 py-4">Sucursal</th>
+                                    <th class="px-6 py-4">Tipo</th>
+                                    <th class="px-6 py-4 text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                <tr v-for="bod in bodegas" :key="bod.id" class="hover:bg-blue-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-semibold text-gray-800">{{ bod.nombre }}</td>
+                                    <td class="px-6 py-4 text-gray-600">{{ getSucursalName(bod.sucursal_id) }}</td>
+                                    <td class="px-6 py-4 text-gray-600">{{ bod.tipo }}</td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span v-if="bod.activo" class="bg-green-100 text-green-700 px-2 py-1 rounded-md text-xs font-bold">Activa</span>
+                                        <span v-else class="bg-red-100 text-red-700 px-2 py-1 rounded-md text-xs font-bold">Inactiva</span>
+                                    </td>
+                                </tr>
+                                <tr v-if="bodegas.length === 0">
+                                    <td colspan="4" class="px-6 py-8 text-center text-gray-400">No hay bodegas registradas.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB: PRODUCTOS -->
+                <div v-show="currentTab === 'productos'" class="space-y-6">
+                    <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-800">Catálogo de Productos / Insumos</h2>
+                        <button @click="showProductoModal = true" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center">
+                            <i class="fa-solid fa-plus mr-2"></i> Nuevo Producto
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-gray-50 text-gray-600 font-medium border-b border-gray-100">
+                                <tr>
+                                    <th class="px-6 py-4">Nombre / Descripción</th>
+                                    <th class="px-6 py-4">Unidad de Medida</th>
+                                    <th class="px-6 py-4">Stock Central</th>
+                                    <th class="px-6 py-4">Stock Mínimo</th>
+                                    <th class="px-6 py-4 text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                <tr v-for="prod in productos" :key="prod.id" class="hover:bg-blue-50/50 transition-colors">
+                                    <td class="px-6 py-4 font-semibold text-gray-800">{{ prod.nombre }}</td>
+                                    <td class="px-6 py-4 text-gray-600">{{ prod.unidad_medida }}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="font-bold" :class="prod.stock_actual <= prod.stock_minimo ? 'text-red-600' : 'text-green-600'">
+                                            {{ prod.stock_actual }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">{{ prod.stock_minimo }}</td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span v-if="prod.stock_actual > prod.stock_minimo" class="bg-green-100 text-green-700 px-2 py-1 rounded-md text-xs font-bold">Óptimo</span>
+                                        <span v-else class="bg-red-100 text-red-700 px-2 py-1 rounded-md text-xs font-bold">Bajo Stock</span>
+                                    </td>
+                                </tr>
+                                <tr v-if="productos.length === 0">
+                                    <td colspan="5" class="px-6 py-8 text-center text-gray-400">No hay productos registrados.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB: RECETAS (KITS) -->
+                <div v-show="currentTab === 'recetas'" class="max-w-5xl mx-auto space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center mb-4">
+                            <i class="fa-solid fa-tooth text-blue-600 mr-3"></i> Configuración de Insumos por Tratamiento
+                        </h2>
+                        <p class="text-gray-500 mb-6 text-sm">Selecciona un tratamiento para asignarle los productos y cantidades que consume automáticamente cada vez que se realiza.</p>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Seleccionar Tratamiento</label>
+                            <select v-model="selectedTratamientoId" @change="cargarRecetasTratamiento" class="w-full md:w-1/2 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 border font-medium text-gray-800">
+                                <option value="" disabled>-- Elige un tratamiento --</option>
+                                <option v-for="t in tratamientos" :value="t.id">{{ t.codigo }} - {{ t.nombre }}</option>
+                            </select>
+                        </div>
+                        
+                        <div v-if="selectedTratamientoId" class="border-t border-gray-100 pt-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold text-gray-800">Insumos Requeridos</h3>
+                                <button type="button" @click="agregarInsumoReceta" class="text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-md transition-colors flex items-center">
+                                    <i class="fa-solid fa-plus mr-1.5"></i> Añadir Insumo
+                                </button>
+                            </div>
+                            
+                            <div class="space-y-3 mb-6">
+                                <div v-for="(item, index) in formReceta" :key="index" class="flex items-center gap-3 bg-gray-50 p-3 border border-gray-200 rounded-lg shadow-sm">
+                                    <div class="flex-1">
+                                        <select v-model="item.insumo_id" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-sm">
+                                            <option value="" disabled>Seleccione producto...</option>
+                                            <option v-for="prod in productos" :value="prod.id">{{ prod.nombre }} ({{ prod.unidad_medida }})</option>
+                                        </select>
+                                    </div>
+                                    <div class="w-32">
+                                        <label class="text-xs text-gray-500 block mb-1">Cantidad req.</label>
+                                        <input v-model.number="item.cantidad_requerida" type="number" min="1" step="1" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-sm text-center">
+                                    </div>
+                                    <div class="w-12 flex items-end justify-center pb-1">
+                                        <button type="button" @click="eliminarInsumoReceta(index)" class="text-red-500 hover:bg-red-50 p-2 rounded-md transition-colors" title="Quitar">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div v-if="formReceta.length === 0" class="text-center p-8 bg-white border border-dashed border-gray-300 rounded-lg text-gray-500 text-sm">
+                                    Este tratamiento no tiene insumos asignados actualmente. <br> No descontará inventario automáticamente.
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end">
+                                <button type="button" @click="guardarRecetas" :disabled="guardando" class="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-6 py-2.5 rounded-lg font-bold shadow-sm transition-all flex items-center">
+                                    <i v-if="guardando" class="fa-solid fa-spinner fa-spin mr-2"></i>
+                                    <i v-else class="fa-solid fa-save mr-2"></i>
+                                    Guardar Configuración
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-show="currentTab === 'compras'" class="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                    <div class="mb-8 border-b border-gray-100 pb-5">
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                            <i class="fa-solid fa-receipt text-blue-600 mr-3"></i> Recepción de Compra / Gasto
+                        </h2>
+                        <p class="text-gray-500 mt-1">Registra la factura de tu proveedor. Los productos se sumarán a bodega y el valor total se registrará como Gasto automáticamente.</p>
+                    </div>
+
+                    <form @submit.prevent="registrarCompra" class="space-y-6">
+                        <!-- Bloque 1: Cabecera Documento -->
+                        <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Proveedor *</label>
+                                <select v-model="formCompra.proveedor_id" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                                    <option value="" disabled>Seleccione proveedor...</option>
+                                    <option v-for="p in proveedores" :value="p.id">{{ p.nombre }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Bodega (Destino) *</label>
+                                <select v-model="formCompra.bodega_id" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                                    <option value="" disabled>Seleccione Bodega...</option>
+                                    <option v-for="b in bodegas" :value="b.id">{{ b.nombre }} ({{ getSucursalName(b.sucursal_id) }})</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Tipo de Documento *</label>
+                                <select v-model="formCompra.tipo_documento" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                                    <option value="Factura">Factura</option>
+                                    <option value="Nota de Venta">Nota de Venta</option>
+                                    <option value="Recibo">Recibo / Comprobante</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Número de Documento</label>
+                                <input v-model="formCompra.numero_documento" type="text" placeholder="Ej: 001-002-00000456" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Método de Pago *</label>
+                                <select v-model="formCompra.metodo_pago" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                                    <option value="TRANSFERENCIA">Transferencia / Banco</option>
+                                    <option value="EFECTIVO">Efectivo (Caja Chica)</option>
+                                    <option value="TARJETA">Tarjeta de Crédito/Débito</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Bloque 2: Productos -->
+                        <div>
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold text-gray-800">Detalle de Productos</h3>
+                                <button type="button" @click="agregarFilaProducto" class="text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors flex items-center">
+                                    <i class="fa-solid fa-plus mr-1.5"></i> Añadir Fila
+                                </button>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <div v-for="(item, index) in formCompra.detalles" :key="index" class="flex items-center gap-3 bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
+                                    <div class="flex-1">
+                                        <select v-model="item.insumo_id" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-sm">
+                                            <option value="" disabled>Seleccione producto...</option>
+                                            <option v-for="prod in productos" :value="prod.id">{{ prod.nombre }} ({{ prod.unidad_medida }})</option>
+                                        </select>
+                                    </div>
+                                    <div class="w-24">
+                                        <input v-model.number="item.cantidad" type="number" min="1" step="1" required placeholder="Cant" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-sm text-center">
+                                    </div>
+                                    <div class="w-32 relative">
+                                        <span class="absolute left-3 top-2 text-gray-500 text-sm">$</span>
+                                        <input v-model.number="item.precio_unitario" type="number" min="0" step="0.01" required placeholder="Precio Unit" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 pl-7 border text-sm">
+                                    </div>
+                                    <div class="w-24 text-right font-bold text-gray-700 bg-gray-50 p-2 rounded border border-gray-100">
+                                        ${{ (item.cantidad * item.precio_unitario).toFixed(2) }}
+                                    </div>
+                                    <button type="button" @click="eliminarFilaProducto(index)" class="text-red-500 hover:bg-red-50 p-2 rounded-md transition-colors" title="Quitar">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                                <div v-if="formCompra.detalles.length === 0" class="text-center p-6 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-gray-500 text-sm">
+                                    Agrega productos para registrar la compra.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bloque 3: Totales -->
+                        <div class="flex justify-end pt-4 border-t border-gray-100">
+                            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 min-w-[250px]">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-medium text-blue-800">Total a Pagar:</span>
+                                    <span class="text-2xl font-black text-blue-900">${{ totalCompraFormateado }}</span>
+                                </div>
+                                <p class="text-xs text-blue-600 mt-1 text-right">Generará gasto automáticamente</p>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4 flex justify-end">
+                            <button type="submit" :disabled="guardando || formCompra.detalles.length === 0 || totalCompraMonto <= 0" class="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-8 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center text-lg">
+                                <i v-if="guardando" class="fa-solid fa-spinner fa-spin mr-2"></i>
+                                <i v-else class="fa-solid fa-check-circle mr-2"></i>
+                                Procesar e Ingresar a Bodega
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </main>
+        </div>
+
+        <!-- MODAL PROVEEDOR -->
+        <div v-if="showProveedorModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 class="font-bold text-lg text-gray-800">Nuevo Proveedor</h3>
+                    <button @click="showProveedorModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto">
+                    <form @submit.prevent="guardarProveedor" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">RUC *</label>
+                            <input v-model="formProv.ruc" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border" placeholder="Ej: 1790000000001">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Nombre de la Empresa *</label>
+                            <input v-model="formProv.nombre" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Dirección</label>
+                            <input v-model="formProv.direccion" type="text" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Nombre del Contacto</label>
+                            <input v-model="formProv.contacto" type="text" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Teléfono</label>
+                                <input v-model="formProv.telefono" type="text" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Correo Electrónico</label>
+                                <input v-model="formProv.email" type="email" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-6">
+                            <button type="button" @click="showProveedorModal = false" class="px-5 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition-colors">Guardar Proveedor</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
+
+        <!-- MODAL BODEGA -->
+        <div v-if="showBodegaModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 class="font-bold text-lg text-gray-800">Nueva Bodega</h3>
+                    <button @click="showBodegaModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto">
+                    <form @submit.prevent="guardarBodega" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Nombre de la Bodega *</label>
+                            <input v-model="formBodega.nombre" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border" placeholder="Ej: Bodega Principal">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Sucursal *</label>
+                            <select v-model="formBodega.sucursal_id" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                                <option value="" disabled>Seleccione Sucursal</option>
+                                <option v-for="s in sucursales" :value="s.id">{{ s.nombre }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Tipo *</label>
+                            <select v-model="formBodega.tipo" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                                <option value="PRINCIPAL">Principal</option>
+                                <option value="SECUNDARIA">Secundaria</option>
+                                <option value="DOCTOR">Doctor (Maletín)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-6">
+                            <button type="button" @click="showBodegaModal = false" class="px-5 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition-colors">Guardar Bodega</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL PRODUCTO -->
+        <div v-if="showProductoModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 class="font-bold text-lg text-gray-800">Nuevo Producto / Insumo</h3>
+                    <button @click="showProductoModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto">
+                    <form @submit.prevent="guardarProducto" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Nombre del Producto *</label>
+                            <input v-model="formProd.nombre" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border" placeholder="Ej: Resina 3M Filtek">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Unidad de Medida *</label>
+                            <input v-model="formProd.unidad_medida" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border" placeholder="Ej: Jeringa, Caja x50, Unidad">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Stock Actual (Inicial)</label>
+                                <input v-model.number="formProd.stock_actual" type="number" min="0" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Stock Mínimo</label>
+                                <input v-model.number="formProd.stock_minimo" type="number" min="0" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Proveedor Principal (Opcional)</label>
+                            <select v-model="formProd.proveedor_id" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                                <option :value="null">Ninguno / Varios</option>
+                                <option v-for="p in proveedores" :value="p.id">{{ p.nombre }}</option>
+                            </select>
+                        </div>
+                        
+                        <div class="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-6">
+                            <button type="button" @click="showProductoModal = false" class="px-5 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition-colors">Guardar Producto</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
-        const { createApp, ref, computed } = Vue
+        const { createApp, ref, onMounted, computed } = Vue;
+
         createApp({
             setup() {
-                const token = localStorage.getItem('token')
-                const role = ref(localStorage.getItem('role'))
-                const currentUser = ref(localStorage.getItem('full_name') || localStorage.getItem('username') || 'Usuario')
-                const sucursalNombre = ref(localStorage.getItem('sucursal_nombre') || 'Clínica HD')
-                const branchColorStyle = computed(() => {
-                    const name = sucursalNombre.value ? sucursalNombre.value.toLowerCase() : '';
-                    let colors = { bg: '#f1f5f9', border: '#e2e8f0' };
-                    if (name.includes('magdalena')) {
-                        colors = { bg: '#eff6ff', border: '#bfdbfe' };
-                    } else if (name.includes('condado')) {
-                        colors = { bg: '#f5f3ff', border: '#ddd6fe' };
+                const currentTab = ref('compras');
+                const errorMsg = ref('');
+                const guardando = ref(false);
+                
+                // Data
+                const proveedores = ref([]);
+                const productos = ref([]);
+                const sucursales = ref([]);
+                const bodegas = ref([]);
+                const tratamientos = ref([]);
+                const usuario = ref(null);
+
+                // Modals
+                const showProveedorModal = ref(false);
+                const formProv = ref({ ruc: '', nombre: '', contacto: '', telefono: '', email: '', direccion: '' });
+
+                const showProductoModal = ref(false);
+                const formProd = ref({ nombre: '', unidad_medida: '', stock_actual: 0, stock_minimo: 5, proveedor_id: null });
+
+                const showBodegaModal = ref(false);
+                const formBodega = ref({ nombre: '', sucursal_id: '', tipo: 'PRINCIPAL', activo: true });
+
+                // Recetas / Kits
+                const selectedTratamientoId = ref("");
+                const formReceta = ref([]);
+
+                // Compra Form
+                const formCompra = ref({
+                    proveedor_id: '',
+                    bodega_id: '',
+                    usuario_id: null,
+                    tipo_documento: 'Factura',
+                    numero_documento: '',
+                    metodo_pago: 'TRANSFERENCIA',
+                    observaciones: '',
+                    detalles: []
+                });
+
+                const agregarFilaProducto = () => {
+                    formCompra.value.detalles.push({ insumo_id: '', cantidad: 1, precio_unitario: 0 });
+                };
+
+                const eliminarFilaProducto = (index) => {
+                    formCompra.value.detalles.splice(index, 1);
+                };
+
+                const totalCompraMonto = computed(() => {
+                    return formCompra.value.detalles.reduce((sum, item) => sum + (item.cantidad * item.precio_unitario), 0);
+                });
+
+                const totalCompraFormateado = computed(() => totalCompraMonto.value.toFixed(2));
+
+                const checkAuth = async () => {
+                    try {
+                        const token = localStorage.getItem('token');
+                        if (!token) { window.location.href = '/static/login.html'; return; }
+                        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                        
+                        const res = await axios.get('/api/users/me');
+                        if (res.data.role !== 'admin') {
+                            window.location.href = '/static/doctor_dashboard.html';
+                            return;
+                        }
+                        usuario.value = res.data;
+                        formCompra.value.usuario_id = usuario.value.id;
+                        
+                        // Cargar catálogos
+                        cargarCatalogos();
+                    } catch (error) {
+                        window.location.href = '/static/login.html';
                     }
-                    return {
-                        backgroundColor: colors.bg,
-                        borderBottom: `2px solid ${colors.border}`,
-                        paddingLeft: '12px',
-                        paddingRight: '12px',
-                        borderRadius: '8px',
-                        marginTop: '6px',
-                        marginBottom: '6px'
-                    };
+                };
+
+                const cargarCatalogos = async () => {
+                    try {
+                        const [provRes, sucRes, prodRes, bodRes, tratRes] = await Promise.all([
+                            axios.get('/api/inventario/proveedores'),
+                            axios.get('/api/inventario/sucursales'),
+                            axios.get('/api/inventario/insumos'),
+                            axios.get('/api/inventario/bodegas'),
+                            axios.get('/api/tratamientos')
+                        ]);
+                        proveedores.value = provRes.data;
+                        sucursales.value = sucRes.data;
+                        productos.value = prodRes.data;
+                        bodegas.value = bodRes.data;
+                        tratamientos.value = tratRes.data;
+                    } catch (err) {
+                        errorMsg.value = 'Error al cargar catálogos base.';
+                    }
+                };
+
+                const getSucursalName = (id) => {
+                    const s = sucursales.value.find(x => x.id === id);
+                    return s ? s.nombre : 'Desconocida';
+                };
+
+                const guardarProveedor = async () => {
+                    try {
+                        const res = await axios.post('/api/inventario/proveedores', formProv.value);
+                        proveedores.value.push(res.data);
+                        showProveedorModal.value = false;
+                        formProv.value = { nombre: '', contacto: '', telefono: '', email: '' };
+                        Swal.fire({ icon: 'success', title: 'Proveedor creado', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                    } catch (err) {
+                        errorMsg.value = "Error al guardar proveedor.";
+                    }
+                };
+
+                const guardarProducto = async () => {
+                    try {
+                        const res = await axios.post('/api/inventario/insumos', formProd.value);
+                        productos.value.push(res.data);
+                        showProductoModal.value = false;
+                        formProd.value = { nombre: '', unidad_medida: '', stock_actual: 0, stock_minimo: 5, proveedor_id: null };
+                        Swal.fire({ icon: 'success', title: 'Producto creado', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                    } catch (err) {
+                        errorMsg.value = "Error al guardar producto.";
+                    }
+                };
+
+                const guardarBodega = async () => {
+                    try {
+                        const res = await axios.post('/api/inventario/bodegas', formBodega.value);
+                        bodegas.value.push(res.data);
+                        showBodegaModal.value = false;
+                        formBodega.value = { nombre: '', sucursal_id: '', tipo: 'PRINCIPAL', activo: true };
+                        Swal.fire({ icon: 'success', title: 'Bodega creada', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                    } catch (err) {
+                        errorMsg.value = "Error al guardar bodega.";
+                    }
+                };
+
+                const cargarRecetasTratamiento = async () => {
+                    if (!selectedTratamientoId.value) return;
+                    try {
+                        const res = await axios.get(`/api/inventario/tratamientos/${selectedTratamientoId.value}/recetas`);
+                        formReceta.value = res.data.map(r => ({ insumo_id: r.insumo_id, cantidad_requerida: r.cantidad_requerida }));
+                    } catch (err) {
+                        console.error("Error al cargar recetas del tratamiento", err);
+                    }
+                };
+
+                const agregarInsumoReceta = () => {
+                    formReceta.value.push({ insumo_id: '', cantidad_requerida: 1 });
+                };
+
+                const eliminarInsumoReceta = (index) => {
+                    formReceta.value.splice(index, 1);
+                };
+
+                const guardarRecetas = async () => {
+                    if (!selectedTratamientoId.value) return;
+                    guardando.value = true;
+                    try {
+                        await axios.post(`/api/inventario/tratamientos/${selectedTratamientoId.value}/recetas`, formReceta.value);
+                        Swal.fire({ icon: 'success', title: 'Configuración guardada', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                    } catch (err) {
+                        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar la configuración.' });
+                    } finally {
+                        guardando.value = false;
+                    }
+                };
+
+                const registrarCompra = async () => {
+                    if(formCompra.value.detalles.length === 0) return;
+                    
+                    guardando.value = true;
+                    try {
+                        // Limpiar detalles vacíos
+                        formCompra.value.detalles = formCompra.value.detalles.filter(d => d.insumo_id && d.cantidad > 0);
+                        
+                        const res = await axios.post('/api/inventario/compras', formCompra.value);
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Compra Registrada!',
+                            text: 'El inventario se ha actualizado y el gasto ha sido cargado en el dashboard exitosamente.',
+                            confirmButtonColor: '#2563eb'
+                        });
+                        
+                        // Limpiar form
+                        formCompra.value.numero_documento = '';
+                        formCompra.value.detalles = [];
+                        
+                    } catch (err) {
+                        console.error(err);
+                        errorMsg.value = err.response?.data?.detail || "Error interno al registrar la compra.";
+                    } finally {
+                        guardando.value = false;
+                    }
+                };
+
+                onMounted(() => {
+                    checkAuth();
+                    agregarFilaProducto(); // Fila inicial
                 });
-                const branchTextColor = computed(() => {
-                    const name = sucursalNombre.value ? sucursalNombre.value.toLowerCase() : '';
-                    if (name.includes('magdalena')) return '#1e40af';
-                    if (name.includes('condado')) return '#6b21a8';
-                    return '#334155';
-                });
-                const isActive = (path) => window.location.pathname === path
-                if (!token) window.location.href = '/login'
-                const logout = () => {
-                    localStorage.clear()
-                    window.location.href = '/login'
-                }
-                return { role, currentUser, sucursalNombre, branchColorStyle, branchTextColor, isActive, logout }
+
+                return {
+                    currentTab, errorMsg, guardando,
+                    proveedores, productos, sucursales, bodegas, tratamientos,
+                    getSucursalName,
+                    showProveedorModal, formProv, guardarProveedor,
+                    showProductoModal, formProd, guardarProducto,
+                    showBodegaModal, formBodega, guardarBodega,
+                    selectedTratamientoId, formReceta, cargarRecetasTratamiento, agregarInsumoReceta, eliminarInsumoReceta, guardarRecetas,
+                    formCompra, agregarFilaProducto, eliminarFilaProducto,
+                    totalCompraMonto, totalCompraFormateado, registrarCompra
+                };
             }
-        }).mount('#app')
+        }).mount('#app');
     </script>
 </body>
-
 </html>
