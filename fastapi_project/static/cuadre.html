@@ -179,28 +179,78 @@
                 </button>
             </div>
 
-            <!-- Tarjetas resumen Diario -->
-            <div class="summary-bar" v-if="data">
-                <div class="sc">
-                    <div class="sc-label" style="color:#2563eb;">Ingresos Tratamientos</div>
-                    <div class="sc-value" style="color:#2563eb;">${{ fmt(totalPagosTrat) }}</div>
+
+            <!-- ── TABLA RESUMEN GENERAL (primera en el reporte) ── -->
+            <div class="section" v-if="data" style="margin-bottom:20px;">
+                <div class="section-head" style="background: linear-gradient(90deg,#1e3a5f,#2563eb); border-radius:8px 8px 0 0;">
+                    <span class="section-title" style="color:#fff; font-size:14px;">📊 RESUMEN GENERAL DEL PERÍODO</span>
                 </div>
-                <div class="sc">
-                    <div class="sc-label" style="color:#d97706;">Ingresos Abonos</div>
-                    <div class="sc-value" style="color:#d97706;">${{ fmt(totalAbonos) }}</div>
-                </div>
-                <div class="sc">
-                    <div class="sc-label" style="color:#059669;">Otros Ingresos</div>
-                    <div class="sc-value" style="color:#059669;">${{ fmt(totalOtrosIng) }}</div>
-                </div>
-                <div class="sc">
-                    <div class="sc-label" style="color:#dc2626;">Egresos / Gastos</div>
-                    <div class="sc-value" style="color:#dc2626;">-${{ fmt(totalEgresos) }}</div>
-                </div>
-                <div class="sc" style="background:#f0fdf4; border-right: none;">
-                    <div class="sc-label" style="color:#15803d;">Saldo Neto del Día</div>
-                    <div class="sc-value" style="color:#15803d; font-size:26px;">${{ fmt(saldoNetoDia) }}</div>
-                    <div class="sc-sub">INGRESOS - EGRESOS</div>
+                <div class="section-body" style="overflow-x:auto; padding:0;">
+                    <table class="dt" style="border:none;">
+                        <thead style="background:#f0f6ff;">
+                            <tr>
+                                <th style="text-align:left; padding:10px 14px; font-size:11px; color:#374151; min-width:160px;">Concepto</th>
+                                <th style="text-align:right; padding:10px 14px; font-size:11px; color:#059669;">💵 Efectivo</th>
+                                <th style="text-align:right; padding:10px 14px; font-size:11px; color:#2563eb;">🏦 Transferencia</th>
+                                <th style="text-align:right; padding:10px 14px; font-size:11px; color:#7c3aed;">💳 Tarjeta/TC</th>
+                                <th style="text-align:right; padding:10px 14px; font-size:11px; color:#d97706;">🪙 Abono Usado</th>
+                                <th style="text-align:right; padding:10px 14px; font-size:11px; color:#111827; background:#f9fafb;">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Ingresos por Tratamientos -->
+                            <tr style="border-top:1px solid #e5e7eb;">
+                                <td style="padding:9px 14px; font-weight:600; color:#2563eb;">1. Tratamientos</td>
+                                <td style="padding:9px 14px; text-align:right; color:#059669;">${{ fmt(sumByMetodo(filteredPagosTrat,'EFECTIVO')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#2563eb;">${{ fmt(sumByMetodo(filteredPagosTrat,'TRANSFERENCIA')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#7c3aed;">${{ fmt(sumByMetodo(filteredPagosTrat,'TARJETA')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#d97706;">${{ fmt(sumByMetodo(filteredPagosTrat,'ABONO_USADO')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; font-weight:700; background:#f9fafb;">${{ fmt(totalPagosTrat) }}</td>
+                            </tr>
+                            <!-- Abonos -->
+                            <tr style="border-top:1px solid #e5e7eb;">
+                                <td style="padding:9px 14px; font-weight:600; color:#d97706;">2. Abonos a Billetera</td>
+                                <td style="padding:9px 14px; text-align:right; color:#059669;">${{ fmt(sumByMetodo(filteredAbonos,'EFECTIVO')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#2563eb;">${{ fmt(sumByMetodo(filteredAbonos,'TRANSFERENCIA')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#7c3aed;">${{ fmt(sumByMetodo(filteredAbonos,'TARJETA')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#9ca3af;">—</td>
+                                <td style="padding:9px 14px; text-align:right; font-weight:700; background:#f9fafb;">${{ fmt(totalAbonos) }}</td>
+                            </tr>
+                            <!-- Otros Ingresos -->
+                            <tr style="border-top:1px solid #e5e7eb;">
+                                <td style="padding:9px 14px; font-weight:600; color:#059669;">3. Otros Ingresos</td>
+                                <td style="padding:9px 14px; text-align:right; color:#059669;">${{ fmt(sumByMetodo(filteredOtrosIng,'EFECTIVO')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#2563eb;">${{ fmt(sumByMetodo(filteredOtrosIng,'TRANSFERENCIA')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#7c3aed;">${{ fmt(sumByMetodo(filteredOtrosIng,'TARJETA')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#9ca3af;">—</td>
+                                <td style="padding:9px 14px; text-align:right; font-weight:700; background:#f9fafb;">${{ fmt(totalOtrosIng) }}</td>
+                            </tr>
+                            <!-- Subtotal Ingresos -->
+                            <tr style="border-top:2px solid #2563eb; background:#eff6ff;">
+                                <td style="padding:9px 14px; font-weight:700; color:#1e3a5f; font-size:13px;">TOTAL INGRESOS</td>
+                                <td style="padding:9px 14px; text-align:right; font-weight:700; color:#059669;">${{ fmt(sumByMetodo(filteredPagosTrat,'EFECTIVO') + sumByMetodo(filteredAbonos,'EFECTIVO') + sumByMetodo(filteredOtrosIng,'EFECTIVO')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; font-weight:700; color:#2563eb;">${{ fmt(sumByMetodo(filteredPagosTrat,'TRANSFERENCIA') + sumByMetodo(filteredAbonos,'TRANSFERENCIA') + sumByMetodo(filteredOtrosIng,'TRANSFERENCIA')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; font-weight:700; color:#7c3aed;">${{ fmt(sumByMetodo(filteredPagosTrat,'TARJETA') + sumByMetodo(filteredAbonos,'TARJETA') + sumByMetodo(filteredOtrosIng,'TARJETA')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; font-weight:700; color:#d97706;">${{ fmt(sumByMetodo(filteredPagosTrat,'ABONO_USADO')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; font-weight:800; font-size:14px; background:#dbeafe; color:#1e3a5f;">${{ fmt(totalPagosTrat + totalAbonos + totalOtrosIng) }}</td>
+                            </tr>
+                            <!-- Egresos -->
+                            <tr style="border-top:1px solid #e5e7eb;">
+                                <td style="padding:9px 14px; font-weight:600; color:#dc2626;">4. Egresos / Gastos</td>
+                                <td style="padding:9px 14px; text-align:right; color:#dc2626;">-${{ fmt(sumByMetodo(filteredEgresos,'EFECTIVO')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#dc2626;">-${{ fmt(sumByMetodo(filteredEgresos,'TRANSFERENCIA')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#dc2626;">-${{ fmt(sumByMetodo(filteredEgresos,'TARJETA')) }}</td>
+                                <td style="padding:9px 14px; text-align:right; color:#9ca3af;">—</td>
+                                <td style="padding:9px 14px; text-align:right; font-weight:700; color:#dc2626; background:#f9fafb;">-${{ fmt(totalEgresos) }}</td>
+                            </tr>
+                            <!-- SALDO NETO FINAL -->
+                            <tr style="border-top:3px solid #111827; background: linear-gradient(90deg,#f0fdf4,#dcfce7);">
+                                <td style="padding:12px 14px; font-weight:800; font-size:14px; color:#15803d; letter-spacing:.02em;">💰 SALDO NETO DEL DÍA</td>
+                                <td colspan="4" style="padding:12px 14px; text-align:center; font-size:11px; color:#6b7280;">INGRESOS TOTALES − EGRESOS</td>
+                                <td style="padding:12px 14px; text-align:right; font-weight:900; font-size:20px; color:#15803d; background:#bbf7d0;">${{ fmt(saldoNetoDia) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -218,7 +268,8 @@
                 </div>
             </div>
 
-            <!-- Tablas -->
+            <!-- Tablas detalle -->
+
             <div class="section">
                 <div class="section-head">
                     <span class="section-title">1. Ingresos por Tratamientos (Hojas de Cargo)</span>
@@ -569,6 +620,7 @@
             const filteredEgresos = computed(() => (data.value.egresos || []).filter(filterFn))
 
             const sumArr = (arr) => arr.reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0)
+            const sumByMetodo = (arr, metodo) => arr.filter(i => (i.metodo || '').toUpperCase().includes(metodo)).reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0)
             const totalPagosTrat = computed(() => sumArr(filteredPagosTrat.value))
             const totalAbonos = computed(() => sumArr(filteredAbonos.value))
             const totalOtrosIng = computed(() => sumArr(filteredOtrosIng.value))
@@ -724,6 +776,7 @@
                 startDate, endDate, filtroMetodo, data, isLoading, fmt,
                 filteredPagosTrat, filteredAbonos, filteredOtrosIng, filteredEgresos,
                 totalPagosTrat, totalAbonos, totalOtrosIng, totalEgresos, saldoNetoDia,
+                sumByMetodo,
                 loadCuadre,
                 selectedYear, generalData, isLoadingGeneral,
                 loadCuadreGeneral, verTotalRealGeneral
