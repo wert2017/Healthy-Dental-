@@ -4109,16 +4109,22 @@ def get_cuadre_diario(
     ).all()
     
     abonos = []
+    devoluciones = []
     for a in abonos_bd:
-        abonos.append({
+        monto = float(a.monto)
+        item = {
             "id": a.id,
             "fecha": a.fecha.strftime("%Y-%m-%d %H:%M"),
             "paciente": f"{a.paciente.nombres} {a.paciente.apellidos}".strip() if a.paciente else "N/A",
             "historia_clinica": a.paciente.historia_clinica if a.paciente else "",
-            "concepto": a.concepto or "Abono General",
+            "concepto": a.concepto or ("Devolución de Abono" if monto < 0 else "Abono General"),
             "metodo": (a.metodo_pago or "EFECTIVO").upper(),
-            "monto": float(a.monto)
-        })
+            "monto": abs(monto)  # Siempre positivo; la categoría (ingreso/egreso) define el signo
+        }
+        if monto < 0:
+            devoluciones.append(item)  # Va a sección Egresos
+        else:
+            abonos.append(item)        # Va a sección Ingresos
 
     # 3. Otros Ingresos y Egresos
     gastos_bd = session.exec(
@@ -4152,6 +4158,7 @@ def get_cuadre_diario(
         "pagos_tratamientos": pagos_tratamientos,
         "abonos": abonos,
         "otros_ingresos": otros_ingresos,
+        "devoluciones": devoluciones,
         "egresos": egresos
     }
 
