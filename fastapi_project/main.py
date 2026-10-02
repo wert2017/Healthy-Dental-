@@ -4087,12 +4087,23 @@ def get_cuadre_diario(
     metodo_map = {"EF": "EFECTIVO", "TR": "TRANSFERENCIA", "TC": "TARJETA", "AB": "ABONO_USADO"}
     for p in pagos_bd:
         paciente = p.atencion.paciente if p.atencion and p.atencion.paciente else None
+        
+        # Detectar si el pago cobrado corresponde a una atención realizada en días anteriores (CxC)
+        es_deuda_anterior = False
+        fecha_atencion_str = None
+        if p.atencion and p.atencion.fecha:
+            fecha_atencion_str = p.atencion.fecha.strftime("%d/%m/%Y")
+            if p.fecha and p.atencion.fecha.date() < p.fecha.date():
+                es_deuda_anterior = True
+
         pagos_tratamientos.append({
             "id": p.id,
             "fecha": p.fecha.strftime("%Y-%m-%d %H:%M"),
             "paciente": f"{paciente.nombres} {paciente.apellidos}".strip() if paciente else "N/A",
             "historia_clinica": paciente.historia_clinica if paciente else "",
             "atencion_id": p.atencion_id,
+            "atencion_fecha": fecha_atencion_str,
+            "es_deuda_anterior": es_deuda_anterior,
             "metodo": metodo_map.get(p.forma_pago, p.forma_pago),
             "monto": float(p.monto)
         })

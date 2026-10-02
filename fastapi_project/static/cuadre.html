@@ -301,11 +301,21 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="p in filteredPagosTrat" :key="'p'+p.id">
+                            <tr v-for="p in filteredPagosTrat" :key="'p'+p.id" :style="p.es_deuda_anterior ? 'background:#fffdf7;' : ''">
                                 <td style="color:#6b7280; font-size:12px;">{{ p.fecha }}</td>
-                                <td style="font-weight:500;">{{ p.paciente }}</td>
+                                <td style="font-weight:500;">
+                                    <div>{{ p.paciente }}</div>
+                                    <div v-if="p.es_deuda_anterior" style="margin-top:3px;">
+                                        <span style="display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; background:#fef3c7; color:#92400e; border:1px solid #fcd34d; border-radius:4px; padding:1px 6px;">
+                                            <i class="fa-solid fa-clock-rotate-left"></i> Cobro CxC — Deuda del {{ p.atencion_fecha }}
+                                        </span>
+                                    </div>
+                                </td>
                                 <td>{{ p.historia_clinica }}</td>
-                                <td>#{{ p.atencion_id }}</td>
+                                <td>
+                                    <div style="font-weight:600;">#{{ p.atencion_id }}</div>
+                                    <span v-if="p.es_deuda_anterior" style="display:inline-block; font-size:9px; font-weight:700; color:#b45309; text-transform:uppercase;">Cuenta x Cobrar</span>
+                                </td>
                                 <td><span class="badge">{{ p.metodo }}</span></td>
                                 <td class="r" style="font-weight:700; color:#2563eb;">${{ fmt(p.monto) }}</td>
                             </tr>
