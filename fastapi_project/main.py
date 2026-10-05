@@ -2920,7 +2920,7 @@ def reporte_ingresos_mensuales(start_date: str = None, end_date: str = None, ses
         
     pagos = session.exec(query_pagos).all()
 
-    query_abonos = select(HistorialAbono)
+    query_abonos = select(HistorialAbono).where(HistorialAbono.atencion_id == None)
     if user.sucursal_id:
         query_abonos = query_abonos.join(Paciente, HistorialAbono.paciente_id == Paciente.id).where(Paciente.sucursal_id == user.sucursal_id)
     if start_date:
@@ -3650,11 +3650,12 @@ def get_resumen_ingresos(
         .where(Pago.forma_pago != 'AB')
     ).all() if atencion_ids else []
 
-    # 4. Cargar abonos del período para esta sucursal
+    # 4. Cargar abonos del período para esta sucursal (solo recargas directas)
     abonos_rows = session.exec(
         select(HistorialAbono)
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
         .where(Paciente.sucursal_id == user.sucursal_id)
+        .where(HistorialAbono.atencion_id == None)
         .where(HistorialAbono.fecha >= start_dt)
         .where(HistorialAbono.fecha < end_dt)
     ).all()
@@ -4108,11 +4109,12 @@ def get_cuadre_diario(
             "monto": float(p.monto)
         })
 
-    # 2. Ingresos por Abonos (Dinero que entró a billetera)
+    # 2. Ingresos por Abonos (Dinero que entró a billetera directo)
     abonos_bd = session.exec(
         select(HistorialAbono)
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
         .where(Paciente.sucursal_id == user.sucursal_id)
+        .where(HistorialAbono.atencion_id == None)
         .where(HistorialAbono.fecha >= date_from)
         .where(HistorialAbono.fecha <= date_to)
         .options(selectinload(HistorialAbono.paciente))
@@ -4203,6 +4205,7 @@ def get_cuadre_general(
         select(HistorialAbono.metodo_pago, HistorialAbono.monto, HistorialAbono.fecha)
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
         .where(Paciente.sucursal_id == user.sucursal_id)
+        .where(HistorialAbono.atencion_id == None)
     )
     if date_from and date_to:
         query_abonos = query_abonos.where(HistorialAbono.fecha >= date_from, HistorialAbono.fecha <= date_to)
@@ -4624,6 +4627,7 @@ def get_gastos_balances(
         select(HistorialAbono.metodo_pago, func.sum(HistorialAbono.monto))
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
         .where(Paciente.sucursal_id == user.sucursal_id)
+        .where(HistorialAbono.atencion_id == None)
     )
     if start_dt:
         recargas_query_select = recargas_query_select.where(HistorialAbono.fecha >= start_dt)
