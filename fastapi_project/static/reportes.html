@@ -98,6 +98,20 @@
         .badge-warn { background: #fef3c7; color: #92400e; }
         .empty { padding: 28px 0; text-align: center; color: #9ca3af; font-size: 13px; }
 
+        /* FLUJO DE CAJA MENSUAL TABLE */
+        .fc-table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
+        .fc-table th, .fc-table td { padding: 8px 14px; border: 1px solid #e2e8f0; }
+        .fc-table th { background: #f8fafc; font-weight: 700; color: #1e293b; text-align: right; }
+        .fc-table th:first-child { text-align: left; }
+        .fc-table td.concept { text-align: left; font-weight: 500; color: #1e293b; }
+        .fc-table td.amount { text-align: right; font-variant-numeric: tabular-nums; font-family: inherit; font-size: 13px; }
+        .fc-title-row { background: #1e40af !important; color: #ffffff !important; font-size: 14px; font-weight: 800; text-align: center !important; text-transform: uppercase; letter-spacing: .06em; padding: 12px !important; }
+        .fc-section-row { background: #f8fafc; font-weight: 800; text-transform: uppercase; color: #334155; font-size: 12px; letter-spacing: .04em; }
+        .fc-subtotal-row { background: #f8fafc; font-weight: 700; border-top: 1px solid #cbd5e1; }
+        .fc-totales-row { background: #eff6ff; font-weight: 800; font-size: 14px; border-top: 2px solid #2563eb; border-bottom: 2px solid #2563eb; }
+        .fc-spacer-row { height: 8px; background: #f8fafc; }
+        .fc-spacer-row td { border: none !important; }
+
         @keyframes spin { to { transform: rotate(360deg); } }
         .spin { width: 13px; height: 13px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
         [v-cloak] { display: none !important; }
@@ -162,6 +176,7 @@
         <div class="tabs">
             <button class="tab-btn" :class="{ active: tab === 'resultados' }" @click="tab = 'resultados'">Resultados</button>
             <button class="tab-btn" :class="{ active: tab === 'socios' }" @click="tab = 'socios'">Utilidades y Socios</button>
+            <button class="tab-btn" :class="{ active: tab === 'flujo_caja' }" @click="tab = 'flujo_caja'"><i class="fa-solid fa-table mr-1"></i> Flujo de Caja Mensual</button>
         </div>
 
         <!-- ===== TAB CUADRE DIARIO ===== -->
@@ -594,6 +609,164 @@
             </div>
         </div>
 
+        <!-- ===== TAB FLUJO DE CAJA MENSUAL ===== -->
+        <div v-show="tab === 'flujo_caja'">
+            <div class="section-desc" style="margin-bottom:12px; color:#6b7280; font-size: 13px;">
+                Flujo de caja mensual con saldos arrastrados de meses anteriores, desglose de ingresos por canal, egresos clasificados y dividendos de socios.
+            </div>
+
+            <!-- Filtros -->
+            <div class="filter-bar" style="margin-bottom: 20px;">
+                <div class="filter-group">
+                    <label>Año</label>
+                    <select v-model="fcYear" class="select-input" style="padding:6px 12px; border-radius:6px; border:1px solid #d1d5db; background:#fff; font-size:13px;">
+                        <option v-for="y in yearsList" :key="y" :value="y">{{ y }}</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Mes</label>
+                    <select v-model="fcMonth" class="select-input" style="padding:6px 12px; border-radius:6px; border:1px solid #d1d5db; background:#fff; font-size:13px;">
+                        <option v-for="m in 12" :key="m" :value="m">{{ getMonthName(m) }}</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" @click="loadFlujoCaja" :disabled="isLoadingFC">
+                    <div v-if="isLoadingFC" class="spin"></div>
+                    {{ isLoadingFC ? 'Cargando...' : 'Generar' }}
+                </button>
+                <button v-if="fcData" class="btn" @click="exportFlujoCajaExcel" style="margin-left:auto;">
+                    <i class="fa-solid fa-file-excel mr-1" style="color:#059669;"></i> Exportar Excel
+                </button>
+            </div>
+
+            <!-- Tabla de Flujo de Caja -->
+            <div class="section" v-if="fcData">
+                <div class="section-body" style="padding: 16px; overflow-x: auto;">
+                    <table class="fc-table">
+                        <thead>
+                            <tr>
+                                <th colspan="6" class="fc-title-row">
+                                    FLUJO DE CAJA MENSUAL — {{ getMonthName(fcMonth).toUpperCase() }} {{ fcYear }}
+                                </th>
+                            </tr>
+                            <tr>
+                                <th style="width: 32%;"></th>
+                                <th style="width: 13%; color:#059669;">EF</th>
+                                <th style="width: 15%; color:#2563eb;">Transferencia</th>
+                                <th style="width: 12%; color:#7c3aed;">TC</th>
+                                <th style="width: 13%; color:#d97706;">ABONOS</th>
+                                <th style="width: 15%; color:#0f172a;">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 1. Saldo mes anterior -->
+                            <tr style="background:#f8fafc; font-weight:600;">
+                                <td class="concept" style="font-weight:700;">Saldo mes anterior</td>
+                                <td class="amount" :style="fcData.saldo_mes_anterior.ef < 0 ? 'color:#dc2626;' : ''">${{ fmt(fcData.saldo_mes_anterior.ef) }}</td>
+                                <td class="amount" :style="fcData.saldo_mes_anterior.transferencia < 0 ? 'color:#dc2626;' : ''">${{ fmt(fcData.saldo_mes_anterior.transferencia) }}</td>
+                                <td class="amount">${{ fmt(fcData.saldo_mes_anterior.tc) }}</td>
+                                <td class="amount" style="color:#d97706;">${{ fmt(fcData.saldo_mes_anterior.abonos) }}</td>
+                                <td class="amount" style="font-weight:700;">${{ fmt(fcData.saldo_mes_anterior.total) }}</td>
+                            </tr>
+
+                            <!-- Spacer -->
+                            <tr class="fc-spacer-row"><td colspan="6"></td></tr>
+
+                            <!-- 2. Ingresos Section -->
+                            <tr class="fc-section-row">
+                                <td colspan="6" style="padding: 6px 14px; font-weight:800; color:#1e3a8a;">Ingresos</td>
+                            </tr>
+                            <tr>
+                                <td class="concept" style="padding-left: 24px;">Ingresos por tratamiento</td>
+                                <td class="amount">${{ fmt(fcData.ingresos_tratamiento.ef) }}</td>
+                                <td class="amount">${{ fmt(fcData.ingresos_tratamiento.transferencia) }}</td>
+                                <td class="amount">${{ fmt(fcData.ingresos_tratamiento.tc) }}</td>
+                                <td class="amount" style="color:#d97706;">${{ fmt(fcData.ingresos_tratamiento.abonos) }}</td>
+                                <td class="amount" style="font-weight:600;">${{ fmt(fcData.ingresos_tratamiento.total) }}</td>
+                            </tr>
+                            <tr>
+                                <td class="concept" style="padding-left: 24px;">Otros ingresos</td>
+                                <td class="amount">${{ fmt(fcData.otros_ingresos.ef) }}</td>
+                                <td class="amount">${{ fmt(fcData.otros_ingresos.transferencia) }}</td>
+                                <td class="amount">${{ fmt(fcData.otros_ingresos.tc) }}</td>
+                                <td class="amount" style="color:#d97706;">${{ fmt(fcData.otros_ingresos.abonos) }}</td>
+                                <td class="amount" style="font-weight:600;">${{ fmt(fcData.otros_ingresos.total) }}</td>
+                            </tr>
+                            <tr class="fc-subtotal-row">
+                                <td class="concept" style="font-weight:700; color:#1e40af;">Total Ingresos</td>
+                                <td class="amount" style="font-weight:700; color:#059669;">${{ fmt(fcData.total_ingresos.ef) }}</td>
+                                <td class="amount" style="font-weight:700; color:#2563eb;">${{ fmt(fcData.total_ingresos.transferencia) }}</td>
+                                <td class="amount" style="font-weight:700; color:#7c3aed;">${{ fmt(fcData.total_ingresos.tc) }}</td>
+                                <td class="amount" style="font-weight:700; color:#d97706;">${{ fmt(fcData.total_ingresos.abonos) }}</td>
+                                <td class="amount" style="font-weight:800; color:#059669;">${{ fmt(fcData.total_ingresos.total) }}</td>
+                            </tr>
+
+                            <!-- Spacer -->
+                            <tr class="fc-spacer-row"><td colspan="6"></td></tr>
+
+                            <!-- 3. Egresos Section -->
+                            <tr class="fc-section-row">
+                                <td colspan="6" style="padding: 6px 14px; font-weight:800; color:#991b1b;">Egresos</td>
+                            </tr>
+                            <tr v-for="eg in fcData.egresos_lista" :key="eg.categoria">
+                                <td class="concept" style="padding-left: 24px;">{{ eg.categoria }}</td>
+                                <td class="amount">${{ fmt(eg.ef) }}</td>
+                                <td class="amount">${{ fmt(eg.transferencia) }}</td>
+                                <td class="amount">${{ fmt(eg.tc) }}</td>
+                                <td class="amount" style="color:#9ca3af;">$0.00</td>
+                                <td class="amount" style="font-weight:500;">${{ fmt(eg.total) }}</td>
+                            </tr>
+                            <tr class="fc-subtotal-row">
+                                <td class="concept" style="font-weight:700; color:#991b1b;">Total Egresos</td>
+                                <td class="amount" style="font-weight:700; color:#dc2626;">${{ fmt(fcData.total_egresos.ef) }}</td>
+                                <td class="amount" style="font-weight:700; color:#dc2626;">${{ fmt(fcData.total_egresos.transferencia) }}</td>
+                                <td class="amount" style="font-weight:700; color:#dc2626;">${{ fmt(fcData.total_egresos.tc) }}</td>
+                                <td class="amount" style="font-weight:700; color:#9ca3af;">$0.00</td>
+                                <td class="amount" style="font-weight:800; color:#dc2626;">${{ fmt(fcData.total_egresos.total) }}</td>
+                            </tr>
+
+                            <!-- Spacer -->
+                            <tr class="fc-spacer-row"><td colspan="6"></td></tr>
+
+                            <!-- 4. Dividendo de socios -->
+                            <tr style="background:#fff7ed; font-weight:600;">
+                                <td class="concept" style="font-weight:700; color:#9a3412;">Dividendo de socios</td>
+                                <td class="amount" style="color:#ea580c;">${{ fmt(fcData.dividendo_socios.ef) }}</td>
+                                <td class="amount" style="color:#ea580c;">${{ fmt(fcData.dividendo_socios.transferencia) }}</td>
+                                <td class="amount" style="color:#ea580c;">${{ fmt(fcData.dividendo_socios.tc) }}</td>
+                                <td class="amount" style="color:#9ca3af;">$0.00</td>
+                                <td class="amount" style="font-weight:700; color:#ea580c;">${{ fmt(fcData.dividendo_socios.total) }}</td>
+                            </tr>
+
+                            <!-- Spacer -->
+                            <tr class="fc-spacer-row"><td colspan="6"></td></tr>
+
+                            <!-- 5. Totales (Saldo final del mes) -->
+                            <tr class="fc-totales-row">
+                                <td class="concept" style="font-weight:800; text-transform:uppercase; color:#0f172a; padding: 12px 14px;">
+                                    totales
+                                </td>
+                                <td class="amount" style="font-weight:800; font-size:14px;" :style="fcData.totales.ef < 0 ? 'color:#dc2626;' : 'color:#059669;'">
+                                    ${{ fmt(fcData.totales.ef) }}
+                                </td>
+                                <td class="amount" style="font-weight:800; font-size:14px;" :style="fcData.totales.transferencia < 0 ? 'color:#dc2626;' : 'color:#2563eb;'">
+                                    ${{ fmt(fcData.totales.transferencia) }}
+                                </td>
+                                <td class="amount" style="font-weight:800; font-size:14px;" :style="fcData.totales.tc < 0 ? 'color:#dc2626;' : 'color:#7c3aed;'">
+                                    ${{ fmt(fcData.totales.tc) }}
+                                </td>
+                                <td class="amount" style="font-weight:800; font-size:14px; color:#d97706;">
+                                    ${{ fmt(fcData.totales.abonos) }}
+                                </td>
+                                <td class="amount" style="font-weight:900; font-size:15px;" :style="fcData.totales.total < 0 ? 'color:#dc2626;' : 'color:#0f172a;'">
+                                    ${{ fmt(fcData.totales.total) }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -949,11 +1122,67 @@
                 }
             }
 
+            // Flujo de Caja Mensual
+            const fcYear = ref(currentYear)
+            const fcMonth = ref(currentMonth)
+            const fcData = ref(null)
+            const isLoadingFC = ref(false)
+
+            const loadFlujoCaja = async () => {
+                isLoadingFC.value = true
+                try {
+                    const res = await axios.get('/api/reportes/flujo-caja-mensual', {
+                        params: {
+                            anio: fcYear.value,
+                            mes: fcMonth.value
+                        }
+                    })
+                    fcData.value = res.data
+                } catch (e) {
+                    console.error(e)
+                    Swal.fire('Error', e.response?.data?.detail || "Error al cargar el flujo de caja", 'error')
+                } finally {
+                    isLoadingFC.value = false
+                }
+            }
+
+            const exportFlujoCajaExcel = () => {
+                if (!fcData.value) return
+                const d = fcData.value
+                const rows = [
+                    ["FLUJO DE CAJA MENSUAL", `${getMonthName(fcMonth.value).toUpperCase()} ${fcYear.value}`],
+                    [],
+                    ["Concepto", "EF", "Transferencia", "TC", "ABONOS", "TOTAL"],
+                    ["Saldo mes anterior", d.saldo_mes_anterior.ef, d.saldo_mes_anterior.transferencia, d.saldo_mes_anterior.tc, d.saldo_mes_anterior.abonos, d.saldo_mes_anterior.total],
+                    [],
+                    ["Ingresos", "", "", "", "", ""],
+                    ["  Ingresos por tratamiento", d.ingresos_tratamiento.ef, d.ingresos_tratamiento.transferencia, d.ingresos_tratamiento.tc, d.ingresos_tratamiento.abonos, d.ingresos_tratamiento.total],
+                    ["  Otros ingresos", d.otros_ingresos.ef, d.otros_ingresos.transferencia, d.otros_ingresos.tc, d.otros_ingresos.abonos, d.otros_ingresos.total],
+                    ["Total Ingresos", d.total_ingresos.ef, d.total_ingresos.transferencia, d.total_ingresos.tc, d.total_ingresos.abonos, d.total_ingresos.total],
+                    [],
+                    ["Egresos", "", "", "", "", ""]
+                ]
+                d.egresos_lista.forEach(eg => {
+                    rows.push([`  ${eg.categoria}`, eg.ef, eg.transferencia, eg.tc, eg.abonos, eg.total])
+                })
+                rows.push(["Total Egresos", d.total_egresos.ef, d.total_egresos.transferencia, d.total_egresos.tc, d.total_egresos.abonos, d.total_egresos.total])
+                rows.push([])
+                rows.push(["Dividendo de socios", d.dividendo_socios.ef, d.dividendo_socios.transferencia, d.dividendo_socios.tc, d.dividendo_socios.abonos, d.dividendo_socios.total])
+                rows.push([])
+                rows.push(["totales", d.totales.ef, d.totales.transferencia, d.totales.tc, d.totales.abonos, d.totales.total])
+
+                const ws = XLSX.utils.aoa_to_sheet(rows)
+                const wb = XLSX.utils.book_new()
+                XLSX.utils.book_append_sheet(wb, ws, "Flujo_Caja")
+                XLSX.writeFile(wb, `Flujo_Caja_${getMonthName(fcMonth.value)}_${fcYear.value}.xlsx`)
+            }
+
             onMounted(() => {
                 loadCatalogs()
                 loadCuadre()
                 loadResumen()
                 loadSociosReport()
+                loadFlujoCaja()
             })
 
             return {
@@ -965,7 +1194,9 @@
                 fmt, loadResumen,
                 exportMasterReport, importExcel,
                 // Socio Report variables & methods
-                socioYear, socioMonth, sociosData, isLoadingSocios, yearsList, loadSociosReport, getMonthName
+                socioYear, socioMonth, sociosData, isLoadingSocios, yearsList, loadSociosReport, getMonthName,
+                // Flujo de Caja
+                fcYear, fcMonth, fcData, isLoadingFC, loadFlujoCaja, exportFlujoCajaExcel
             }
         }
     }).mount('#app')

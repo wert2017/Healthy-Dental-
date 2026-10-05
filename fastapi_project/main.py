@@ -3012,6 +3012,287 @@ def reporte_ingresos_mensuales(start_date: str = None, end_date: str = None, ses
         "produccion_doctores": doctores_list
     }
 
+@app.get("/api/reportes/flujo-caja-mensual")
+def get_flujo_caja_mensual(
+    anio: int = Query(..., description="Año del reporte"),
+    mes: int = Query(..., description="Mes del reporte (1-12)"),
+    sucursal_id: Optional[int] = Query(None, description="ID opcional de sucursal"),
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    """
+    Reporte estricto de Flujo de Caja Mensual según formato solicitado:
+    Saldo mes anterior + Ingresos (Tratamientos, Otros) - Egresos (Sueldo, Comisiones, etc.) - Dividendo socios = Totales
+    Desglosado por EF, Transferencia, TC, ABONOS y Total.
+    """
+    if user.role not in ["admin", "recepcion"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    target_sucursal = sucursal_id if (user.role == "admin" and sucursal_id) else user.sucursal_id
+    if not target_sucursal:
+        raise HTTPException(status_code=400, detail="Sucursal no asignada")
+
+    import calendar
+    from decimal import Decimal
+    
+    start_dt = datetime(anio, mes, 1)
+    if mes == 12:
+        end_dt = datetime(anio + 1, 1, 1)
+    else:
+        end_dt = datetime(anio, mes + 1, 1)
+
+    # 1. SALDO MES ANTERIOR
+    q_p_prev = (
+        select(Pago.forma_pago, func.coalesce(func.sum(Pago.monto), 0))
+        .join(Atencion)
+        .where(Atencion.sucursal_id == target_sucursal)
+        .where(Pago.fecha < start_dt)
+        .group_by(Pago.forma_pago)
+    )
+    p_prev = {r[0]: Decimal(str(r[1])) for r in session.exec(q_p_prev).all()}
+
+    q_ab_prev = (
+        select(HistorialAbono.metodo_pago, func.coalesce(func.sum(HistorialAbono.monto), 0))
+        .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
+        .where(Paciente.sucursal_id == target_sucursal)
+        .where(HistorialAbono.atencion_id == None)
+        .where(HistorialAbono.fecha < start_dt)
+        .group_by(HistorialAbono.metodo_pago)
+    )
+    ab_prev = {(r[0] or "").upper(): Decimal(str(r[1])) for r in session.exec(q_ab_prev).all()}
+
+    q_oi_prev = (
+        select(Gasto.metodo_pago, func.coalesce(func.sum(Gasto.monto), 0))
+        .where(Gasto.sucursal_id == target_sucursal)
+        .where(Gasto.tipo == "INGRESO")
+        .where(Gasto.fecha < start_dt)
+        .group_by(Gasto.metodo_pago)
+    )
+    oi_prev = {(r[0] or "").upper(): Decimal(str(r[1])) for r in session.exec(q_oi_prev).all()}
+
+    q_eg_prev = (
+        select(Gasto.metodo_pago, func.coalesce(func.sum(Gasto.monto), 0))
+        .where(Gasto.sucursal_id == target_sucursal)
+        .where((Gasto.tipo == "EGRESO") | (Gasto.tipo == None))
+        .where(Gasto.fecha < start_dt)
+        .group_by(Gasto.metodo_pago)
+    )
+    eg_prev = {(r[0] or "").upper(): Decimal(str(r[1])) for r in session.exec(q_eg_prev).all()}
+
+    prev_ef = p_prev.get("EF", Decimal("0")) + ab_prev.get("EFECTIVO", Decimal("0")) + oi_prev.get("EFECTIVO", Decimal("0")) - eg_prev.get("EFECTIVO", Decimal("0"))
+    prev_tr = p_prev.get("TR", Decimal("0")) + ab_prev.get("TRANSFERENCIA", Decimal("0")) + oi_prev.get("TRANSFERENCIA", Decimal("0")) - eg_prev.get("TRANSFERENCIA", Decimal("0"))
+    prev_tc = p_prev.get("TC", Decimal("0")) + ab_prev.get("TARJETA", Decimal("0")) + oi_prev.get("TARJETA", Decimal("0")) - eg_prev.get("TARJETA", Decimal("0"))
+    
+    total_recargas_prev = sum(ab_prev.values())
+    abonos_consumidos_prev = p_prev.get("AB", Decimal("0"))
+    prev_ab = total_recargas_prev - abonos_consumidos_prev
+
+    saldo_mes_anterior = {
+        "ef": float(prev_ef),
+        "transferencia": float(prev_tr),
+        "tc": float(prev_tc),
+        "abonos": float(prev_ab),
+        "total": float(prev_ef + prev_tr + prev_tc)
+    }
+
+    # 2. INGRESOS DEL MES
+    q_p_mes = (
+        select(Pago.forma_pago, func.coalesce(func.sum(Pago.monto), 0))
+        .join(Atencion)
+        .where(Atencion.sucursal_id == target_sucursal)
+        .where(Pago.fecha >= start_dt)
+        .where(Pago.fecha < end_dt)
+        .group_by(Pago.forma_pago)
+    )
+    p_mes = {r[0]: Decimal(str(r[1])) for r in session.exec(q_p_mes).all()}
+
+    ingresos_tratamiento = {
+        "ef": float(p_mes.get("EF", Decimal("0"))),
+        "transferencia": float(p_mes.get("TR", Decimal("0"))),
+        "tc": float(p_mes.get("TC", Decimal("0"))),
+        "abonos": float(p_mes.get("AB", Decimal("0"))),
+        "total": float(p_mes.get("EF", Decimal("0")) + p_mes.get("TR", Decimal("0")) + p_mes.get("TC", Decimal("0")))
+    }
+
+    q_oi_mes = (
+        select(Gasto.metodo_pago, func.coalesce(func.sum(Gasto.monto), 0))
+        .where(Gasto.sucursal_id == target_sucursal)
+        .where(Gasto.tipo == "INGRESO")
+        .where(Gasto.fecha >= start_dt)
+        .where(Gasto.fecha < end_dt)
+        .group_by(Gasto.metodo_pago)
+    )
+    oi_mes = {(r[0] or "").upper(): Decimal(str(r[1])) for r in session.exec(q_oi_mes).all()}
+
+    q_ab_mes = (
+        select(HistorialAbono.metodo_pago, func.coalesce(func.sum(HistorialAbono.monto), 0))
+        .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
+        .where(Paciente.sucursal_id == target_sucursal)
+        .where(HistorialAbono.atencion_id == None)
+        .where(HistorialAbono.fecha >= start_dt)
+        .where(HistorialAbono.fecha < end_dt)
+        .group_by(HistorialAbono.metodo_pago)
+    )
+    ab_mes = {(r[0] or "").upper(): Decimal(str(r[1])) for r in session.exec(q_ab_mes).all()}
+
+    otros_ef = oi_mes.get("EFECTIVO", Decimal("0")) + ab_mes.get("EFECTIVO", Decimal("0"))
+    otros_tr = oi_mes.get("TRANSFERENCIA", Decimal("0")) + ab_mes.get("TRANSFERENCIA", Decimal("0"))
+    otros_tc = oi_mes.get("TARJETA", Decimal("0")) + ab_mes.get("TARJETA", Decimal("0"))
+    total_nuevos_abonos = sum(ab_mes.values())
+
+    otros_ingresos = {
+        "ef": float(otros_ef),
+        "transferencia": float(otros_tr),
+        "tc": float(otros_tc),
+        "abonos": float(total_nuevos_abonos),
+        "total": float(otros_ef + otros_tr + otros_tc)
+    }
+
+    total_ingresos = {
+        "ef": float(Decimal(str(ingresos_tratamiento["ef"])) + otros_ef),
+        "transferencia": float(Decimal(str(ingresos_tratamiento["transferencia"])) + otros_tr),
+        "tc": float(Decimal(str(ingresos_tratamiento["tc"])) + otros_tc),
+        "abonos": float(total_nuevos_abonos),
+        "total": float(Decimal(str(ingresos_tratamiento["total"])) + Decimal(str(otros_ingresos["total"])))
+    }
+
+    # 3. EGRESOS DEL MES (Categorías operativas)
+    q_gastos = (
+        select(Gasto.categoria, Gasto.metodo_pago, func.coalesce(func.sum(Gasto.monto), 0))
+        .where(Gasto.sucursal_id == target_sucursal)
+        .where((Gasto.tipo == "EGRESO") | (Gasto.tipo == None))
+        .where(func.upper(func.coalesce(Gasto.categoria, '')) != 'RETIRO SOCIOS')
+        .where(Gasto.fecha >= start_dt)
+        .where(Gasto.fecha < end_dt)
+        .group_by(Gasto.categoria, Gasto.metodo_pago)
+    )
+    g_rows = session.exec(q_gastos).all()
+
+    egresos_por_cat = {}
+    for cat, met, monto in g_rows:
+        cat_name = (cat or "Otros").strip().title()
+        if "Sueldo" in cat_name or "Fijo" in cat_name:
+            cat_name = "Sueldo Fijo"
+        elif "Comision" in cat_name:
+            cat_name = "Comisiones"
+        
+        if cat_name not in egresos_por_cat:
+            egresos_por_cat[cat_name] = {"categoria": cat_name, "ef": Decimal("0"), "transferencia": Decimal("0"), "tc": Decimal("0"), "abonos": Decimal("0"), "total": Decimal("0")}
+        
+        m_upper = (met or "").upper()
+        val = Decimal(str(monto))
+        if "EFECTIVO" in m_upper:
+            egresos_por_cat[cat_name]["ef"] += val
+        elif "TRANSFERENCIA" in m_upper:
+            egresos_por_cat[cat_name]["transferencia"] += val
+        elif "TARJETA" in m_upper:
+            egresos_por_cat[cat_name]["tc"] += val
+        else:
+            egresos_por_cat[cat_name]["ef"] += val
+        egresos_por_cat[cat_name]["total"] += val
+
+    egresos_lista = []
+    for cp in ["Sueldo Fijo", "Comisiones"]:
+        if cp in egresos_por_cat:
+            cdata = egresos_por_cat.pop(cp)
+            egresos_lista.append({
+                "categoria": cp,
+                "ef": float(cdata["ef"]),
+                "transferencia": float(cdata["transferencia"]),
+                "tc": float(cdata["tc"]),
+                "abonos": 0.0,
+                "total": float(cdata["total"])
+            })
+        else:
+            egresos_lista.append({
+                "categoria": cp, "ef": 0.0, "transferencia": 0.0, "tc": 0.0, "abonos": 0.0, "total": 0.0
+            })
+    
+    for ck in sorted(egresos_por_cat.keys()):
+        cdata = egresos_por_cat[ck]
+        egresos_lista.append({
+            "categoria": ck,
+            "ef": float(cdata["ef"]),
+            "transferencia": float(cdata["transferencia"]),
+            "tc": float(cdata["tc"]),
+            "abonos": 0.0,
+            "total": float(cdata["total"])
+        })
+
+    tot_egr_ef = sum(Decimal(str(e["ef"])) for e in egresos_lista)
+    tot_egr_tr = sum(Decimal(str(e["transferencia"])) for e in egresos_lista)
+    tot_egr_tc = sum(Decimal(str(e["tc"])) for e in egresos_lista)
+    tot_egr_tot = sum(Decimal(str(e["total"])) for e in egresos_lista)
+    total_egresos = {
+        "ef": float(tot_egr_ef),
+        "transferencia": float(tot_egr_tr),
+        "tc": float(tot_egr_tc),
+        "abonos": 0.0,
+        "total": float(tot_egr_tot)
+    }
+
+    # 4. DIVIDENDO DE SOCIOS
+    q_socios = (
+        select(Gasto.metodo_pago, func.coalesce(func.sum(Gasto.monto), 0))
+        .where(Gasto.sucursal_id == target_sucursal)
+        .where((Gasto.tipo == "EGRESO") | (Gasto.tipo == None))
+        .where(func.upper(Gasto.categoria) == "RETIRO SOCIOS")
+        .where(Gasto.fecha >= start_dt)
+        .where(Gasto.fecha < end_dt)
+        .group_by(Gasto.metodo_pago)
+    )
+    s_rows = session.exec(q_socios).all()
+    div_ef = Decimal("0")
+    div_tr = Decimal("0")
+    div_tc = Decimal("0")
+    for met, monto in s_rows:
+        m_upper = (met or "").upper()
+        val = Decimal(str(monto))
+        if "EFECTIVO" in m_upper:
+            div_ef += val
+        elif "TRANSFERENCIA" in m_upper:
+            div_tr += val
+        elif "TARJETA" in m_upper:
+            div_tc += val
+        else:
+            div_tr += val
+    
+    dividendo_socios = {
+        "ef": float(div_ef),
+        "transferencia": float(div_tr),
+        "tc": float(div_tc),
+        "abonos": 0.0,
+        "total": float(div_ef + div_tr + div_tc)
+    }
+
+    # 5. TOTALES (Saldo Final que pasa al siguiente mes)
+    tot_ef = prev_ef + Decimal(str(total_ingresos["ef"])) - tot_egr_ef - div_ef
+    tot_tr = prev_tr + Decimal(str(total_ingresos["transferencia"])) - tot_egr_tr - div_tr
+    tot_tc = prev_tc + Decimal(str(total_ingresos["tc"])) - tot_egr_tc - div_tc
+    tot_ab = prev_ab + Decimal(str(otros_ingresos["abonos"])) - Decimal(str(ingresos_tratamiento["abonos"]))
+
+    totales = {
+        "ef": float(tot_ef),
+        "transferencia": float(tot_tr),
+        "tc": float(tot_tc),
+        "abonos": float(tot_ab),
+        "total": float(tot_ef + tot_tr + tot_tc)
+    }
+
+    return {
+        "anio": anio,
+        "mes": mes,
+        "sucursal_id": target_sucursal,
+        "saldo_mes_anterior": saldo_mes_anterior,
+        "ingresos_tratamiento": ingresos_tratamiento,
+        "otros_ingresos": otros_ingresos,
+        "total_ingresos": total_ingresos,
+        "egresos_lista": egresos_lista,
+        "total_egresos": total_egresos,
+        "dividendo_socios": dividendo_socios,
+        "totales": totales
+    }
+
 @app.get("/api/reportes/flujo-caja-global")
 def reporte_flujo_caja_global(start_date: str = None, end_date: str = None, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     """
