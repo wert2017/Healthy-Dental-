@@ -3049,7 +3049,10 @@ def get_flujo_caja_mensual(
         .where(Pago.fecha < start_dt)
         .group_by(Pago.forma_pago)
     )
-    p_prev = {r[0]: Decimal(str(r[1])) for r in session.exec(q_p_prev).all()}
+    p_prev = {}
+    for fp, val in session.exec(q_p_prev).all():
+        k = (fp or "").strip().upper()
+        p_prev[k] = p_prev.get(k, Decimal("0")) + Decimal(str(val))
 
     q_ab_prev = (
         select(HistorialAbono.metodo_pago, func.coalesce(func.sum(HistorialAbono.monto), 0))
@@ -3059,7 +3062,10 @@ def get_flujo_caja_mensual(
         .where(HistorialAbono.fecha < start_dt)
         .group_by(HistorialAbono.metodo_pago)
     )
-    ab_prev = {(r[0] or "").upper(): Decimal(str(r[1])) for r in session.exec(q_ab_prev).all()}
+    ab_prev = {}
+    for met, val in session.exec(q_ab_prev).all():
+        k = (met or "").strip().upper()
+        ab_prev[k] = ab_prev.get(k, Decimal("0")) + Decimal(str(val))
 
     q_oi_prev = (
         select(Gasto.metodo_pago, func.coalesce(func.sum(Gasto.monto), 0))
@@ -3068,7 +3074,10 @@ def get_flujo_caja_mensual(
         .where(Gasto.fecha < start_dt)
         .group_by(Gasto.metodo_pago)
     )
-    oi_prev = {(r[0] or "").upper(): Decimal(str(r[1])) for r in session.exec(q_oi_prev).all()}
+    oi_prev = {}
+    for met, val in session.exec(q_oi_prev).all():
+        k = (met or "").strip().upper()
+        oi_prev[k] = oi_prev.get(k, Decimal("0")) + Decimal(str(val))
 
     q_eg_prev = (
         select(Gasto.metodo_pago, func.coalesce(func.sum(Gasto.monto), 0))
@@ -3077,15 +3086,24 @@ def get_flujo_caja_mensual(
         .where(Gasto.fecha < start_dt)
         .group_by(Gasto.metodo_pago)
     )
-    eg_prev = {(r[0] or "").upper(): Decimal(str(r[1])) for r in session.exec(q_eg_prev).all()}
+    eg_prev = {}
+    for met, val in session.exec(q_eg_prev).all():
+        k = (met or "").strip().upper()
+        eg_prev[k] = eg_prev.get(k, Decimal("0")) + Decimal(str(val))
 
     prev_ef = p_prev.get("EF", Decimal("0")) + ab_prev.get("EFECTIVO", Decimal("0")) + oi_prev.get("EFECTIVO", Decimal("0")) - eg_prev.get("EFECTIVO", Decimal("0"))
     prev_tr = p_prev.get("TR", Decimal("0")) + ab_prev.get("TRANSFERENCIA", Decimal("0")) + oi_prev.get("TRANSFERENCIA", Decimal("0")) - eg_prev.get("TRANSFERENCIA", Decimal("0"))
     prev_tc = p_prev.get("TC", Decimal("0")) + ab_prev.get("TARJETA", Decimal("0")) + oi_prev.get("TARJETA", Decimal("0")) - eg_prev.get("TARJETA", Decimal("0"))
-    
-    total_recargas_prev = sum(ab_prev.values())
-    abonos_consumidos_prev = p_prev.get("AB", Decimal("0"))
-    prev_ab = total_recargas_prev - abonos_consumidos_prev
+
+    # Saldo histórico real en billeteras de abonos de los pacientes
+    q_all_ab_prev = (
+        select(func.coalesce(func.sum(HistorialAbono.monto), 0))
+        .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
+        .where(Paciente.sucursal_id == target_sucursal)
+        .where(HistorialAbono.fecha < start_dt)
+    )
+    all_ab_prev = Decimal(str(session.exec(q_all_ab_prev).first() or 0))
+    prev_ab = max(Decimal("0"), all_ab_prev - p_prev.get("AB", Decimal("0")))
 
     saldo_mes_anterior = {
         "ef": float(prev_ef),
@@ -3104,7 +3122,10 @@ def get_flujo_caja_mensual(
         .where(Pago.fecha < end_dt)
         .group_by(Pago.forma_pago)
     )
-    p_mes = {r[0]: Decimal(str(r[1])) for r in session.exec(q_p_mes).all()}
+    p_mes = {}
+    for fp, val in session.exec(q_p_mes).all():
+        k = (fp or "").strip().upper()
+        p_mes[k] = p_mes.get(k, Decimal("0")) + Decimal(str(val))
 
     ingresos_tratamiento = {
         "ef": float(p_mes.get("EF", Decimal("0"))),
@@ -3122,7 +3143,10 @@ def get_flujo_caja_mensual(
         .where(Gasto.fecha < end_dt)
         .group_by(Gasto.metodo_pago)
     )
-    oi_mes = {(r[0] or "").upper(): Decimal(str(r[1])) for r in session.exec(q_oi_mes).all()}
+    oi_mes = {}
+    for met, val in session.exec(q_oi_mes).all():
+        k = (met or "").strip().upper()
+        oi_mes[k] = oi_mes.get(k, Decimal("0")) + Decimal(str(val))
 
     q_ab_mes = (
         select(HistorialAbono.metodo_pago, func.coalesce(func.sum(HistorialAbono.monto), 0))
@@ -3133,12 +3157,24 @@ def get_flujo_caja_mensual(
         .where(HistorialAbono.fecha < end_dt)
         .group_by(HistorialAbono.metodo_pago)
     )
-    ab_mes = {(r[0] or "").upper(): Decimal(str(r[1])) for r in session.exec(q_ab_mes).all()}
+    ab_mes = {}
+    for met, val in session.exec(q_ab_mes).all():
+        k = (met or "").strip().upper()
+        ab_mes[k] = ab_mes.get(k, Decimal("0")) + Decimal(str(val))
+
+    # Total de todas las recargas a billetera en el mes (para seguimiento de abonos)
+    q_all_ab_mes = (
+        select(func.coalesce(func.sum(HistorialAbono.monto), 0))
+        .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
+        .where(Paciente.sucursal_id == target_sucursal)
+        .where(HistorialAbono.fecha >= start_dt)
+        .where(HistorialAbono.fecha < end_dt)
+    )
+    total_nuevos_abonos = Decimal(str(session.exec(q_all_ab_mes).first() or 0))
 
     otros_ef = oi_mes.get("EFECTIVO", Decimal("0")) + ab_mes.get("EFECTIVO", Decimal("0"))
     otros_tr = oi_mes.get("TRANSFERENCIA", Decimal("0")) + ab_mes.get("TRANSFERENCIA", Decimal("0"))
     otros_tc = oi_mes.get("TARJETA", Decimal("0")) + ab_mes.get("TARJETA", Decimal("0"))
-    total_nuevos_abonos = sum(ab_mes.values())
 
     otros_ingresos = {
         "ef": float(otros_ef),
@@ -3179,7 +3215,7 @@ def get_flujo_caja_mensual(
         if cat_name not in egresos_por_cat:
             egresos_por_cat[cat_name] = {"categoria": cat_name, "ef": Decimal("0"), "transferencia": Decimal("0"), "tc": Decimal("0"), "abonos": Decimal("0"), "total": Decimal("0")}
         
-        m_upper = (met or "").upper()
+        m_upper = (met or "").strip().upper()
         val = Decimal(str(monto))
         if "EFECTIVO" in m_upper:
             egresos_por_cat[cat_name]["ef"] += val
@@ -3246,7 +3282,7 @@ def get_flujo_caja_mensual(
     div_tr = Decimal("0")
     div_tc = Decimal("0")
     for met, monto in s_rows:
-        m_upper = (met or "").upper()
+        m_upper = (met or "").strip().upper()
         val = Decimal(str(monto))
         if "EFECTIVO" in m_upper:
             div_ef += val
@@ -3269,7 +3305,7 @@ def get_flujo_caja_mensual(
     tot_ef = prev_ef + Decimal(str(total_ingresos["ef"])) - tot_egr_ef - div_ef
     tot_tr = prev_tr + Decimal(str(total_ingresos["transferencia"])) - tot_egr_tr - div_tr
     tot_tc = prev_tc + Decimal(str(total_ingresos["tc"])) - tot_egr_tc - div_tc
-    tot_ab = prev_ab + Decimal(str(otros_ingresos["abonos"])) - Decimal(str(ingresos_tratamiento["abonos"]))
+    tot_ab = max(Decimal("0"), prev_ab + total_nuevos_abonos - Decimal(str(ingresos_tratamiento["abonos"])))
 
     totales = {
         "ef": float(tot_ef),
