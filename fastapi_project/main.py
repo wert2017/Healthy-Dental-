@@ -795,8 +795,8 @@ class PagoAdmin(ModelView, model=Pago):
 from markupsafe import Markup
 
 class InsumoAdmin(ModelView, model=Insumo):
-    column_list = [Insumo.nombre, Insumo.stock_actual, Insumo.unidad_medida, Insumo.proveedor]
-    form_columns = [Insumo.nombre, Insumo.unidad_medida, Insumo.stock_actual, Insumo.stock_minimo, Insumo.proveedor]
+    column_list = [Insumo.codigo, Insumo.nombre, Insumo.categoria, Insumo.precio, Insumo.unidad_medida, Insumo.tiene_iva, Insumo.stock_actual, Insumo.proveedor]
+    form_columns = [Insumo.codigo, Insumo.nombre, Insumo.descripcion, Insumo.categoria, Insumo.precio, Insumo.unidad_medida, Insumo.tiene_iva, Insumo.iva_porcentaje, Insumo.stock_actual, Insumo.stock_minimo, Insumo.proveedor]
     icon = "fa-solid fa-boxes-stacked"
 
     # Visual Alert for Low Stock (Temporarily Disabled)

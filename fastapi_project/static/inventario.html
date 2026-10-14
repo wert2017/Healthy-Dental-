@@ -157,44 +157,121 @@
 
                 <!-- TAB: PRODUCTOS -->
                 <div v-show="currentTab === 'productos'" class="space-y-6">
-                    <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <h2 class="text-lg font-semibold text-gray-800">Catálogo de Productos / Insumos</h2>
-                        <button @click="showProductoModal = true" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                                <i class="fa-solid fa-boxes-stacked text-blue-600 mr-2.5"></i> Catálogo de Insumos y Productos
+                            </h2>
+                            <p class="text-sm text-gray-500 mt-0.5">Control centralizado de insumos, códigos, costos de compra e impuestos.</p>
+                        </div>
+                        <button @click="abrirModalNuevoProducto" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-sm hover:shadow transition-all flex items-center">
                             <i class="fa-solid fa-plus mr-2"></i> Nuevo Producto
                         </button>
                     </div>
+
+                    <!-- Filtros y Búsqueda -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                        <div class="relative md:col-span-2">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-gray-400"></i>
+                            <input v-model="busquedaProducto" type="text" placeholder="Buscar por código, nombre, descripción o proveedor..." class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <select v-model="filtroCategoria" class="w-full py-2 px-3 rounded-lg border border-gray-200 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-gray-700">
+                                <option value="">Todas las Categorías ({{ productos.length }})</option>
+                                <option v-for="cat in categoriasDisponibles" :value="cat">{{ cat }}</option>
+                            </select>
+                        </div>
+                    </div>
                     
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-gray-50 text-gray-600 font-medium border-b border-gray-100">
-                                <tr>
-                                    <th class="px-6 py-4">Nombre / Descripción</th>
-                                    <th class="px-6 py-4">Unidad de Medida</th>
-                                    <th class="px-6 py-4">Stock Central</th>
-                                    <th class="px-6 py-4">Stock Mínimo</th>
-                                    <th class="px-6 py-4 text-center">Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50">
-                                <tr v-for="prod in productos" :key="prod.id" class="hover:bg-blue-50/50 transition-colors">
-                                    <td class="px-6 py-4 font-semibold text-gray-800">{{ prod.nombre }}</td>
-                                    <td class="px-6 py-4 text-gray-600">{{ prod.unidad_medida }}</td>
-                                    <td class="px-6 py-4">
-                                        <span class="font-bold" :class="prod.stock_actual <= prod.stock_minimo ? 'text-red-600' : 'text-green-600'">
-                                            {{ prod.stock_actual }}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-gray-600">{{ prod.stock_minimo }}</td>
-                                    <td class="px-6 py-4 text-center">
-                                        <span v-if="prod.stock_actual > prod.stock_minimo" class="bg-green-100 text-green-700 px-2 py-1 rounded-md text-xs font-bold">Óptimo</span>
-                                        <span v-else class="bg-red-100 text-red-700 px-2 py-1 rounded-md text-xs font-bold">Bajo Stock</span>
-                                    </td>
-                                </tr>
-                                <tr v-if="productos.length === 0">
-                                    <td colspan="5" class="px-6 py-8 text-center text-gray-400">No hay productos registrados.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 text-gray-600 font-semibold border-b border-gray-100 uppercase text-xs tracking-wider">
+                                    <tr>
+                                        <th class="px-5 py-3.5">Código</th>
+                                        <th class="px-5 py-3.5">Producto / Descripción</th>
+                                        <th class="px-5 py-3.5">Categoría</th>
+                                        <th class="px-5 py-3.5 text-right">Precio Ref.</th>
+                                        <th class="px-5 py-3.5 text-center">IVA</th>
+                                        <th class="px-5 py-3.5">Unidad</th>
+                                        <th class="px-5 py-3.5 text-center">Stock Central</th>
+                                        <th class="px-5 py-3.5 text-center">Estado</th>
+                                        <th class="px-5 py-3.5 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr v-for="prod in productosFiltrados" :key="prod.id" class="hover:bg-blue-50/40 transition-colors">
+                                        <td class="px-5 py-4 whitespace-nowrap">
+                                            <span class="font-mono bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-xs font-bold border border-blue-200">
+                                                {{ prod.codigo || 'S/C' }}
+                                            </span>
+                                        </td>
+                                        <td class="px-5 py-4">
+                                            <div class="font-bold text-gray-900">{{ prod.nombre }}</div>
+                                            <div v-if="prod.descripcion" class="text-xs text-gray-500 line-clamp-1 mt-0.5">{{ prod.descripcion }}</div>
+                                            <div v-if="getProveedorNombre(prod.proveedor_id)" class="text-xs text-blue-600 font-medium mt-0.5 flex items-center">
+                                                <i class="fa-solid fa-truck text-[10px] mr-1"></i> {{ getProveedorNombre(prod.proveedor_id) }}
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-4 whitespace-nowrap">
+                                            <span class="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full text-xs font-medium border border-gray-200">
+                                                {{ prod.categoria || 'General' }}
+                                            </span>
+                                        </td>
+                                        <td class="px-5 py-4 text-right whitespace-nowrap">
+                                            <span class="font-bold text-gray-900">${{ Number(prod.precio || 0).toFixed(2) }}</span>
+                                        </td>
+                                        <td class="px-5 py-4 text-center whitespace-nowrap">
+                                            <span v-if="prod.tiene_iva && Number(prod.iva_porcentaje) > 0" class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold border border-emerald-200">
+                                                {{ prod.iva_porcentaje }}% IVA
+                                            </span>
+                                            <span v-else class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-medium border border-gray-200">
+                                                0% IVA
+                                            </span>
+                                        </td>
+                                        <td class="px-5 py-4 text-gray-700 whitespace-nowrap font-medium">
+                                            {{ prod.unidad_medida }}
+                                        </td>
+                                        <td class="px-5 py-4 text-center whitespace-nowrap">
+                                            <div class="flex items-center justify-center gap-1.5">
+                                                <span class="font-bold text-base" :class="prod.stock_actual <= prod.stock_minimo ? 'text-red-600' : 'text-emerald-600'">
+                                                    {{ prod.stock_actual }}
+                                                </span>
+                                                <span class="text-xs text-gray-400">/ mín {{ prod.stock_minimo }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-4 text-center whitespace-nowrap">
+                                            <span v-if="prod.stock_actual > prod.stock_minimo" class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-md text-xs font-bold">
+                                                <i class="fa-solid fa-check text-[10px] mr-1"></i> Óptimo
+                                            </span>
+                                            <span v-else-if="prod.stock_actual > 0" class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-md text-xs font-bold">
+                                                <i class="fa-solid fa-triangle-exclamation text-[10px] mr-1"></i> Por agotar
+                                            </span>
+                                            <span v-else class="bg-red-100 text-red-700 px-2.5 py-1 rounded-md text-xs font-bold">
+                                                <i class="fa-solid fa-xmark text-[10px] mr-1"></i> Agotado
+                                            </span>
+                                        </td>
+                                        <td class="px-5 py-4 text-center whitespace-nowrap">
+                                            <div class="flex items-center justify-center gap-2">
+                                                <button @click="editarProducto(prod)" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar Producto">
+                                                    <i class="fa-solid fa-pen-to-square"></i>
+                                                </button>
+                                                <button @click="eliminarProducto(prod)" class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar Producto">
+                                                    <i class="fa-solid fa-trash-can"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="productosFiltrados.length === 0">
+                                        <td colspan="9" class="px-6 py-12 text-center text-gray-400">
+                                            <i class="fa-solid fa-box-open text-4xl mb-3 text-gray-300 block"></i>
+                                            <span v-if="busquedaProducto || filtroCategoria">No se encontraron productos que coincidan con la búsqueda.</span>
+                                            <span v-else>No hay productos registrados en el catálogo. Haz clic en "Nuevo Producto" para agregar el primero.</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -314,41 +391,56 @@
                             </div>
                             
                             <div class="space-y-3">
-                                <div v-for="(item, index) in formCompra.detalles" :key="index" class="flex items-center gap-3 bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
+                                <div v-for="(item, index) in formCompra.detalles" :key="index" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white p-3.5 border border-gray-200 rounded-xl shadow-sm hover:border-blue-200 transition-colors">
                                     <div class="flex-1">
-                                        <select v-model="item.insumo_id" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-sm">
+                                        <label class="block text-[11px] font-bold text-gray-500 uppercase sm:hidden mb-1">Producto / Insumo</label>
+                                        <select v-model="item.insumo_id" @change="onProductoSelect(item)" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-sm font-medium text-gray-800">
                                             <option value="" disabled>Seleccione producto...</option>
-                                            <option v-for="prod in productos" :value="prod.id">{{ prod.nombre }} ({{ prod.unidad_medida }})</option>
+                                            <option v-for="prod in productos" :value="prod.id">
+                                                [{{ prod.codigo || 'S/C' }}] {{ prod.nombre }} ({{ prod.unidad_medida }}) - Sugerido: ${{ Number(prod.precio || 0).toFixed(2) }}
+                                            </option>
                                         </select>
                                     </div>
-                                    <div class="w-24">
-                                        <input v-model.number="item.cantidad" type="number" min="1" step="1" required placeholder="Cant" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-sm text-center">
+                                    <div class="w-full sm:w-28">
+                                        <label class="block text-[11px] font-bold text-gray-500 uppercase sm:hidden mb-1">Cantidad</label>
+                                        <input v-model.number="item.cantidad" type="number" min="1" step="1" required placeholder="Cant" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-sm text-center font-bold">
                                     </div>
-                                    <div class="w-32 relative">
-                                        <span class="absolute left-3 top-2 text-gray-500 text-sm">$</span>
-                                        <input v-model.number="item.precio_unitario" type="number" min="0" step="0.01" required placeholder="Precio Unit" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 pl-7 border text-sm">
+                                    <div class="w-full sm:w-36 relative">
+                                        <label class="block text-[11px] font-bold text-gray-500 uppercase sm:hidden mb-1">Precio Unitario ($)</label>
+                                        <div class="relative">
+                                            <span class="absolute left-3 top-2 text-gray-500 text-sm font-bold">$</span>
+                                            <input v-model.number="item.precio_unitario" type="number" min="0" step="0.01" required placeholder="Precio Unit" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 pl-7 border text-sm font-bold text-gray-900">
+                                        </div>
                                     </div>
-                                    <div class="w-24 text-right font-bold text-gray-700 bg-gray-50 p-2 rounded border border-gray-100">
-                                        ${{ (item.cantidad * item.precio_unitario).toFixed(2) }}
+                                    <div class="w-full sm:w-32 text-right font-black text-gray-800 bg-slate-50 p-2 rounded-lg border border-slate-200 flex sm:flex-col justify-between sm:justify-center items-center sm:items-end">
+                                        <span class="text-xs font-semibold text-gray-500 sm:hidden">Total Línea:</span>
+                                        <span>${{ (item.cantidad * item.precio_unitario).toFixed(2) }}</span>
                                     </div>
-                                    <button type="button" @click="eliminarFilaProducto(index)" class="text-red-500 hover:bg-red-50 p-2 rounded-md transition-colors" title="Quitar">
+                                    <button type="button" @click="eliminarFilaProducto(index)" class="text-red-500 hover:bg-red-50 p-2.5 rounded-lg transition-colors self-end sm:self-center" title="Quitar fila">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
                                 </div>
-                                <div v-if="formCompra.detalles.length === 0" class="text-center p-6 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-gray-500 text-sm">
+                                <div v-if="formCompra.detalles.length === 0" class="text-center p-8 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-gray-500 text-sm">
+                                    <i class="fa-solid fa-cart-plus text-3xl text-gray-300 mb-2 block"></i>
                                     Agrega productos para registrar la compra.
                                 </div>
                             </div>
                         </div>
 
                         <!-- Bloque 3: Totales -->
-                        <div class="flex justify-end pt-4 border-t border-gray-100">
-                            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 min-w-[250px]">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm font-medium text-blue-800">Total a Pagar:</span>
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-gray-100">
+                            <div class="text-xs text-gray-500">
+                                <span class="font-bold text-gray-700">Nota:</span> Al procesar la compra se actualizará automáticamente el stock en la bodega de destino y se generará el egreso correspondiente.
+                            </div>
+                            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 min-w-[280px] w-full sm:w-auto">
+                                <div class="flex justify-between items-center text-sm text-blue-800 mb-1">
+                                    <span>Subtotal Productos:</span>
+                                    <span class="font-bold">${{ totalCompraFormateado }}</span>
+                                </div>
+                                <div class="flex justify-between items-center pt-2 border-t border-blue-200">
+                                    <span class="text-sm font-bold text-blue-900">Total Factura:</span>
                                     <span class="text-2xl font-black text-blue-900">${{ totalCompraFormateado }}</span>
                                 </div>
-                                <p class="text-xs text-blue-600 mt-1 text-right">Generará gasto automáticamente</p>
                             </div>
                         </div>
                         
@@ -453,44 +545,144 @@
 
         <!-- MODAL PRODUCTO -->
         <div v-if="showProductoModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 class="font-bold text-lg text-gray-800">Nuevo Producto / Insumo</h3>
-                    <button @click="showProductoModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[92vh]">
+                <!-- Header -->
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-slate-50">
+                    <div>
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center">
+                            <i :class="modoEdicionProducto ? 'fa-solid fa-pen-to-square text-blue-600' : 'fa-solid fa-box-open text-blue-600'" class="mr-2.5"></i>
+                            {{ modoEdicionProducto ? 'Editar Producto / Insumo' : 'Nuevo Producto / Insumo' }}
+                        </h3>
+                        <p class="text-xs text-gray-500 mt-0.5">Ingresa los datos del insumo o producto para compras e inventario.</p>
+                    </div>
+                    <button @click="showProductoModal = false" class="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-200">
                         <i class="fa-solid fa-xmark text-xl"></i>
                     </button>
                 </div>
+
+                <!-- Formulario -->
                 <div class="p-6 overflow-y-auto">
                     <form @submit.prevent="guardarProducto" class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Nombre del Producto *</label>
-                            <input v-model="formProd.nombre" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border" placeholder="Ej: Resina 3M Filtek">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Unidad de Medida *</label>
-                            <input v-model="formProd.unidad_medida" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border" placeholder="Ej: Jeringa, Caja x50, Unidad">
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
+                        <!-- Fila 1: Código y Categoría -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">Stock Actual (Inicial)</label>
-                                <input v-model.number="formProd.stock_actual" type="number" min="0" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Código *</label>
+                                    <button v-if="!modoEdicionProducto" type="button" @click="generarNuevoCodigo" class="text-xs text-blue-600 hover:underline font-semibold flex items-center">
+                                        <i class="fa-solid fa-arrows-rotate mr-1 text-[10px]"></i> Autogenerar
+                                    </button>
+                                </div>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2.5 text-gray-400"><i class="fa-solid fa-barcode"></i></span>
+                                    <input v-model="formProd.codigo" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-9 p-2.5 border font-mono font-bold text-gray-800" placeholder="Ej: INS-001">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Categoría *</label>
+                                <select v-model="formProd.categoria" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-medium text-gray-800">
+                                    <option v-for="cat in categoriasCatalogo" :value="cat">{{ cat }}</option>
+                                    <option value="OTRA">+ Otra Categoría Personalizada...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Fila extra si seleccionó OTRA categoría -->
+                        <div v-if="formProd.categoria === 'OTRA'" class="bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                            <label class="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Nombre de la Nueva Categoría *</label>
+                            <input v-model="formProd.otra_categoria" type="text" required placeholder="Ej: Material Quirúrgico Especializado" class="w-full rounded-lg border-blue-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border text-sm">
+                        </div>
+
+                        <!-- Fila 2: Nombre del Producto -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Nombre del Producto / Insumo *</label>
+                            <input v-model="formProd.nombre" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-semibold text-gray-800" placeholder="Ej: Resina 3M Filtek Z250 Universal">
+                        </div>
+
+                        <!-- Fila 3: Descripción / Especificaciones -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Descripción / Especificación Técnica</label>
+                            <textarea v-model="formProd.descripcion" rows="2" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border text-sm text-gray-700" placeholder="Ej: Tono A2, jeringa de 4g. Para restauraciones directas en anteriores y posteriores."></textarea>
+                        </div>
+
+                        <!-- Fila 4: Precio, Unidad de Medida y Régimen de IVA -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <!-- Precio -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Precio Compra Ref. ($)</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2.5 text-gray-500 font-bold">$</span>
+                                    <input v-model.number="formProd.precio" type="number" step="0.01" min="0" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-7 p-2.5 border font-bold text-gray-900" placeholder="0.00">
+                                </div>
+                                <span class="text-[11px] text-gray-400 mt-0.5 block">Costo sugerido en compras</span>
+                            </div>
+
+                            <!-- Unidad de Medida -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Unidad de Medida *</label>
+                                <select v-model="formProd.unidad_medida" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-medium text-gray-800">
+                                    <option v-for="u in unidadesComunes" :value="u">{{ u }}</option>
+                                    <option value="OTRO">+ Otra Unidad...</option>
+                                </select>
+                                <div v-if="formProd.unidad_medida === 'OTRO'" class="mt-2">
+                                    <input v-model="formProd.otra_unidad" type="text" required placeholder="Escribe unidad (ej: Rollo 50m)" class="w-full rounded-lg border-blue-300 p-1.5 border text-xs">
+                                </div>
+                            </div>
+
+                            <!-- IVA -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Tarifa de IVA *</label>
+                                <select v-model="formProd.tipo_iva" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-medium text-gray-800">
+                                    <option value="15">15% (Tarifa General)</option>
+                                    <option value="0">0% (Tarifa 0% / Exento)</option>
+                                    <option value="personalizado">Personalizado (% manual)</option>
+                                </select>
+                                <div v-if="formProd.tipo_iva === 'personalizado'" class="mt-2 relative">
+                                    <input v-model.number="formProd.iva_porcentaje" type="number" step="0.1" min="0" max="100" class="w-full rounded-lg border-blue-300 p-1.5 pr-6 border text-xs font-bold">
+                                    <span class="absolute right-2 top-1.5 text-xs text-gray-500 font-bold">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fila 5: Stock Actual (Inicial) y Stock Mínimo -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Stock Actual (Central)</label>
+                                <input v-model.number="formProd.stock_actual" type="number" min="0" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-bold text-gray-800">
+                                <span class="text-[11px] text-gray-400 mt-0.5 block">Cantidad existente en bodega</span>
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">Stock Mínimo</label>
-                                <input v-model.number="formProd.stock_minimo" type="number" min="0" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
+                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Stock Mínimo (Alerta)</label>
+                                <input v-model.number="formProd.stock_minimo" type="number" min="0" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-bold text-gray-800">
+                                <span class="text-[11px] text-gray-400 mt-0.5 block">Avisar si baja de este límite</span>
                             </div>
                         </div>
+
+                        <!-- Fila 6: Proveedor Principal -->
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Proveedor Principal (Opcional)</label>
-                            <select v-model="formProd.proveedor_id" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
-                                <option :value="null">Ninguno / Varios</option>
-                                <option v-for="p in proveedores" :value="p.id">{{ p.nombre }}</option>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Proveedor Habitual (Opcional)</label>
+                                <button type="button" @click="showProveedorModal = true" class="text-xs text-blue-600 hover:underline font-semibold flex items-center">
+                                    <i class="fa-solid fa-plus mr-1 text-[10px]"></i> + Nuevo Proveedor
+                                </button>
+                            </div>
+                            <select v-model="formProd.proveedor_id" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border text-gray-800">
+                                <option :value="null">Ninguno / Varios Proveedores</option>
+                                <option v-for="p in proveedores" :value="p.id">{{ p.nombre }} (RUC: {{ p.ruc || 'S/N' }})</option>
                             </select>
                         </div>
                         
-                        <div class="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-6">
-                            <button type="button" @click="showProductoModal = false" class="px-5 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-                            <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition-colors">Guardar Producto</button>
+                        <!-- Footer Acciones -->
+                        <div class="pt-5 flex justify-end gap-3 border-t border-gray-100 mt-6">
+                            <button type="button" @click="showProductoModal = false" class="px-5 py-2.5 text-gray-600 font-semibold hover:bg-gray-100 rounded-xl transition-colors">
+                                Cancelar
+                            </button>
+                            <button type="submit" :disabled="guardando" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center">
+                                <i v-if="guardando" class="fa-solid fa-spinner fa-spin mr-2"></i>
+                                <i v-else-if="modoEdicionProducto" class="fa-solid fa-floppy-disk mr-2"></i>
+                                <i v-else class="fa-solid fa-plus mr-2"></i>
+                                {{ modoEdicionProducto ? 'Guardar Cambios' : 'Guardar Producto' }}
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -508,7 +700,37 @@
                 const errorMsg = ref('');
                 const guardando = ref(false);
                 
-                // Data
+                // Catálogos auxiliares
+                const categoriasCatalogo = [
+                    'Materiales Dentales',
+                    'Ortodoncia',
+                    'Cirugía e Implantes',
+                    'Endodoncia',
+                    'Periodoncia / Profilaxis',
+                    'Insumos Médicos Descartables',
+                    'Bioseguridad y Esterilización',
+                    'Farmacia / Anestesia',
+                    'Instrumental Quirúrgico',
+                    'Laboratorio Dental',
+                    'Oficina y General'
+                ];
+
+                const unidadesComunes = [
+                    'Unidad',
+                    'Caja',
+                    'Jeringa',
+                    'Frasco',
+                    'Paquete',
+                    'Tubo',
+                    'Rollo',
+                    'Kit',
+                    'Par',
+                    'Litro',
+                    'ml',
+                    'Gramo'
+                ];
+
+                // Data reactiva
                 const proveedores = ref([]);
                 const productos = ref([]);
                 const sucursales = ref([]);
@@ -516,12 +738,33 @@
                 const tratamientos = ref([]);
                 const usuario = ref(null);
 
+                // Filtros y Búsqueda de Productos
+                const busquedaProducto = ref('');
+                const filtroCategoria = ref('');
+                const modoEdicionProducto = ref(false);
+
                 // Modals
                 const showProveedorModal = ref(false);
                 const formProv = ref({ ruc: '', nombre: '', contacto: '', telefono: '', email: '', direccion: '' });
 
                 const showProductoModal = ref(false);
-                const formProd = ref({ nombre: '', unidad_medida: '', stock_actual: 0, stock_minimo: 5, proveedor_id: null });
+                const formProd = ref({
+                    id: null,
+                    codigo: '',
+                    nombre: '',
+                    descripcion: '',
+                    categoria: 'Materiales Dentales',
+                    otra_categoria: '',
+                    precio: 0.00,
+                    unidad_medida: 'Unidad',
+                    otra_unidad: '',
+                    tipo_iva: '15',
+                    tiene_iva: true,
+                    iva_porcentaje: 15.00,
+                    stock_actual: 0,
+                    stock_minimo: 5,
+                    proveedor_id: null
+                });
 
                 const showBodegaModal = ref(false);
                 const formBodega = ref({ nombre: '', sucursal_id: '', tipo: 'PRINCIPAL', activo: true });
@@ -542,12 +785,51 @@
                     detalles: []
                 });
 
+                // Computed
+                const getProveedorNombre = (id) => {
+                    if (!id) return '';
+                    const prov = proveedores.value.find(p => p.id === id);
+                    return prov ? prov.nombre : '';
+                };
+
+                const categoriasDisponibles = computed(() => {
+                    const set = new Set();
+                    productos.value.forEach(p => {
+                        if (p.categoria) set.add(p.categoria);
+                    });
+                    return Array.from(set).sort();
+                });
+
+                const productosFiltrados = computed(() => {
+                    return productos.value.filter(p => {
+                        const q = busquedaProducto.value.trim().toLowerCase();
+                        const provName = getProveedorNombre(p.proveedor_id).toLowerCase();
+                        const matchSearch = !q || 
+                            (p.codigo && p.codigo.toLowerCase().includes(q)) ||
+                            (p.nombre && p.nombre.toLowerCase().includes(q)) ||
+                            (p.descripcion && p.descripcion.toLowerCase().includes(q)) ||
+                            (p.categoria && p.categoria.toLowerCase().includes(q)) ||
+                            (provName.includes(q));
+
+                        const matchCat = !filtroCategoria.value || p.categoria === filtroCategoria.value;
+                        return matchSearch && matchCat;
+                    });
+                });
+
                 const agregarFilaProducto = () => {
                     formCompra.value.detalles.push({ insumo_id: '', cantidad: 1, precio_unitario: 0 });
                 };
 
                 const eliminarFilaProducto = (index) => {
                     formCompra.value.detalles.splice(index, 1);
+                };
+
+                const onProductoSelect = (item) => {
+                    if (!item.insumo_id) return;
+                    const prod = productos.value.find(p => p.id === item.insumo_id);
+                    if (prod && (!item.precio_unitario || item.precio_unitario === 0)) {
+                        item.precio_unitario = Number(prod.precio || 0);
+                    }
                 };
 
                 const totalCompraMonto = computed(() => {
@@ -606,22 +888,141 @@
                         const res = await axios.post('/api/inventario/proveedores', formProv.value);
                         proveedores.value.push(res.data);
                         showProveedorModal.value = false;
-                        formProv.value = { nombre: '', contacto: '', telefono: '', email: '' };
+                        formProv.value = { ruc: '', nombre: '', contacto: '', telefono: '', email: '', direccion: '' };
                         Swal.fire({ icon: 'success', title: 'Proveedor creado', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
                     } catch (err) {
                         errorMsg.value = "Error al guardar proveedor.";
                     }
                 };
 
-                const guardarProducto = async () => {
+                // Acciones de Productos
+                const abrirModalNuevoProducto = async () => {
+                    modoEdicionProducto.value = false;
+                    formProd.value = {
+                        id: null,
+                        codigo: '',
+                        nombre: '',
+                        descripcion: '',
+                        categoria: 'Materiales Dentales',
+                        otra_categoria: '',
+                        precio: 0.00,
+                        unidad_medida: 'Unidad',
+                        otra_unidad: '',
+                        tipo_iva: '15',
+                        tiene_iva: true,
+                        iva_porcentaje: 15.00,
+                        stock_actual: 0,
+                        stock_minimo: 5,
+                        proveedor_id: null
+                    };
+                    await generarNuevoCodigo();
+                    showProductoModal.value = true;
+                };
+
+                const generarNuevoCodigo = async () => {
                     try {
-                        const res = await axios.post('/api/inventario/insumos', formProd.value);
-                        productos.value.push(res.data);
-                        showProductoModal.value = false;
-                        formProd.value = { nombre: '', unidad_medida: '', stock_actual: 0, stock_minimo: 5, proveedor_id: null };
-                        Swal.fire({ icon: 'success', title: 'Producto creado', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                        const res = await axios.get('/api/inventario/insumos/siguiente-codigo');
+                        if (res.data && res.data.siguiente_codigo) {
+                            formProd.value.codigo = res.data.siguiente_codigo;
+                        }
+                    } catch (e) {
+                        formProd.value.codigo = `INS-${(productos.value.length + 1).toString().padStart(3, '0')}`;
+                    }
+                };
+
+                const editarProducto = (prod) => {
+                    modoEdicionProducto.value = true;
+                    const catComun = categoriasCatalogo.includes(prod.categoria);
+                    const unidadComun = unidadesComunes.includes(prod.unidad_medida);
+
+                    let tipoIva = '15';
+                    if (!prod.tiene_iva || Number(prod.iva_porcentaje) === 0) {
+                        tipoIva = '0';
+                    } else if (Number(prod.iva_porcentaje) === 15) {
+                        tipoIva = '15';
+                    } else {
+                        tipoIva = 'personalizado';
+                    }
+
+                    formProd.value = {
+                        id: prod.id,
+                        codigo: prod.codigo || '',
+                        nombre: prod.nombre,
+                        descripcion: prod.descripcion || '',
+                        categoria: catComun ? prod.categoria : 'OTRA',
+                        otra_categoria: catComun ? '' : (prod.categoria || ''),
+                        precio: Number(prod.precio || 0),
+                        unidad_medida: unidadComun ? prod.unidad_medida : 'OTRO',
+                        otra_unidad: unidadComun ? '' : (prod.unidad_medida || ''),
+                        tipo_iva: tipoIva,
+                        tiene_iva: prod.tiene_iva !== false,
+                        iva_porcentaje: Number(prod.iva_porcentaje || 15),
+                        stock_actual: prod.stock_actual || 0,
+                        stock_minimo: prod.stock_minimo || 5,
+                        proveedor_id: prod.proveedor_id || null
+                    };
+                    showProductoModal.value = true;
+                };
+
+                const eliminarProducto = async (prod) => {
+                    const confirm = await Swal.fire({
+                        title: '¿Eliminar producto?',
+                        html: `¿Estás seguro de eliminar <b>${prod.nombre}</b> (${prod.codigo || 'Sin código'})?<br><span class="text-xs text-gray-500">Esta acción no se puede deshacer.</span>`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#ef4444',
+                        cancelButtonColor: '#6b7280',
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    });
+                    if (!confirm.isConfirmed) return;
+
+                    try {
+                        await axios.delete(`/api/inventario/insumos/${prod.id}`);
+                        productos.value = productos.value.filter(p => p.id !== prod.id);
+                        Swal.fire({ icon: 'success', title: 'Producto eliminado', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
                     } catch (err) {
-                        errorMsg.value = "Error al guardar producto.";
+                        const msg = err.response?.data?.detail || 'Error al eliminar producto.';
+                        Swal.fire({ icon: 'error', title: 'No se pudo eliminar', text: msg });
+                    }
+                };
+
+                const guardarProducto = async () => {
+                    guardando.value = true;
+                    try {
+                        const payload = {
+                            codigo: formProd.value.codigo ? formProd.value.codigo.trim().toUpperCase() : null,
+                            nombre: formProd.value.nombre.trim(),
+                            descripcion: formProd.value.descripcion ? formProd.value.descripcion.trim() : null,
+                            categoria: formProd.value.categoria === 'OTRA' ? (formProd.value.otra_categoria.trim() || 'General') : formProd.value.categoria,
+                            precio: parseFloat(formProd.value.precio) || 0.00,
+                            unidad_medida: formProd.value.unidad_medida === 'OTRO' ? (formProd.value.otra_unidad.trim() || 'Unidad') : formProd.value.unidad_medida,
+                            tiene_iva: formProd.value.tipo_iva !== '0',
+                            iva_porcentaje: formProd.value.tipo_iva === '15' ? 15.00 : (formProd.value.tipo_iva === '0' ? 0.00 : (parseFloat(formProd.value.iva_porcentaje) || 0)),
+                            stock_actual: parseInt(formProd.value.stock_actual) || 0,
+                            stock_minimo: parseInt(formProd.value.stock_minimo) || 5,
+                            proveedor_id: formProd.value.proveedor_id ? parseInt(formProd.value.proveedor_id) : null
+                        };
+
+                        if (modoEdicionProducto.value && formProd.value.id) {
+                            const res = await axios.put(`/api/inventario/insumos/${formProd.value.id}`, payload);
+                            const idx = productos.value.findIndex(p => p.id === formProd.value.id);
+                            if (idx !== -1) {
+                                productos.value[idx] = res.data;
+                            }
+                            Swal.fire({ icon: 'success', title: 'Producto actualizado', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                        } else {
+                            const res = await axios.post('/api/inventario/insumos', payload);
+                            productos.value.unshift(res.data);
+                            Swal.fire({ icon: 'success', title: 'Producto creado exitosamente', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                        }
+                        showProductoModal.value = false;
+                    } catch (err) {
+                        console.error(err);
+                        const msg = err.response?.data?.detail || "Error al guardar producto.";
+                        Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                    } finally {
+                        guardando.value = false;
                     }
                 };
 
@@ -673,7 +1074,6 @@
                     
                     guardando.value = true;
                     try {
-                        // Limpiar detalles vacíos
                         formCompra.value.detalles = formCompra.value.detalles.filter(d => d.insumo_id && d.cantidad > 0);
                         
                         const res = await axios.post('/api/inventario/compras', formCompra.value);
@@ -688,6 +1088,11 @@
                         // Limpiar form
                         formCompra.value.numero_documento = '';
                         formCompra.value.detalles = [];
+                        agregarFilaProducto();
+                        
+                        // Recargar productos para refrescar stocks
+                        const prodRes = await axios.get('/api/inventario/insumos');
+                        productos.value = prodRes.data;
                         
                     } catch (err) {
                         console.error(err);
@@ -704,13 +1109,16 @@
 
                 return {
                     currentTab, errorMsg, guardando,
+                    categoriasCatalogo, unidadesComunes,
                     proveedores, productos, sucursales, bodegas, tratamientos,
+                    busquedaProducto, filtroCategoria, modoEdicionProducto,
+                    categoriasDisponibles, productosFiltrados, getProveedorNombre,
                     getSucursalName,
                     showProveedorModal, formProv, guardarProveedor,
-                    showProductoModal, formProd, guardarProducto,
+                    showProductoModal, formProd, abrirModalNuevoProducto, generarNuevoCodigo, editarProducto, eliminarProducto, guardarProducto,
                     showBodegaModal, formBodega, guardarBodega,
                     selectedTratamientoId, formReceta, cargarRecetasTratamiento, agregarInsumoReceta, eliminarInsumoReceta, guardarRecetas,
-                    formCompra, agregarFilaProducto, eliminarFilaProducto,
+                    formCompra, agregarFilaProducto, eliminarFilaProducto, onProductoSelect,
                     totalCompraMonto, totalCompraFormateado, registrarCompra
                 };
             }

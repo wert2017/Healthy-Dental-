@@ -327,8 +327,14 @@ class InventarioDoctor(SQLModel, table=True):
 
 class Insumo(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    codigo: Optional[str] = Field(default=None, index=True)
     nombre: str = Field(index=True)
-    unidad_medida: str # e.g. "Unidad", "Caja", "ml"
+    descripcion: Optional[str] = None
+    categoria: Optional[str] = Field(default="Materiales Dentales")
+    precio: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
+    unidad_medida: str # e.g. "Unidad", "Caja", "Jeringa", "ml"
+    tiene_iva: bool = Field(default=True)
+    iva_porcentaje: Decimal = Field(default=Decimal("15.00"), max_digits=5, decimal_places=2)
     
     # Bodega Central Stock
     stock_actual: int = Field(default=0) 
@@ -343,7 +349,7 @@ class Insumo(SQLModel, table=True):
     inventarios_doctor: List["InventarioDoctor"] = Relationship(back_populates="insumo")
 
     def __str__(self):
-        return self.nombre
+        return f"[{self.codigo or 'S/C'}] {self.nombre}"
 
 class Receta(SQLModel, table=True):
     """Links a Tratamiento to an Insumo (The Recipe)"""

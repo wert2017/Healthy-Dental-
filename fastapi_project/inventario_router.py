@@ -143,10 +143,25 @@ def update_proveedor(id: int, data: Proveedor, session: Session = Depends(get_se
 # --- INSUMOS (Global Views) ---
 @router.get("/insumos", response_model=List[Insumo])
 def list_global_insumos(session: Session = Depends(get_session)):
-    return session.exec(select(Insumo)).all()
+    return session.exec(select(Insumo).order_by(Insumo.id.desc())).all()
+
+@router.get("/insumos/siguiente-codigo")
+def get_siguiente_codigo(session: Session = Depends(get_session)):
+    # Buscar el último ID para sugerir INS-XXX
+    total = session.exec(select(Insumo)).all()
+    siguiente_num = len(total) + 1
+    codigo_sugerido = f"INS-{siguiente_num:03d}"
+    return {"siguiente_codigo": codigo_sugerido}
 
 @router.post("/insumos", response_model=Insumo)
 def create_insumo(insumo: Insumo, session: Session = Depends(get_session)):
+    # Si no tiene código, autogenerar uno
+    if not insumo.codigo or not insumo.codigo.strip():
+        total = session.exec(select(Insumo)).all()
+        insumo.codigo = f"INS-{len(total) + 1:03d}"
+    else:
+        insumo.codigo = insumo.codigo.strip().upper()
+        
     session.add(insumo)
     session.commit()
     session.refresh(insumo)
@@ -160,12 +175,44 @@ def update_insumo(id: int, data: Insumo, session: Session = Depends(get_session)
     
     insumo_data = data.dict(exclude_unset=True)
     for key, value in insumo_data.items():
-        setattr(insumo, key, value)
+        if key != "id":
+            if key == "codigo" and value:
+                value = str(value).strip().upper()
+            setattr(insumo, key, value)
         
     session.add(insumo)
     session.commit()
     session.refresh(insumo)
     return insumo
+
+@router.delete("/insumos/{id}")
+def delete_insumo(id: int, session: Session = Depends(get_session)):
+    insumo = session.get(Insumo, id)
+    if not insumo:
+        raise HTTPException(status_code=404, detail="Insumo no encontrado")
+        
+    # Verificar si está en recetas o detalles de compra
+    recetas_count = len(session.exec(select(Receta).where(Receta.insumo_id == id)).all())
+    if recetas_count > 0:
+        raise HTTPException(status_code=400, detail="No se puede eliminar: el producto está asignado en recetas de tratamientos.")
+        
+    detalles_count = len(session.exec(select(DetalleCompra).where(DetalleCompra.insumo_id == id)).all())
+    if detalles_count > 0:
+        raise HTTPException(status_code=400, detail="No se puede eliminar: el producto tiene compras registradas en el historial.")
+        
+    # Eliminar inventarios asociados si los hay
+    inv_bodegas = session.exec(select(InventarioBodega).where(InventarioBodega.insumo_id == id)).all()
+    for ib in inv_bodegas:
+        session.delete(ib)
+        
+    inv_doctores = session.exec(select(InventarioDoctor).where(InventarioDoctor.insumo_id == id)).all()
+    for idoc in inv_doctores:
+        session.delete(idoc)
+
+    session.delete(insumo)
+    session.commit()
+    return {"status": "ok", "message": "Insumo eliminado exitosamente"}
+
 
 # --- MOVIMIENTOS ---
 
