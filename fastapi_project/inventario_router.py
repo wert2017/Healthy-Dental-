@@ -29,6 +29,12 @@ class DetalleCompraRequest(BaseModel):
     insumo_id: int
     cantidad: int
     precio_unitario: float
+    descuento: Optional[float] = 0.0
+    tiene_iva: Optional[bool] = True
+    iva_porcentaje: Optional[float] = 15.0
+    subtotal: Optional[float] = None
+    monto_iva: Optional[float] = None
+    total_linea: Optional[float] = None
 
 class CompraRequest(BaseModel):
     proveedor_id: int
@@ -36,8 +42,16 @@ class CompraRequest(BaseModel):
     usuario_id: int
     tipo_documento: str
     numero_documento: Optional[str] = None
+    numero_autorizacion: Optional[str] = None
     metodo_pago: str = "TRANSFERENCIA"
     observaciones: Optional[str] = None
+    subtotal_15: Optional[float] = 0.0
+    subtotal_0: Optional[float] = 0.0
+    subtotal_sin_impuestos: Optional[float] = 0.0
+    iva_porcentaje: Optional[float] = 15.0
+    monto_iva: Optional[float] = 0.0
+    descuento: Optional[float] = 0.0
+    monto_total: Optional[float] = None
     detalles: List[DetalleCompraRequest]
 
 class RecetaRequest(BaseModel):
@@ -374,6 +388,33 @@ def list_sucursales(session: Session = Depends(get_session)):
 
 # --- COMPRAS E INVENTARIO DIRECTO ---
 
+@router.get("/compras")
+def list_compras(session: Session = Depends(get_session)):
+    compras = session.exec(select(Compra).order_by(Compra.fecha.desc())).all()
+    res = []
+    for c in compras:
+        prov = session.get(Proveedor, c.proveedor_id)
+        bod = session.get(Bodega, c.bodega_id)
+        detalles_count = len(session.exec(select(DetalleCompra).where(DetalleCompra.compra_id == c.id)).all())
+        res.append({
+            "id": c.id,
+            "fecha": c.fecha.strftime("%Y-%m-%d %H:%M") if c.fecha else "-",
+            "proveedor": prov.nombre if prov else "Desconocido",
+            "proveedor_ruc": prov.ruc if prov else "",
+            "bodega": bod.nombre if bod else "Bodega Central",
+            "tipo_documento": c.tipo_documento,
+            "numero_documento": c.numero_documento or "-",
+            "numero_autorizacion": c.numero_autorizacion or "",
+            "subtotal_15": float(c.subtotal_15 or 0),
+            "subtotal_0": float(c.subtotal_0 or 0),
+            "subtotal_sin_impuestos": float(c.subtotal_sin_impuestos or 0),
+            "monto_iva": float(c.monto_iva or 0),
+            "descuento": float(c.descuento or 0),
+            "monto_total": float(c.monto_total or 0),
+            "items_count": detalles_count
+        })
+    return res
+
 @router.post("/compras")
 def registrar_compra(req: CompraRequest, session: Session = Depends(get_session)):
     proveedor = session.get(Proveedor, req.proveedor_id)
@@ -386,14 +427,66 @@ def registrar_compra(req: CompraRequest, session: Session = Depends(get_session)
     
     sucursal_id = bodega.sucursal_id
 
-    # 1. Calcular el total
-    monto_total = sum(d.cantidad * d.precio_unitario for d in req.detalles)
+    # 1. Calcular subtotales, IVA y total de la compra
+    calc_subtotal_15 = 0.0
+    calc_subtotal_0 = 0.0
+    calc_monto_iva = 0.0
+    detalles_procesados = []
+
+    for d in req.detalles:
+        insumo = session.get(Insumo, d.insumo_id)
+        if not insumo:
+            continue
+            
+        cant = float(d.cantidad)
+        pu = float(d.precio_unitario)
+        desc = float(d.descuento or 0.0)
+        subt = max(0.0, (cant * pu) - desc)
+        
+        tiene_iva = d.tiene_iva if d.tiene_iva is not None else insumo.tiene_iva
+        iva_pct = float(d.iva_porcentaje if d.iva_porcentaje is not None else (insumo.iva_porcentaje or 15.0))
+        
+        if tiene_iva and iva_pct > 0:
+            m_iva = round(subt * (iva_pct / 100.0), 2)
+            calc_subtotal_15 += subt
+            calc_monto_iva += m_iva
+        else:
+            m_iva = 0.0
+            calc_subtotal_0 += subt
+            
+        tot_lin = subt + m_iva
+        
+        detalles_procesados.append({
+            "insumo_id": d.insumo_id,
+            "cantidad": d.cantidad,
+            "precio_unitario": pu,
+            "descuento": desc,
+            "subtotal": subt,
+            "tiene_iva": tiene_iva,
+            "iva_porcentaje": iva_pct,
+            "monto_iva": m_iva,
+            "total_linea": tot_lin
+        })
+
+    # Respetar valores enviados desde el frontend si el usuario los ajustó por redondeos exactos de factura física
+    final_subtotal_15 = float(req.subtotal_15) if req.subtotal_15 is not None and req.subtotal_15 > 0 else round(calc_subtotal_15, 2)
+    final_subtotal_0 = float(req.subtotal_0) if req.subtotal_0 is not None and req.subtotal_0 > 0 else round(calc_subtotal_0, 2)
+    final_subtotal_sin_imp = round(final_subtotal_15 + final_subtotal_0, 2)
+    final_monto_iva = float(req.monto_iva) if req.monto_iva is not None and req.monto_iva > 0 else round(calc_monto_iva, 2)
+    final_descuento = float(req.descuento or 0.0)
     
-    # 2. Crear el Gasto (Impacta el Dashboard Automáticamente)
+    if req.monto_total is not None and req.monto_total > 0:
+        final_monto_total = float(req.monto_total)
+    else:
+        final_monto_total = round(final_subtotal_sin_imp + final_monto_iva, 2)
+    
+    # 2. Crear el Gasto (Impacta el Flujo de Caja y Dashboards automáticamente)
     desc_doc = f"{req.tipo_documento} {req.numero_documento}" if req.numero_documento else req.tipo_documento
+    detalle_tributario = f"(Subt: ${final_subtotal_sin_imp:.2f}, IVA: ${final_monto_iva:.2f}, Total: ${final_monto_total:.2f})"
+    
     gasto = Gasto(
-        descripcion=f"COMPRA INVENTARIO - {desc_doc} - Proveedor: {proveedor.nombre} - Bodega: {bodega.nombre}",
-        monto=monto_total,
+        descripcion=f"COMPRA INVENTARIO - {desc_doc} - {proveedor.nombre} {detalle_tributario}",
+        monto=final_monto_total,
         metodo_pago=req.metodo_pago,
         categoria="COMPRA DE INVENTARIO",
         tipo="EGRESO",
@@ -404,51 +497,68 @@ def registrar_compra(req: CompraRequest, session: Session = Depends(get_session)
     session.commit()
     session.refresh(gasto)
     
-    # 3. Registrar la Compra
+    # 3. Registrar la Compra en base de datos
     compra = Compra(
         proveedor_id=req.proveedor_id,
         bodega_id=req.bodega_id,
         usuario_id=req.usuario_id,
         tipo_documento=req.tipo_documento,
         numero_documento=req.numero_documento,
+        numero_autorizacion=req.numero_autorizacion,
         gasto_id=gasto.id,
-        monto_total=monto_total,
+        subtotal_15=final_subtotal_15,
+        subtotal_0=final_subtotal_0,
+        subtotal_sin_impuestos=final_subtotal_sin_imp,
+        iva_porcentaje=req.iva_porcentaje or 15.0,
+        monto_iva=final_monto_iva,
+        descuento=final_descuento,
+        monto_total=final_monto_total,
         observaciones=req.observaciones
     )
     session.add(compra)
     session.commit()
     session.refresh(compra)
     
-    # 4. Procesar Detalles y Actualizar Bodega (InventarioBodega)
-    for det in req.detalles:
-        insumo = session.get(Insumo, det.insumo_id)
-        if not insumo:
-            continue
-            
+    # 4. Procesar Detalles y Actualizar Stock en Bodega (InventarioBodega)
+    for det in detalles_procesados:
         detalle_db = DetalleCompra(
             compra_id=compra.id,
-            insumo_id=det.insumo_id,
-            cantidad=det.cantidad,
-            precio_unitario=det.precio_unitario
+            insumo_id=det["insumo_id"],
+            cantidad=det["cantidad"],
+            precio_unitario=det["precio_unitario"],
+            descuento=det["descuento"],
+            subtotal=det["subtotal"],
+            tiene_iva=det["tiene_iva"],
+            iva_porcentaje=det["iva_porcentaje"],
+            monto_iva=det["monto_iva"],
+            total_linea=det["total_linea"]
         )
         session.add(detalle_db)
         
         # Aumentar stock en la sucursal (Bodega)
         inv_bodega = session.exec(select(InventarioBodega).where(
             InventarioBodega.bodega_id == req.bodega_id,
-            InventarioBodega.insumo_id == det.insumo_id
+            InventarioBodega.insumo_id == det["insumo_id"]
         )).first()
         
         if not inv_bodega:
             inv_bodega = InventarioBodega(
                 bodega_id=req.bodega_id,
-                insumo_id=det.insumo_id,
+                insumo_id=det["insumo_id"],
                 stock_actual=0
             )
             session.add(inv_bodega)
             
-        inv_bodega.stock_actual += det.cantidad
+        inv_bodega.stock_actual += det["cantidad"]
         session.add(inv_bodega)
         
     session.commit()
-    return {"status": "ok", "compra_id": compra.id, "gasto_id": gasto.id, "mensaje": "Compra e inventario registrados exitosamente"}
+    return {
+        "status": "ok", 
+        "compra_id": compra.id, 
+        "gasto_id": gasto.id, 
+        "monto_total": final_monto_total,
+        "subtotal_sin_impuestos": final_subtotal_sin_imp,
+        "monto_iva": final_monto_iva,
+        "mensaje": "Compra e inventario registrados exitosamente con desglose de IVA"
+    }

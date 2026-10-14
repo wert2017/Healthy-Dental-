@@ -281,8 +281,16 @@ class Compra(SQLModel, table=True):
     fecha: datetime = Field(default_factory=datetime.now)
     tipo_documento: str = Field(default="Factura") # Factura, Nota de Venta, Recibo
     numero_documento: Optional[str] = None
+    numero_autorizacion: Optional[str] = None
     gasto_id: Optional[int] = Field(default=None, foreign_key="gasto.id")
-    monto_total: Decimal = Field(default=0, max_digits=10, decimal_places=2)
+    
+    subtotal_15: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
+    subtotal_0: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
+    subtotal_sin_impuestos: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
+    iva_porcentaje: Decimal = Field(default=Decimal("15.00"), max_digits=5, decimal_places=2)
+    monto_iva: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
+    descuento: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
+    monto_total: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
     observaciones: Optional[str] = None
     
     proveedor: Optional["Proveedor"] = Relationship(back_populates="compras")
@@ -295,7 +303,13 @@ class DetalleCompra(SQLModel, table=True):
     compra_id: int = Field(foreign_key="compra.id")
     insumo_id: int = Field(foreign_key="insumo.id")
     cantidad: int = Field(default=1)
-    precio_unitario: Decimal = Field(max_digits=10, decimal_places=2)
+    precio_unitario: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
+    descuento: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
+    subtotal: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
+    tiene_iva: bool = Field(default=True)
+    iva_porcentaje: Decimal = Field(default=Decimal("15.00"), max_digits=5, decimal_places=2)
+    monto_iva: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
+    total_linea: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=2)
     
     compra: Optional["Compra"] = Relationship(back_populates="detalles")
     insumo: Optional["Insumo"] = Relationship()

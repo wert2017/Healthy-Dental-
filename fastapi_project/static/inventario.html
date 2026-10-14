@@ -333,125 +333,327 @@
                     </div>
                 </div>
 
-                <div v-show="currentTab === 'compras'" class="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                    <div class="mb-8 border-b border-gray-100 pb-5">
-                        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
-                            <i class="fa-solid fa-receipt text-blue-600 mr-3"></i> Recepción de Compra / Gasto
-                        </h2>
-                        <p class="text-gray-500 mt-1">Registra la factura de tu proveedor. Los productos se sumarán a bodega y el valor total se registrará como Gasto automáticamente.</p>
-                    </div>
-
-                    <form @submit.prevent="registrarCompra" class="space-y-6">
-                        <!-- Bloque 1: Cabecera Documento -->
-                        <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- TAB: COMPRAS / RECEPCIÓN DE FACTURAS -->
+                <div v-show="currentTab === 'compras'" class="max-w-6xl mx-auto space-y-8">
+                    <!-- Formulario de Compra -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+                        <div class="mb-6 border-b border-gray-100 pb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Proveedor *</label>
-                                <select v-model="formCompra.proveedor_id" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
-                                    <option value="" disabled>Seleccione proveedor...</option>
-                                    <option v-for="p in proveedores" :value="p.id">{{ p.nombre }}</option>
-                                </select>
+                                <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                                    <i class="fa-solid fa-file-invoice-dollar text-blue-600 mr-3"></i> Registro de Compra / Factura de Proveedor
+                                </h2>
+                                <p class="text-gray-500 mt-1 text-sm">
+                                    Ingresa los datos de la factura tal como constan en el documento físico o electrónico del SRI. Los saldos de Subtotal e IVA cuadrarán exactamente con el documento primario.
+                                </p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Bodega (Destino) *</label>
-                                <select v-model="formCompra.bodega_id" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
-                                    <option value="" disabled>Seleccione Bodega...</option>
-                                    <option v-for="b in bodegas" :value="b.id">{{ b.nombre }} ({{ getSucursalName(b.sucursal_id) }})</option>
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Tipo de Documento *</label>
-                                <select v-model="formCompra.tipo_documento" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
-                                    <option value="Factura">Factura</option>
-                                    <option value="Nota de Venta">Nota de Venta</option>
-                                    <option value="Recibo">Recibo / Comprobante</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Número de Documento</label>
-                                <input v-model="formCompra.numero_documento" type="text" placeholder="Ej: 001-002-00000456" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Método de Pago *</label>
-                                <select v-model="formCompra.metodo_pago" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border">
-                                    <option value="TRANSFERENCIA">Transferencia / Banco</option>
-                                    <option value="EFECTIVO">Efectivo (Caja Chica)</option>
-                                    <option value="TARJETA">Tarjeta de Crédito/Débito</option>
-                                </select>
-                            </div>
+                            <span class="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-blue-200 flex items-center self-start">
+                                <i class="fa-solid fa-calculator mr-1.5"></i> Cálculo Automático de IVA (15% / 0%)
+                            </span>
                         </div>
 
-                        <!-- Bloque 2: Productos -->
-                        <div>
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-lg font-bold text-gray-800">Detalle de Productos</h3>
-                                <button type="button" @click="agregarFilaProducto" class="text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors flex items-center">
-                                    <i class="fa-solid fa-plus mr-1.5"></i> Añadir Fila
-                                </button>
-                            </div>
-                            
-                            <div class="space-y-3">
-                                <div v-for="(item, index) in formCompra.detalles" :key="index" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white p-3.5 border border-gray-200 rounded-xl shadow-sm hover:border-blue-200 transition-colors">
-                                    <div class="flex-1">
-                                        <label class="block text-[11px] font-bold text-gray-500 uppercase sm:hidden mb-1">Producto / Insumo</label>
-                                        <select v-model="item.insumo_id" @change="onProductoSelect(item)" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-sm font-medium text-gray-800">
-                                            <option value="" disabled>Seleccione producto...</option>
-                                            <option v-for="prod in productos" :value="prod.id">
-                                                [{{ prod.codigo || 'S/C' }}] {{ prod.nombre }} ({{ prod.unidad_medida }}) - Sugerido: ${{ Number(prod.precio || 0).toFixed(2) }}
+                        <form @submit.prevent="registrarCompra" class="space-y-6">
+                            <!-- Bloque 1: Cabecera Documento (SRI) -->
+                            <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                                <h3 class="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center">
+                                    <i class="fa-solid fa-circle-info text-blue-600 mr-2"></i> Datos del Comprobante y Proveedor
+                                </h3>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <!-- Proveedor -->
+                                    <div class="md:col-span-2">
+                                        <div class="flex justify-between items-center mb-1">
+                                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Proveedor / Razón Social *</label>
+                                            <button type="button" @click="showProveedorModal = true" class="text-xs text-blue-600 hover:underline font-semibold flex items-center">
+                                                <i class="fa-solid fa-plus mr-1 text-[10px]"></i> + Nuevo Proveedor
+                                            </button>
+                                        </div>
+                                        <select v-model="formCompra.proveedor_id" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-semibold text-gray-800">
+                                            <option value="" disabled>Seleccione proveedor...</option>
+                                            <option v-for="p in proveedores" :value="p.id">
+                                                {{ p.nombre }} — RUC: {{ p.ruc || 'S/N' }}
                                             </option>
                                         </select>
                                     </div>
-                                    <div class="w-full sm:w-28">
-                                        <label class="block text-[11px] font-bold text-gray-500 uppercase sm:hidden mb-1">Cantidad</label>
-                                        <input v-model.number="item.cantidad" type="number" min="1" step="1" required placeholder="Cant" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-sm text-center font-bold">
+
+                                    <!-- Bodega Destino -->
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Bodega (Destino) *</label>
+                                        <select v-model="formCompra.bodega_id" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-medium text-gray-800">
+                                            <option value="" disabled>Seleccione Bodega...</option>
+                                            <option v-for="b in bodegas" :value="b.id">{{ b.nombre }} ({{ getSucursalName(b.sucursal_id) }})</option>
+                                        </select>
                                     </div>
-                                    <div class="w-full sm:w-36 relative">
-                                        <label class="block text-[11px] font-bold text-gray-500 uppercase sm:hidden mb-1">Precio Unitario ($)</label>
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-2 text-gray-500 text-sm font-bold">$</span>
-                                            <input v-model.number="item.precio_unitario" type="number" min="0" step="0.01" required placeholder="Precio Unit" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 pl-7 border text-sm font-bold text-gray-900">
-                                        </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
+                                    <!-- Tipo de Documento -->
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Tipo Documento *</label>
+                                        <select v-model="formCompra.tipo_documento" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-medium text-gray-800">
+                                            <option value="Factura">Factura</option>
+                                            <option value="Nota de Venta">Nota de Venta</option>
+                                            <option value="Liquidación de Compra">Liquidación de Compra</option>
+                                            <option value="Recibo / Comprobante">Recibo / Comprobante</option>
+                                        </select>
                                     </div>
-                                    <div class="w-full sm:w-32 text-right font-black text-gray-800 bg-slate-50 p-2 rounded-lg border border-slate-200 flex sm:flex-col justify-between sm:justify-center items-center sm:items-end">
-                                        <span class="text-xs font-semibold text-gray-500 sm:hidden">Total Línea:</span>
-                                        <span>${{ (item.cantidad * item.precio_unitario).toFixed(2) }}</span>
+
+                                    <!-- Número de Factura -->
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">No. Comprobante *</label>
+                                        <input v-model="formCompra.numero_documento" type="text" placeholder="Ej: 001-100-000000029" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-mono font-bold text-gray-800">
                                     </div>
-                                    <button type="button" @click="eliminarFilaProducto(index)" class="text-red-500 hover:bg-red-50 p-2.5 rounded-lg transition-colors self-end sm:self-center" title="Quitar fila">
-                                        <i class="fa-solid fa-trash-can"></i>
+
+                                    <!-- Método de Pago -->
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Forma de Pago *</label>
+                                        <select v-model="formCompra.metodo_pago" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-medium text-gray-800">
+                                            <option value="TRANSFERENCIA">Transferencia / Banco</option>
+                                            <option value="EFECTIVO">Efectivo (Caja Chica)</option>
+                                            <option value="TARJETA">Tarjeta de Crédito / Débito</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- No. Autorización / Clave de Acceso SRI -->
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Clave Acceso SRI (Opcional)</label>
+                                        <input v-model="formCompra.numero_autorizacion" type="text" placeholder="49 dígitos de autorización" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-mono text-xs text-gray-700">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bloque 2: Detalle de Productos (Líneas de la Factura) -->
+                            <div>
+                                <div class="flex justify-between items-center mb-3">
+                                    <div>
+                                        <h3 class="text-base font-bold text-gray-800 flex items-center">
+                                            <i class="fa-solid fa-list-check text-blue-600 mr-2"></i> Detalle de Ítems / Productos de la Factura
+                                        </h3>
+                                        <span class="text-xs text-gray-500">Cada producto refleja su base imponible y su valor de IVA individual.</span>
+                                    </div>
+                                    <button type="button" @click="agregarFilaProducto" class="text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl transition-all shadow-sm flex items-center">
+                                        <i class="fa-solid fa-plus mr-1.5"></i> Añadir Ítem
                                     </button>
                                 </div>
-                                <div v-if="formCompra.detalles.length === 0" class="text-center p-8 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-gray-500 text-sm">
-                                    <i class="fa-solid fa-cart-plus text-3xl text-gray-300 mb-2 block"></i>
-                                    Agrega productos para registrar la compra.
-                                </div>
-                            </div>
-                        </div>
 
-                        <!-- Bloque 3: Totales -->
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-gray-100">
-                            <div class="text-xs text-gray-500">
-                                <span class="font-bold text-gray-700">Nota:</span> Al procesar la compra se actualizará automáticamente el stock en la bodega de destino y se generará el egreso correspondiente.
-                            </div>
-                            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 min-w-[280px] w-full sm:w-auto">
-                                <div class="flex justify-between items-center text-sm text-blue-800 mb-1">
-                                    <span>Subtotal Productos:</span>
-                                    <span class="font-bold">${{ totalCompraFormateado }}</span>
+                                <div class="overflow-x-auto bg-white rounded-xl border border-gray-200 shadow-sm">
+                                    <table class="w-full text-xs text-left min-w-[750px]">
+                                        <thead class="bg-slate-100 text-slate-700 font-bold border-b border-gray-200 uppercase tracking-wider">
+                                            <tr>
+                                                <th class="p-3 w-5/12">Producto / Insumo</th>
+                                                <th class="p-3 w-20 text-center">Cant.</th>
+                                                <th class="p-3 w-28 text-center">P. Unit ($)</th>
+                                                <th class="p-3 w-20 text-center">Desc ($)</th>
+                                                <th class="p-3 w-24 text-center">Tarifa IVA</th>
+                                                <th class="p-3 w-24 text-right">Subtotal ($)</th>
+                                                <th class="p-3 w-20 text-right">IVA ($)</th>
+                                                <th class="p-3 w-24 text-right">Total ($)</th>
+                                                <th class="p-3 w-10 text-center"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-100">
+                                            <tr v-for="(item, index) in formCompra.detalles" :key="index" class="hover:bg-blue-50/30 transition-colors">
+                                                <!-- Insumo -->
+                                                <td class="p-2.5">
+                                                    <select v-model="item.insumo_id" @change="onProductoSelect(item)" required class="w-full rounded-lg border-gray-300 p-2 text-xs font-medium text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                                        <option value="" disabled>Seleccione producto...</option>
+                                                        <option v-for="prod in productos" :value="prod.id">
+                                                            [{{ prod.codigo || 'S/C' }}] {{ prod.nombre }} ({{ prod.unidad_medida }})
+                                                        </option>
+                                                    </select>
+                                                </td>
+
+                                                <!-- Cantidad -->
+                                                <td class="p-2.5 text-center">
+                                                    <input v-model.number="item.cantidad" type="number" min="1" step="1" required class="w-full rounded-lg border-gray-300 p-2 text-xs text-center font-bold focus:border-blue-500">
+                                                </td>
+
+                                                <!-- Precio Unitario -->
+                                                <td class="p-2.5 text-center">
+                                                    <div class="relative">
+                                                        <span class="absolute left-2.5 top-2 text-gray-400 font-bold">$</span>
+                                                        <input v-model.number="item.precio_unitario" type="number" min="0" step="0.0001" required class="w-full rounded-lg border-gray-300 p-2 pl-6 text-xs font-bold text-gray-900 focus:border-blue-500 text-right">
+                                                    </div>
+                                                </td>
+
+                                                <!-- Descuento -->
+                                                <td class="p-2.5 text-center">
+                                                    <input v-model.number="item.descuento" type="number" min="0" step="0.01" class="w-full rounded-lg border-gray-300 p-2 text-xs text-center text-gray-600 focus:border-blue-500" placeholder="0.00">
+                                                </td>
+
+                                                <!-- Tarifa IVA -->
+                                                <td class="p-2.5 text-center">
+                                                    <select v-model="item.tarifa_iva_sel" @change="onTarifaIvaChange(item)" class="w-full rounded-lg border-gray-300 p-2 text-xs font-bold focus:border-blue-500" :class="item.tiene_iva ? 'text-emerald-700 bg-emerald-50' : 'text-gray-700 bg-gray-50'">
+                                                        <option value="15">15% IVA</option>
+                                                        <option value="0">0% IVA</option>
+                                                    </select>
+                                                </td>
+
+                                                <!-- Subtotal Línea -->
+                                                <td class="p-2.5 text-right font-bold text-gray-800">
+                                                    ${{ getItemSubtotal(item).toFixed(2) }}
+                                                </td>
+
+                                                <!-- IVA Línea -->
+                                                <td class="p-2.5 text-right font-bold" :class="getItemIva(item) > 0 ? 'text-emerald-700' : 'text-gray-400'">
+                                                    ${{ getItemIva(item).toFixed(2) }}
+                                                </td>
+
+                                                <!-- Total Línea -->
+                                                <td class="p-2.5 text-right font-black text-gray-900">
+                                                    ${{ getItemTotal(item).toFixed(2) }}
+                                                </td>
+
+                                                <!-- Quitar -->
+                                                <td class="p-2.5 text-center">
+                                                    <button type="button" @click="eliminarFilaProducto(index)" class="text-red-400 hover:text-red-600 p-1 rounded transition-colors" title="Quitar ítem">
+                                                        <i class="fa-solid fa-trash-can text-sm"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+
+                                            <tr v-if="formCompra.detalles.length === 0">
+                                                <td colspan="9" class="p-8 text-center text-gray-400">
+                                                    <i class="fa-solid fa-cart-plus text-3xl mb-2 text-gray-300 block"></i>
+                                                    Agrega al menos un producto para registrar la factura de compra.
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div class="flex justify-between items-center pt-2 border-t border-blue-200">
-                                    <span class="text-sm font-bold text-blue-900">Total Factura:</span>
-                                    <span class="text-2xl font-black text-blue-900">${{ totalCompraFormateado }}</span>
+                            </div>
+
+                            <!-- Bloque 3: Resumen Liquidación SRI (Idéntico a la Factura Primaria) -->
+                            <div class="grid grid-cols-1 md:grid-cols-12 gap-6 pt-4 border-t border-gray-100 items-start">
+                                <!-- Notas y Ajustes a la izquierda -->
+                                <div class="md:col-span-6 space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Observaciones / Notas Adicionales</label>
+                                        <textarea v-model="formCompra.observaciones" rows="3" placeholder="Información adicional sobre la factura, entrega o condiciones de pago..." class="w-full rounded-xl border-gray-300 p-3 text-xs text-gray-700 focus:border-blue-500"></textarea>
+                                    </div>
+                                    
+                                    <!-- Toggle de ajuste de centavos por redondeo -->
+                                    <div class="bg-amber-50/70 p-3.5 rounded-xl border border-amber-200/70">
+                                        <div class="flex items-center justify-between">
+                                            <label class="flex items-center cursor-pointer text-xs font-bold text-amber-900">
+                                                <input type="checkbox" v-model="formCompra.ajuste_manual_total" class="rounded text-amber-600 focus:ring-amber-500 mr-2 h-4 w-4">
+                                                Ajustar Total Manualmente (Centavos de Redondeo SRI)
+                                            </label>
+                                            <span class="text-[11px] text-amber-700">Por si difiere en 1 centavo</span>
+                                        </div>
+                                        <div v-if="formCompra.ajuste_manual_total" class="mt-2.5 flex items-center gap-2">
+                                            <span class="text-xs font-bold text-gray-700">Total Impreso en Factura ($):</span>
+                                            <input v-model.number="formCompra.total_manual" type="number" step="0.01" min="0" placeholder="0.00" class="w-36 rounded-lg border-amber-300 p-1.5 text-xs font-black text-amber-900 text-right bg-white focus:border-amber-500">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Tarjeta de Totales Tipo Factura SRI a la derecha -->
+                                <div class="md:col-span-6">
+                                    <div class="bg-slate-900 text-white rounded-2xl p-5 shadow-lg space-y-2.5 font-mono text-xs">
+                                        <div class="text-[11px] font-sans font-bold tracking-wider text-slate-400 uppercase border-b border-slate-800 pb-2 flex justify-between items-center">
+                                            <span>Liquidación de Factura (SRI)</span>
+                                            <span class="text-emerald-400"><i class="fa-solid fa-receipt mr-1"></i> Totales</span>
+                                        </div>
+
+                                        <div class="flex justify-between items-center text-slate-300 pt-1">
+                                            <span>SUBTOTAL 15%:</span>
+                                            <span class="font-bold text-sm text-white">${{ subtotal15Compra.toFixed(2) }}</span>
+                                        </div>
+
+                                        <div class="flex justify-between items-center text-slate-300">
+                                            <span>SUBTOTAL 0% / EXENTO:</span>
+                                            <span class="font-bold text-sm text-white">${{ subtotal0Compra.toFixed(2) }}</span>
+                                        </div>
+
+                                        <div class="flex justify-between items-center text-slate-300">
+                                            <span>TOTAL DESCUENTO:</span>
+                                            <span class="font-bold text-sm text-amber-300">-${{ descuentoTotalCompra.toFixed(2) }}</span>
+                                        </div>
+
+                                        <div class="flex justify-between items-center text-slate-300 pt-2 border-t border-slate-800">
+                                            <span class="font-bold">SUBTOTAL SIN IMPUESTOS:</span>
+                                            <span class="font-bold text-sm text-white">${{ subtotalSinImpuestosCompra.toFixed(2) }}</span>
+                                        </div>
+
+                                        <div class="flex justify-between items-center text-emerald-300">
+                                            <span class="font-bold">IVA 15%:</span>
+                                            <span class="font-black text-base text-emerald-400">+${{ iva15Compra.toFixed(2) }}</span>
+                                        </div>
+
+                                        <div class="flex justify-between items-center pt-3 border-t-2 border-slate-700 font-sans">
+                                            <span class="text-base font-bold text-white uppercase tracking-wider">VALOR TOTAL A PAGAR:</span>
+                                            <span class="text-2xl font-black text-emerald-400 font-mono">${{ totalFinalCompra.toFixed(2) }}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="pt-4 flex justify-end">
-                            <button type="submit" :disabled="guardando || formCompra.detalles.length === 0 || totalCompraMonto <= 0" class="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-8 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center text-lg">
-                                <i v-if="guardando" class="fa-solid fa-spinner fa-spin mr-2"></i>
-                                <i v-else class="fa-solid fa-check-circle mr-2"></i>
-                                Procesar e Ingresar a Bodega
+
+                            <div class="pt-4 flex justify-end">
+                                <button type="submit" :disabled="guardando || formCompra.detalles.length === 0 || totalFinalCompra <= 0" class="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-8 py-3.5 rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center text-base">
+                                    <i v-if="guardando" class="fa-solid fa-spinner fa-spin mr-2.5"></i>
+                                    <i v-else class="fa-solid fa-check-double mr-2.5"></i>
+                                    Guardar Compra e Ingresar a Bodega (${{ totalFinalCompra.toFixed(2) }})
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Historial de Facturas Registradas -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                                    <i class="fa-solid fa-clock-rotate-left text-blue-600 mr-2"></i> Historial de Compras Registradas
+                                </h3>
+                                <p class="text-xs text-gray-500">Comprobantes y facturas que han ingresado a inventario y generado egreso contable.</p>
+                            </div>
+                            <button type="button" @click="cargarComprasHistorial" class="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center bg-blue-50 px-3 py-1.5 rounded-lg">
+                                <i class="fa-solid fa-arrows-rotate mr-1.5"></i> Refrescar
                             </button>
                         </div>
-                    </form>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50 text-slate-600 uppercase font-bold border-b border-gray-200">
+                                    <tr>
+                                        <th class="p-3">Fecha</th>
+                                        <th class="p-3">Comprobante</th>
+                                        <th class="p-3">Proveedor / RUC</th>
+                                        <th class="p-3">Bodega</th>
+                                        <th class="p-3 text-right">Subtotal 15%</th>
+                                        <th class="p-3 text-right">Subtotal 0%</th>
+                                        <th class="p-3 text-right">IVA 15%</th>
+                                        <th class="p-3 text-right">Total Factura</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr v-for="c in comprasHistorial" :key="c.id" class="hover:bg-slate-50 transition-colors">
+                                        <td class="p-3 text-gray-600 font-medium whitespace-nowrap">{{ c.fecha }}</td>
+                                        <td class="p-3 font-mono font-bold text-gray-800">
+                                            {{ c.tipo_documento }} {{ c.numero_documento }}
+                                            <div v-if="c.numero_autorizacion" class="text-[10px] text-gray-400 font-mono truncate max-w-[150px]" :title="c.numero_autorizacion">
+                                                Auth: {{ c.numero_autorizacion }}
+                                            </div>
+                                        </td>
+                                        <td class="p-3">
+                                            <div class="font-bold text-gray-900">{{ c.proveedor }}</div>
+                                            <div class="text-[10px] text-gray-500">RUC: {{ c.proveedor_ruc || 'S/N' }}</div>
+                                        </td>
+                                        <td class="p-3 text-gray-700 font-medium">{{ c.bodega }}</td>
+                                        <td class="p-3 text-right font-medium text-gray-700">${{ Number(c.subtotal_15 || 0).toFixed(2) }}</td>
+                                        <td class="p-3 text-right font-medium text-gray-700">${{ Number(c.subtotal_0 || 0).toFixed(2) }}</td>
+                                        <td class="p-3 text-right font-bold text-emerald-700">${{ Number(c.monto_iva || 0).toFixed(2) }}</td>
+                                        <td class="p-3 text-right font-black text-gray-900 text-sm">${{ Number(c.monto_total || 0).toFixed(2) }}</td>
+                                    </tr>
+                                    <tr v-if="comprasHistorial.length === 0">
+                                        <td colspan="8" class="p-6 text-center text-gray-400">
+                                            No hay compras registradas en el historial.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>
@@ -773,17 +975,22 @@
                 const selectedTratamientoId = ref("");
                 const formReceta = ref([]);
 
-                // Compra Form
+                // Compra Form (Estructura SRI)
                 const formCompra = ref({
                     proveedor_id: '',
                     bodega_id: '',
                     usuario_id: null,
                     tipo_documento: 'Factura',
                     numero_documento: '',
+                    numero_autorizacion: '',
                     metodo_pago: 'TRANSFERENCIA',
                     observaciones: '',
+                    ajuste_manual_total: false,
+                    total_manual: null,
                     detalles: []
                 });
+
+                const comprasHistorial = ref([]);
 
                 // Computed
                 const getProveedorNombre = (id) => {
@@ -817,7 +1024,15 @@
                 });
 
                 const agregarFilaProducto = () => {
-                    formCompra.value.detalles.push({ insumo_id: '', cantidad: 1, precio_unitario: 0 });
+                    formCompra.value.detalles.push({
+                        insumo_id: '',
+                        cantidad: 1,
+                        precio_unitario: 0,
+                        descuento: 0,
+                        tarifa_iva_sel: '15',
+                        tiene_iva: true,
+                        iva_porcentaje: 15.0
+                    });
                 };
 
                 const eliminarFilaProducto = (index) => {
@@ -827,16 +1042,101 @@
                 const onProductoSelect = (item) => {
                     if (!item.insumo_id) return;
                     const prod = productos.value.find(p => p.id === item.insumo_id);
-                    if (prod && (!item.precio_unitario || item.precio_unitario === 0)) {
-                        item.precio_unitario = Number(prod.precio || 0);
+                    if (prod) {
+                        if (!item.precio_unitario || item.precio_unitario === 0) {
+                            item.precio_unitario = Number(prod.precio || 0);
+                        }
+                        if (prod.tiene_iva === false || Number(prod.iva_porcentaje) === 0) {
+                            item.tarifa_iva_sel = '0';
+                            item.tiene_iva = false;
+                            item.iva_porcentaje = 0;
+                        } else {
+                            item.tarifa_iva_sel = '15';
+                            item.tiene_iva = true;
+                            item.iva_porcentaje = 15;
+                        }
                     }
                 };
 
-                const totalCompraMonto = computed(() => {
-                    return formCompra.value.detalles.reduce((sum, item) => sum + (item.cantidad * item.precio_unitario), 0);
+                const onTarifaIvaChange = (item) => {
+                    if (item.tarifa_iva_sel === '15') {
+                        item.tiene_iva = true;
+                        item.iva_porcentaje = 15.0;
+                    } else {
+                        item.tiene_iva = false;
+                        item.iva_porcentaje = 0.0;
+                    }
+                };
+
+                const getItemSubtotal = (item) => {
+                    const cant = Number(item.cantidad || 0);
+                    const pu = Number(item.precio_unitario || 0);
+                    const desc = Number(item.descuento || 0);
+                    return Math.max(0, (cant * pu) - desc);
+                };
+
+                const getItemIva = (item) => {
+                    const subt = getItemSubtotal(item);
+                    if (!item.tiene_iva || Number(item.iva_porcentaje) === 0) return 0;
+                    return parseFloat((subt * (Number(item.iva_porcentaje || 15) / 100)).toFixed(2));
+                };
+
+                const getItemTotal = (item) => {
+                    return parseFloat((getItemSubtotal(item) + getItemIva(item)).toFixed(2));
+                };
+
+                // SRI Totales Computados (Factura Primaria)
+                const subtotal15Compra = computed(() => {
+                    return formCompra.value.detalles.reduce((acc, item) => {
+                        if (item.tiene_iva && Number(item.iva_porcentaje) > 0) {
+                            return acc + getItemSubtotal(item);
+                        }
+                        return acc;
+                    }, 0);
                 });
 
-                const totalCompraFormateado = computed(() => totalCompraMonto.value.toFixed(2));
+                const subtotal0Compra = computed(() => {
+                    return formCompra.value.detalles.reduce((acc, item) => {
+                        if (!item.tiene_iva || Number(item.iva_porcentaje) === 0) {
+                            return acc + getItemSubtotal(item);
+                        }
+                        return acc;
+                    }, 0);
+                });
+
+                const descuentoTotalCompra = computed(() => {
+                    return formCompra.value.detalles.reduce((acc, item) => {
+                        return acc + Number(item.descuento || 0);
+                    }, 0);
+                });
+
+                const subtotalSinImpuestosCompra = computed(() => {
+                    return subtotal15Compra.value + subtotal0Compra.value;
+                });
+
+                const iva15Compra = computed(() => {
+                    return parseFloat((subtotal15Compra.value * 0.15).toFixed(2));
+                });
+
+                const totalCalculadoCompra = computed(() => {
+                    return parseFloat((subtotalSinImpuestosCompra.value + iva15Compra.value).toFixed(2));
+                });
+
+                const totalFinalCompra = computed(() => {
+                    if (formCompra.value.ajuste_manual_total && formCompra.value.total_manual !== null && formCompra.value.total_manual !== '') {
+                        return Number(formCompra.value.total_manual) || 0;
+                    }
+                    return totalCalculadoCompra.value;
+                });
+
+                const cargarComprasHistorial = async () => {
+                    try {
+                        const res = await axios.get('/api/inventario/compras');
+                        comprasHistorial.value = res.data;
+                    } catch (e) {
+                        console.error("Error al cargar historial de compras", e);
+                    }
+                };
 
                 const checkAuth = async () => {
                     try {
@@ -852,8 +1152,9 @@
                         usuario.value = res.data;
                         formCompra.value.usuario_id = usuario.value.id;
                         
-                        // Cargar catálogos
+                        // Cargar catálogos e historial
                         cargarCatalogos();
+                        cargarComprasHistorial();
                     } catch (error) {
                         window.location.href = '/static/login.html';
                     }
@@ -1070,33 +1371,85 @@
                 };
 
                 const registrarCompra = async () => {
-                    if(formCompra.value.detalles.length === 0) return;
+                    if (formCompra.value.detalles.length === 0) return;
                     
+                    if (!formCompra.value.proveedor_id) {
+                        Swal.fire({ icon: 'warning', title: 'Falta Proveedor', text: 'Por favor selecciona el proveedor de la factura.' });
+                        return;
+                    }
+                    if (!formCompra.value.bodega_id) {
+                        Swal.fire({ icon: 'warning', title: 'Falta Bodega', text: 'Por favor selecciona la bodega de destino.' });
+                        return;
+                    }
+                    if (!formCompra.value.numero_documento) {
+                        Swal.fire({ icon: 'warning', title: 'Falta No. Comprobante', text: 'Ingresa el número de comprobante o factura.' });
+                        return;
+                    }
+                    
+                    const itemsValidos = formCompra.value.detalles.filter(d => d.insumo_id && Number(d.cantidad) > 0);
+                    if (itemsValidos.length === 0) {
+                        Swal.fire({ icon: 'warning', title: 'Ítems requeridos', text: 'Agrega al menos un producto con cantidad válida a la compra.' });
+                        return;
+                    }
+
                     guardando.value = true;
                     try {
-                        formCompra.value.detalles = formCompra.value.detalles.filter(d => d.insumo_id && d.cantidad > 0);
-                        
-                        const res = await axios.post('/api/inventario/compras', formCompra.value);
+                        const payload = {
+                            proveedor_id: parseInt(formCompra.value.proveedor_id),
+                            bodega_id: parseInt(formCompra.value.bodega_id),
+                            usuario_id: formCompra.value.usuario_id || (usuario.value ? usuario.value.id : 1),
+                            tipo_documento: formCompra.value.tipo_documento,
+                            numero_documento: formCompra.value.numero_documento.trim(),
+                            numero_autorizacion: formCompra.value.numero_autorizacion ? formCompra.value.numero_autorizacion.trim() : null,
+                            metodo_pago: formCompra.value.metodo_pago,
+                            observaciones: formCompra.value.observaciones ? formCompra.value.observaciones.trim() : null,
+                            subtotal_15: parseFloat(subtotal15Compra.value.toFixed(2)),
+                            subtotal_0: parseFloat(subtotal0Compra.value.toFixed(2)),
+                            subtotal_sin_impuestos: parseFloat(subtotalSinImpuestosCompra.value.toFixed(2)),
+                            iva_porcentaje: 15.0,
+                            monto_iva: parseFloat(iva15Compra.value.toFixed(2)),
+                            descuento: parseFloat(descuentoTotalCompra.value.toFixed(2)),
+                            monto_total: parseFloat(totalFinalCompra.value.toFixed(2)),
+                            detalles: itemsValidos.map(d => ({
+                                insumo_id: parseInt(d.insumo_id),
+                                cantidad: parseInt(d.cantidad),
+                                precio_unitario: parseFloat(d.precio_unitario) || 0.0,
+                                descuento: parseFloat(d.descuento) || 0.0,
+                                tiene_iva: d.tiene_iva !== false,
+                                iva_porcentaje: d.tiene_iva ? 15.0 : 0.0,
+                                subtotal: parseFloat(getItemSubtotal(d).toFixed(2)),
+                                monto_iva: parseFloat(getItemIva(d).toFixed(2)),
+                                total_linea: parseFloat(getItemTotal(d).toFixed(2))
+                            }))
+                        };
+
+                        const res = await axios.post('/api/inventario/compras', payload);
                         
                         Swal.fire({
                             icon: 'success',
-                            title: '¡Compra Registrada!',
-                            text: 'El inventario se ha actualizado y el gasto ha sido cargado en el dashboard exitosamente.',
+                            title: '¡Factura Registrada con Éxito!',
+                            html: `Se registró la compra por un total de <b>$${Number(res.data.monto_total || totalFinalCompra.value).toFixed(2)}</b>.<br>El inventario ha ingresado a bodega y el gasto se ha cargado en los egresos.`,
                             confirmButtonColor: '#2563eb'
                         });
                         
-                        // Limpiar form
+                        // Limpiar formulario para nuevo registro
                         formCompra.value.numero_documento = '';
+                        formCompra.value.numero_autorizacion = '';
+                        formCompra.value.observaciones = '';
+                        formCompra.value.ajuste_manual_total = false;
+                        formCompra.value.total_manual = null;
                         formCompra.value.detalles = [];
                         agregarFilaProducto();
                         
-                        // Recargar productos para refrescar stocks
+                        // Recargar productos e historial
                         const prodRes = await axios.get('/api/inventario/insumos');
                         productos.value = prodRes.data;
+                        await cargarComprasHistorial();
                         
                     } catch (err) {
                         console.error(err);
-                        errorMsg.value = err.response?.data?.detail || "Error interno al registrar la compra.";
+                        const msg = err.response?.data?.detail || "Error interno al registrar la compra.";
+                        Swal.fire({ icon: 'error', title: 'Error al registrar', text: msg });
                     } finally {
                         guardando.value = false;
                     }
@@ -1118,8 +1471,11 @@
                     showProductoModal, formProd, abrirModalNuevoProducto, generarNuevoCodigo, editarProducto, eliminarProducto, guardarProducto,
                     showBodegaModal, formBodega, guardarBodega,
                     selectedTratamientoId, formReceta, cargarRecetasTratamiento, agregarInsumoReceta, eliminarInsumoReceta, guardarRecetas,
-                    formCompra, agregarFilaProducto, eliminarFilaProducto, onProductoSelect,
-                    totalCompraMonto, totalCompraFormateado, registrarCompra
+                    formCompra, agregarFilaProducto, eliminarFilaProducto, onProductoSelect, onTarifaIvaChange,
+                    getItemSubtotal, getItemIva, getItemTotal,
+                    subtotal15Compra, subtotal0Compra, descuentoTotalCompra,
+                    subtotalSinImpuestosCompra, iva15Compra, totalCalculadoCompra, totalFinalCompra,
+                    comprasHistorial, cargarComprasHistorial, registrarCompra
                 };
             }
         }).mount('#app');
