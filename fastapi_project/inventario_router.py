@@ -147,12 +147,33 @@ def update_proveedor(id: int, data: Proveedor, session: Session = Depends(get_se
     
     proveedor_data = data.dict(exclude_unset=True)
     for key, value in proveedor_data.items():
-        setattr(proveedor, key, value)
+        if key != "id":
+            if isinstance(value, str):
+                value = value.strip()
+            setattr(proveedor, key, value)
         
     session.add(proveedor)
     session.commit()
     session.refresh(proveedor)
     return proveedor
+
+@router.delete("/proveedores/{id}")
+def delete_proveedor(id: int, session: Session = Depends(get_session)):
+    proveedor = session.get(Proveedor, id)
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+        
+    compras_count = len(session.exec(select(Compra).where(Compra.proveedor_id == id)).all())
+    if compras_count > 0:
+        raise HTTPException(status_code=400, detail="No se puede eliminar: el proveedor tiene compras registradas en el historial. Puedes desactivarlo cambiando su estado a Inactivo.")
+        
+    insumos_count = len(session.exec(select(Insumo).where(Insumo.proveedor_id == id)).all())
+    if insumos_count > 0:
+        raise HTTPException(status_code=400, detail="No se puede eliminar: el proveedor está vinculado a productos del catálogo.")
+        
+    session.delete(proveedor)
+    session.commit()
+    return {"status": "ok", "message": "Proveedor eliminado exitosamente"}
 
 # --- INSUMOS (Global Views) ---
 @router.get("/insumos", response_model=List[Insumo])
