@@ -325,6 +325,11 @@ def cuadre_page():
 def admin_inventario_page():
     return FileResponse("static/inventario.html") 
 
+@app.get("/static/admin_dashboard.html")
+@app.get("/admin_dashboard")
+def admin_dashboard_fallback():
+    return RedirectResponse(url="/admin") 
+
 @app.get("/doctor/dashboard", response_class=HTMLResponse)
 def doctor_dashboard_page():
      return FileResponse("static/doctor_dashboard.html") 

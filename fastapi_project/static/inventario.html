@@ -39,10 +39,16 @@
                         <h1 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-boxes-stacked mr-2 text-blue-600"></i> Compras e Inventarios</h1>
                         <p class="text-sm text-gray-500 mt-1">Gestión de proveedores, productos y recepción de compras.</p>
                     </div>
-                    <div class="flex items-center gap-4">
-                        <button onclick="window.location.href='/static/admin_dashboard.html'" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors shadow-sm font-medium">
+                    <div class="flex items-center gap-2 sm:gap-3">
+                        <button onclick="volverAlPanel()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors shadow-sm font-semibold flex items-center text-sm" title="Volver a la pantalla anterior">
                             <i class="fa-solid fa-arrow-left mr-2"></i> Volver al Panel
                         </button>
+                        <a href="/admin" class="hidden sm:inline-flex px-3.5 py-2 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-sm font-semibold items-center text-xs" title="Ir al Panel de Administración">
+                            <i class="fa-solid fa-sliders mr-1.5 text-blue-600"></i> Admin
+                        </a>
+                        <a href="/recepcion" class="hidden sm:inline-flex px-3.5 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors shadow-sm font-semibold items-center text-xs" title="Ir a Recepción">
+                            <i class="fa-solid fa-desktop mr-1.5 text-blue-600"></i> Recepción
+                        </a>
                     </div>
                 </div>
             </header>
@@ -965,6 +971,16 @@
     </div>
 
     <script>
+        function volverAlPanel() {
+            if (document.referrer && (document.referrer.includes('/admin') || document.referrer.includes('/recepcion') || document.referrer.includes('/gastos') || document.referrer.includes('/cuadre'))) {
+                window.location.href = document.referrer;
+            } else if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '/admin';
+            }
+        }
+
         const { createApp, ref, onMounted, computed } = Vue;
 
         createApp({
