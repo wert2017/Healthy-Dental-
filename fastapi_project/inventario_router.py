@@ -97,8 +97,11 @@ def delete_bodega(id: int, session: Session = Depends(get_session)):
     session.commit()
     return {"message": "Bodega eliminada correctamente"}
 
+from decimal import Decimal
+
 class AjusteStockBodegaRequest(BaseModel):
     stock_actual: int
+    precio: Optional[float] = None
     motivo: Optional[str] = "Ajuste manual de inventario"
 
 @router.get("/bodegas/{bodega_id}/stock")
@@ -115,6 +118,10 @@ def list_stock_bodega(bodega_id: int, include_all: bool = False, session: Sessio
         insumos = session.exec(select(Insumo).order_by(Insumo.nombre)).all()
         for insumo in insumos:
             inv = inv_map.get(insumo.id)
+            precio_val = float(insumo.precio or 0.0)
+            tiene_iva = bool(insumo.tiene_iva)
+            iva_pct = float(insumo.iva_porcentaje or 15.0) if tiene_iva else 0.0
+            precio_con_iva = round(precio_val * (1.0 + (iva_pct / 100.0)), 2)
             res.append({
                 "id": inv.id if inv else None,
                 "bodega_id": bodega_id,
@@ -125,7 +132,10 @@ def list_stock_bodega(bodega_id: int, include_all: bool = False, session: Sessio
                 "descripcion": insumo.descripcion or "",
                 "categoria": insumo.categoria or "General",
                 "unidad_medida": insumo.unidad_medida or "Unidad",
-                "precio": float(insumo.precio or 0.0),
+                "precio": precio_val,
+                "tiene_iva": tiene_iva,
+                "iva_porcentaje": float(insumo.iva_porcentaje or 15.0),
+                "precio_con_iva": precio_con_iva,
                 "stock_actual": inv.stock_actual if inv else 0,
                 "stock_minimo": inv.stock_minimo if inv else (insumo.stock_minimo or 5)
             })
@@ -134,6 +144,10 @@ def list_stock_bodega(bodega_id: int, include_all: bool = False, session: Sessio
             insumo = session.get(Insumo, inv.insumo_id)
             if not insumo:
                 continue
+            precio_val = float(insumo.precio or 0.0)
+            tiene_iva = bool(insumo.tiene_iva)
+            iva_pct = float(insumo.iva_porcentaje or 15.0) if tiene_iva else 0.0
+            precio_con_iva = round(precio_val * (1.0 + (iva_pct / 100.0)), 2)
             res.append({
                 "id": inv.id,
                 "bodega_id": bodega_id,
@@ -144,7 +158,10 @@ def list_stock_bodega(bodega_id: int, include_all: bool = False, session: Sessio
                 "descripcion": insumo.descripcion or "",
                 "categoria": insumo.categoria or "General",
                 "unidad_medida": insumo.unidad_medida or "Unidad",
-                "precio": float(insumo.precio or 0.0),
+                "precio": precio_val,
+                "tiene_iva": tiene_iva,
+                "iva_porcentaje": float(insumo.iva_porcentaje or 15.0),
+                "precio_con_iva": precio_con_iva,
                 "stock_actual": inv.stock_actual,
                 "stock_minimo": inv.stock_minimo
             })
@@ -170,13 +187,26 @@ def update_stock_bodega(bodega_id: int, insumo_id: int, data: AjusteStockBodegaR
         inv.stock_actual = max(0, data.stock_actual)
         
     session.add(inv)
+
+    if data.precio is not None and data.precio >= 0:
+        insumo.precio = Decimal(str(round(data.precio, 2)))
+        session.add(insumo)
+
     session.commit()
     session.refresh(inv)
+    session.refresh(insumo)
+
+    precio_val = float(insumo.precio or 0.0)
+    iva_pct = float(insumo.iva_porcentaje or 15.0) if insumo.tiene_iva else 0.0
+    precio_con_iva = round(precio_val * (1.0 + (iva_pct / 100.0)), 2)
+
     return {
         "status": "ok",
         "bodega_id": bodega_id,
         "insumo_id": insumo_id,
-        "stock_actual": inv.stock_actual
+        "stock_actual": inv.stock_actual,
+        "precio": precio_val,
+        "precio_con_iva": precio_con_iva
     }
 
 # --- RECETAS (KITS DE TRATAMIENTO) ---

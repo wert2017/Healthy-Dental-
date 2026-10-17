@@ -305,7 +305,7 @@
                         </div>
 
                         <!-- KPIs Resumen de la Bodega -->
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
                             <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
                                 <span class="text-[11px] font-bold text-gray-500 uppercase">Productos Listados</span>
                                 <div class="text-xl font-black text-gray-900 mt-0.5">{{ resumenStock.totalItems }}</div>
@@ -313,6 +313,13 @@
                             <div class="bg-blue-50 border border-blue-200/80 rounded-xl p-3">
                                 <span class="text-[11px] font-bold text-blue-700 uppercase">Unidades Físicas</span>
                                 <div class="text-xl font-black text-blue-900 mt-0.5">{{ resumenStock.totalUnidades }}</div>
+                            </div>
+                            <div class="bg-indigo-50 border border-indigo-200/80 rounded-xl p-3">
+                                <span class="text-[11px] font-bold text-indigo-700 uppercase">Precio Promedio</span>
+                                <div class="text-xl font-black text-indigo-950 mt-0.5">${{ resumenStock.precioPromedio.toFixed(2) }}</div>
+                                <div class="text-[10px] text-indigo-600 truncate mt-0.5" v-if="resumenStock.totalItems > 0">
+                                    Min ${{ resumenStock.precioMin.toFixed(2) }} - Max ${{ resumenStock.precioMax.toFixed(2) }}
+                                </div>
                             </div>
                             <div class="bg-amber-50 border border-amber-200/80 rounded-xl p-3">
                                 <span class="text-[11px] font-bold text-amber-700 uppercase">Stock Bajo / Crítico</span>
@@ -327,36 +334,82 @@
                             </div>
                         </div>
 
-                        <!-- Barra de Filtros: Categoría, Buscador, Nivel de Stock -->
-                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 bg-gray-50 p-3.5 rounded-xl border border-gray-200/70 items-center">
-                            <!-- Buscador -->
-                            <div class="sm:col-span-4 relative">
-                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                                <input v-model="busquedaStockBodega" type="text" placeholder="Buscar por código o insumo..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border bg-white">
+                        <!-- Barra de Filtros: Categoría, Precios, Buscador, Nivel de Stock y Orden -->
+                        <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-200/70 space-y-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                                <!-- Buscador -->
+                                <div class="sm:col-span-3 relative">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                                    <input v-model="busquedaStockBodega" type="text" placeholder="Buscar código o nombre..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border bg-white">
+                                </div>
+
+                                <!-- Filtro Categoría -->
+                                <div class="sm:col-span-3">
+                                    <select v-model="filtroCategoriaStock" class="w-full py-1.5 px-2.5 text-xs rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border bg-white font-medium text-gray-700">
+                                        <option value="">Todas las Categorías ({{ categoriasDisponiblesStock.length }})</option>
+                                        <option v-for="cat in categoriasDisponiblesStock" :key="cat" :value="cat">{{ cat }}</option>
+                                    </select>
+                                </div>
+
+                                <!-- Filtro Rango de Precios -->
+                                <div class="sm:col-span-2">
+                                    <select v-model="filtroRangoPrecio" class="w-full py-1.5 px-2.5 text-xs rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border bg-white font-medium text-gray-700">
+                                        <option value="todos">💵 Todos los Precios</option>
+                                        <option value="0-10">Hasta $10 (Económicos)</option>
+                                        <option value="10-50">$10 a $50 (Medios)</option>
+                                        <option value="50-100">$50 a $100 (Altos)</option>
+                                        <option value="100+">Más de $100 (Premium)</option>
+                                        <option value="custom">Rango Personalizado ($)...</option>
+                                    </select>
+                                </div>
+
+                                <!-- Filtro Nivel de Stock -->
+                                <div class="sm:col-span-2">
+                                    <select v-model="filtroNivelStock" class="w-full py-1.5 px-2.5 text-xs rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border bg-white font-medium text-gray-700">
+                                        <option value="todos">Todos los niveles</option>
+                                        <option value="con_stock">Solo con existencias (> 0)</option>
+                                        <option value="bajo_agotado">Alerta: Stock Bajo o Agotado</option>
+                                    </select>
+                                </div>
+
+                                <!-- Ordenar por -->
+                                <div class="sm:col-span-2">
+                                    <select v-model="ordenStock" class="w-full py-1.5 px-2.5 text-xs rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border bg-white font-semibold text-blue-900">
+                                        <option value="precio_asc">▲ Precio: Menor a Mayor</option>
+                                        <option value="precio_desc">▼ Precio: Mayor a Menor</option>
+                                        <option value="nombre_asc">A-Z Nombre</option>
+                                        <option value="nombre_desc">Z-A Nombre</option>
+                                        <option value="stock_desc">▼ Mayor Existencia</option>
+                                        <option value="stock_asc">▲ Menor Existencia</option>
+                                        <option value="valor_desc">▼ Mayor Valor Total ($)</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <!-- Filtro Categoría -->
-                            <div class="sm:col-span-3">
-                                <select v-model="filtroCategoriaStock" class="w-full py-1.5 px-2.5 text-xs rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border bg-white font-medium text-gray-700">
-                                    <option value="">Todas las Categorías ({{ categoriasDisponiblesStock.length }})</option>
-                                    <option v-for="cat in categoriasDisponiblesStock" :key="cat" :value="cat">{{ cat }}</option>
-                                </select>
-                            </div>
+                            <!-- Barra de Rango de Precio Personalizado y Checkbox Todo el Catálogo -->
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-1 border-t border-gray-200/60 text-xs">
+                                <div v-if="filtroRangoPrecio === 'custom'" class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-bold text-gray-600">Rango de Precio:</span>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-gray-400 font-bold">$</span>
+                                        <input v-model.number="filtroPrecioMin" type="number" min="0" step="0.5" placeholder="Min" class="w-20 p-1 text-xs rounded border border-gray-300 bg-white">
+                                    </div>
+                                    <span class="text-gray-400 font-bold">-</span>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-gray-400 font-bold">$</span>
+                                        <input v-model.number="filtroPrecioMax" type="number" min="0" step="0.5" placeholder="Max" class="w-20 p-1 text-xs rounded border border-gray-300 bg-white">
+                                    </div>
+                                    <button v-if="filtroPrecioMin || filtroPrecioMax" @click="filtroPrecioMin = null; filtroPrecioMax = null;" class="text-[11px] text-red-500 hover:underline ml-1">
+                                        Limpiar
+                                    </button>
+                                </div>
+                                <div v-else class="text-[11px] text-gray-500">
+                                    <span>Tip: Puedes hacer clic en los encabezados de la tabla para ordenar por precio, nombre o stock.</span>
+                                </div>
 
-                            <!-- Filtro Nivel de Stock -->
-                            <div class="sm:col-span-3">
-                                <select v-model="filtroNivelStock" class="w-full py-1.5 px-2.5 text-xs rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border bg-white font-medium text-gray-700">
-                                    <option value="todos">Todos los niveles</option>
-                                    <option value="con_stock">Solo con existencias (> 0)</option>
-                                    <option value="bajo_agotado">Alerta: Stock Bajo o Agotado</option>
-                                </select>
-                            </div>
-
-                            <!-- Toggle catálogo completo -->
-                            <div class="sm:col-span-2 flex items-center justify-end">
-                                <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-600 select-none">
+                                <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-600 select-none self-end sm:self-auto">
                                     <input type="checkbox" v-model="verTodoElCatalogo" @change="cargarStockBodegaSeleccionada" class="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5">
-                                    <span>Todo el catálogo</span>
+                                    <span>Ver catálogo completo (incluir stock 0)</span>
                                 </label>
                             </div>
                         </div>
@@ -366,15 +419,39 @@
                             <table class="w-full text-xs text-left">
                                 <thead class="bg-slate-50 text-slate-700 font-bold border-b border-gray-200 uppercase tracking-wider text-[11px]">
                                     <tr>
-                                        <th class="px-3.5 py-3">Código</th>
-                                        <th class="px-3.5 py-3">Producto / Insumo</th>
+                                        <th class="px-3.5 py-3 cursor-pointer hover:bg-slate-100 select-none" @click="alternarOrden('nombre')">
+                                            <div class="flex items-center gap-1">
+                                                <span>Código</span>
+                                            </div>
+                                        </th>
+                                        <th class="px-3.5 py-3 cursor-pointer hover:bg-slate-100 select-none" @click="alternarOrden('nombre')">
+                                            <div class="flex items-center gap-1">
+                                                <span>Producto / Insumo</span>
+                                                <i :class="ordenStock === 'nombre_asc' ? 'fa-solid fa-arrow-down-a-z text-blue-600' : (ordenStock === 'nombre_desc' ? 'fa-solid fa-arrow-up-z-a text-blue-600' : 'fa-solid fa-sort text-gray-300')"></i>
+                                            </div>
+                                        </th>
                                         <th class="px-3.5 py-3">Categoría</th>
                                         <th class="px-3.5 py-3">Unidad</th>
-                                        <th class="px-3.5 py-3 text-center">Stock en Bodega</th>
+                                        <th class="px-3.5 py-3 text-center cursor-pointer hover:bg-slate-100 select-none" @click="alternarOrden('stock')">
+                                            <div class="flex items-center justify-center gap-1">
+                                                <span>Stock en Bodega</span>
+                                                <i :class="ordenStock === 'stock_desc' ? 'fa-solid fa-arrow-down-wide-short text-blue-600' : (ordenStock === 'stock_asc' ? 'fa-solid fa-arrow-up-wide-short text-blue-600' : 'fa-solid fa-sort text-gray-300')"></i>
+                                            </div>
+                                        </th>
                                         <th class="px-3.5 py-3 text-center">Mínimo Alerta</th>
-                                        <th class="px-3.5 py-3 text-right">Costo Ref.</th>
-                                        <th class="px-3.5 py-3 text-right">Subtotal Valorizado</th>
-                                        <th class="px-3.5 py-3 text-center">Ajuste</th>
+                                        <th class="px-3.5 py-3 text-right cursor-pointer hover:bg-slate-100 select-none" @click="alternarOrden('precio')">
+                                            <div class="flex items-center justify-end gap-1">
+                                                <span>Precio Ref. (Base / IVA)</span>
+                                                <i :class="ordenStock === 'precio_asc' ? 'fa-solid fa-arrow-down-1-9 text-blue-600' : (ordenStock === 'precio_desc' ? 'fa-solid fa-arrow-up-9-1 text-blue-600' : 'fa-solid fa-sort text-gray-300')"></i>
+                                            </div>
+                                        </th>
+                                        <th class="px-3.5 py-3 text-right cursor-pointer hover:bg-slate-100 select-none" @click="alternarOrden('valor')">
+                                            <div class="flex items-center justify-end gap-1">
+                                                <span>Subtotal Valorizado</span>
+                                                <i :class="ordenStock === 'valor_desc' ? 'fa-solid fa-arrow-down-wide-short text-blue-600' : (ordenStock === 'valor_asc' ? 'fa-solid fa-arrow-up-wide-short text-blue-600' : 'fa-solid fa-sort text-gray-300')"></i>
+                                            </div>
+                                        </th>
+                                        <th class="px-3.5 py-3 text-center">Ajustar</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
@@ -410,14 +487,28 @@
                                         <td class="px-3.5 py-2.5 text-center text-gray-500 font-semibold whitespace-nowrap">
                                             {{ item.stock_minimo }}
                                         </td>
-                                        <td class="px-3.5 py-2.5 text-right font-medium text-gray-700 whitespace-nowrap">
-                                            ${{ Number(item.precio || 0).toFixed(2) }}
+                                        <td class="px-3.5 py-2.5 text-right whitespace-nowrap">
+                                            <div class="font-bold text-gray-900 text-xs">${{ Number(item.precio || 0).toFixed(2) }}</div>
+                                            <div class="flex items-center justify-end gap-1 mt-0.5">
+                                                <span v-if="item.tiene_iva && Number(item.iva_porcentaje) > 0" class="text-[9px] bg-emerald-50 text-emerald-700 px-1 py-0.2 rounded font-bold border border-emerald-200">
+                                                    {{ item.iva_porcentaje }}% IVA
+                                                </span>
+                                                <span v-else class="text-[9px] bg-gray-100 text-gray-500 px-1 py-0.2 rounded font-medium">
+                                                    0% IVA
+                                                </span>
+                                                <span class="text-[10px] text-gray-500 font-medium">
+                                                    (${{ Number(item.precio_con_iva || item.precio || 0).toFixed(2) }})
+                                                </span>
+                                            </div>
                                         </td>
                                         <td class="px-3.5 py-2.5 text-right font-black text-gray-900 whitespace-nowrap">
                                             ${{ (Number(item.stock_actual || 0) * Number(item.precio || 0)).toFixed(2) }}
+                                            <div v-if="item.tiene_iva" class="text-[9px] text-gray-400 font-normal">
+                                                ${{ (Number(item.stock_actual || 0) * Number(item.precio_con_iva || item.precio || 0)).toFixed(2) }} c/IVA
+                                            </div>
                                         </td>
                                         <td class="px-3.5 py-2.5 text-center whitespace-nowrap">
-                                            <button @click="abrirModalAjusteStock(item)" class="text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded font-bold transition-colors inline-flex items-center gap-1 border border-blue-200">
+                                            <button @click="abrirModalAjusteStock(item)" class="text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2.5 py-1 rounded-lg font-bold transition-colors inline-flex items-center gap-1 border border-blue-200" title="Ajustar stock físico y precio">
                                                 <i class="fa-solid fa-sliders text-[10px]"></i> Ajustar
                                             </button>
                                         </td>
@@ -426,7 +517,7 @@
                                         <td colspan="9" class="px-6 py-10 text-center text-gray-400">
                                             <div class="flex flex-col items-center justify-center">
                                                 <i class="fa-solid fa-boxes-stacked text-3xl mb-2 text-gray-300"></i>
-                                                <span class="font-medium">No se encontraron productos para los filtros seleccionados en {{ bodegaSeleccionadaNombre }}.</span>
+                                                <span class="font-medium">No se encontraron productos para los filtros de categoría y precio seleccionados en {{ bodegaSeleccionadaNombre }}.</span>
                                             </div>
                                         </td>
                                     </tr>
@@ -1107,16 +1198,37 @@
                             </div>
                         </div>
 
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Precio Unitario ($) *</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2.5 text-gray-400 font-bold">$</span>
+                                    <input v-model.number="formAjusteStock.precio" type="number" step="0.01" min="0" required class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 pl-7 p-2.5 border font-black text-gray-900 text-base">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Régimen IVA</label>
+                                <div class="p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 text-center flex items-center justify-center h-[42px]">
+                                    <span v-if="formAjusteStock.tiene_iva" class="text-emerald-700">
+                                        {{ formAjusteStock.iva_porcentaje }}% IVA
+                                    </span>
+                                    <span v-else class="text-gray-500">
+                                        0% IVA (Exento)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-1">Motivo del Ajuste *</label>
-                            <input v-model="formAjusteStock.motivo" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border text-sm" placeholder="Ej: Conteo físico fin de mes, merma, corrección...">
+                            <input v-model="formAjusteStock.motivo" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border text-sm" placeholder="Ej: Conteo físico fin de mes, actualización de precio, merma...">
                         </div>
                         
                         <div class="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-6">
                             <button type="button" @click="showAjusteModal = false" class="px-5 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
                             <button type="submit" :disabled="guardandoAjuste" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-lg shadow-sm transition-colors flex items-center">
                                 <i v-if="guardandoAjuste" class="fa-solid fa-spinner fa-spin mr-2"></i>
-                                <span>Guardar Ajuste</span>
+                                <span>Guardar Cambios</span>
                             </button>
                         </div>
                     </form>
@@ -1379,7 +1491,7 @@
                 const filtroNivelStock = ref('todos');
                 const verTodoElCatalogo = ref(true);
 
-                // Modal ajuste de stock
+                // Modal ajuste de stock y precio
                 const showAjusteModal = ref(false);
                 const guardandoAjuste = ref(false);
                 const formAjusteStock = ref({
@@ -1388,10 +1500,31 @@
                     insumo_id: null,
                     nombre_insumo: '',
                     codigo: '',
+                    precio: 0.00,
+                    tiene_iva: true,
+                    iva_porcentaje: 15.0,
                     stock_anterior: 0,
                     stock_actual: 0,
                     motivo: 'Ajuste manual de inventario'
                 });
+
+                // Filtros de precio y ordenamiento para productos por bodega
+                const filtroRangoPrecio = ref('todos');
+                const filtroPrecioMin = ref(null);
+                const filtroPrecioMax = ref(null);
+                const ordenStock = ref('nombre_asc');
+
+                const alternarOrden = (columna) => {
+                    if (columna === 'precio') {
+                        ordenStock.value = ordenStock.value === 'precio_asc' ? 'precio_desc' : 'precio_asc';
+                    } else if (columna === 'nombre') {
+                        ordenStock.value = ordenStock.value === 'nombre_asc' ? 'nombre_desc' : 'nombre_asc';
+                    } else if (columna === 'stock') {
+                        ordenStock.value = ordenStock.value === 'stock_desc' ? 'stock_asc' : 'stock_desc';
+                    } else if (columna === 'valor') {
+                        ordenStock.value = ordenStock.value === 'valor_desc' ? 'valor_asc' : 'valor_desc';
+                    }
+                };
 
                 // Recetas / Kits
                 const selectedTratamientoId = ref("");
@@ -1438,7 +1571,7 @@
                 });
 
                 const productosStockFiltrados = computed(() => {
-                    return stockBodega.value.filter(item => {
+                    let list = stockBodega.value.filter(item => {
                         const q = busquedaStockBodega.value.trim().toLowerCase();
                         const matchSearch = !q ||
                             (item.codigo && item.codigo.toLowerCase().includes(q)) ||
@@ -1456,7 +1589,51 @@
                             matchNivel = stock <= min;
                         }
 
-                        return matchSearch && matchCat && matchNivel;
+                        // Filtro de precio
+                        let matchPrecio = true;
+                        const p = Number(item.precio || 0);
+                        if (filtroRangoPrecio.value === '0-10') {
+                            matchPrecio = p <= 10;
+                        } else if (filtroRangoPrecio.value === '10-50') {
+                            matchPrecio = p >= 10 && p <= 50;
+                        } else if (filtroRangoPrecio.value === '50-100') {
+                            matchPrecio = p >= 50 && p <= 100;
+                        } else if (filtroRangoPrecio.value === '100+') {
+                            matchPrecio = p > 100;
+                        } else if (filtroRangoPrecio.value === 'custom') {
+                            if (filtroPrecioMin.value !== null && filtroPrecioMin.value !== '') {
+                                matchPrecio = matchPrecio && p >= Number(filtroPrecioMin.value);
+                            }
+                            if (filtroPrecioMax.value !== null && filtroPrecioMax.value !== '') {
+                                matchPrecio = matchPrecio && p <= Number(filtroPrecioMax.value);
+                            }
+                        }
+
+                        return matchSearch && matchCat && matchNivel && matchPrecio;
+                    });
+
+                    // Ordenamiento dinámico
+                    return list.slice().sort((a, b) => {
+                        const pa = Number(a.precio || 0);
+                        const pb = Number(b.precio || 0);
+                        const sa = Number(a.stock_actual || 0);
+                        const sb = Number(b.stock_actual || 0);
+                        const va = sa * pa;
+                        const vb = sb * pb;
+                        const na = (a.nombre_insumo || '').toLowerCase();
+                        const nb = (b.nombre_insumo || '').toLowerCase();
+
+                        switch (ordenStock.value) {
+                            case 'precio_asc': return pa - pb;
+                            case 'precio_desc': return pb - pa;
+                            case 'stock_desc': return sb - sa;
+                            case 'stock_asc': return sa - sb;
+                            case 'valor_desc': return vb - va;
+                            case 'valor_asc': return va - vb;
+                            case 'nombre_desc': return nb.localeCompare(na);
+                            case 'nombre_asc':
+                            default: return na.localeCompare(nb);
+                        }
                     });
                 });
 
@@ -1466,11 +1643,19 @@
                     const totalUnidades = list.reduce((acc, item) => acc + Number(item.stock_actual || 0), 0);
                     const bajoStock = list.filter(item => Number(item.stock_actual || 0) <= Number(item.stock_minimo || 5)).length;
                     const valorTotal = list.reduce((acc, item) => acc + (Number(item.stock_actual || 0) * Number(item.precio || 0)), 0);
+                    const precios = list.map(item => Number(item.precio || 0));
+                    const precioPromedio = totalItems > 0 ? (precios.reduce((acc, p) => acc + p, 0) / totalItems) : 0;
+                    const precioMin = precios.length > 0 ? Math.min(...precios) : 0;
+                    const precioMax = precios.length > 0 ? Math.max(...precios) : 0;
+
                     return {
                         totalItems,
                         totalUnidades,
                         bajoStock,
-                        valorTotal: parseFloat(valorTotal.toFixed(2))
+                        valorTotal: parseFloat(valorTotal.toFixed(2)),
+                        precioPromedio: parseFloat(precioPromedio.toFixed(2)),
+                        precioMin: parseFloat(precioMin.toFixed(2)),
+                        precioMax: parseFloat(precioMax.toFixed(2))
                     };
                 });
 
@@ -2104,6 +2289,9 @@
                         insumo_id: item.insumo_id,
                         nombre_insumo: item.nombre_insumo,
                         codigo: item.codigo || '',
+                        precio: Number(item.precio || 0),
+                        tiene_iva: item.tiene_iva !== false,
+                        iva_porcentaje: Number(item.iva_porcentaje || 15),
                         stock_anterior: Number(item.stock_actual || 0),
                         stock_actual: Number(item.stock_actual || 0),
                         motivo: 'Ajuste manual de inventario'
@@ -2116,10 +2304,15 @@
                         Swal.fire({ icon: 'warning', title: 'Valor inválido', text: 'El stock no puede ser negativo.' });
                         return;
                     }
+                    if (formAjusteStock.value.precio === null || formAjusteStock.value.precio < 0) {
+                        Swal.fire({ icon: 'warning', title: 'Valor inválido', text: 'El precio no puede ser negativo.' });
+                        return;
+                    }
                     guardandoAjuste.value = true;
                     try {
                         const payload = {
                             stock_actual: parseInt(formAjusteStock.value.stock_actual),
+                            precio: parseFloat(formAjusteStock.value.precio),
                             motivo: formAjusteStock.value.motivo || 'Ajuste manual de inventario'
                         };
                         const res = await axios.put(`/api/inventario/bodegas/${formAjusteStock.value.bodega_id}/stock/${formAjusteStock.value.insumo_id}`, payload);
@@ -2128,13 +2321,21 @@
                         const idx = stockBodega.value.findIndex(item => item.insumo_id === formAjusteStock.value.insumo_id);
                         if (idx !== -1) {
                             stockBodega.value[idx].stock_actual = res.data.stock_actual;
+                            stockBodega.value[idx].precio = res.data.precio;
+                            stockBodega.value[idx].precio_con_iva = res.data.precio_con_iva;
+                        }
+
+                        // Actualizar en el catálogo general de insumos si está en memoria
+                        const pIdx = productos.value.findIndex(p => p.id === formAjusteStock.value.insumo_id);
+                        if (pIdx !== -1) {
+                            productos.value[pIdx].precio = res.data.precio;
                         }
                         
                         showAjusteModal.value = false;
                         Swal.fire({
                             icon: 'success',
-                            title: 'Stock Actualizado',
-                            text: `Nuevo stock en ${formAjusteStock.value.bodega_nombre}: ${res.data.stock_actual} unidades.`,
+                            title: 'Stock y Precio Actualizados',
+                            text: `En ${formAjusteStock.value.bodega_nombre}: ${res.data.stock_actual} unidades | Precio: $${Number(res.data.precio).toFixed(2)}`,
                             toast: true,
                             position: 'top-end',
                             showConfirmButton: false,
@@ -2142,7 +2343,7 @@
                         });
                     } catch (err) {
                         console.error(err);
-                        const msg = err.response?.data?.detail || 'Error al actualizar el stock de la bodega.';
+                        const msg = err.response?.data?.detail || 'Error al actualizar el stock o precio de la bodega.';
                         Swal.fire({ icon: 'error', title: 'Error', text: msg });
                     } finally {
                         guardandoAjuste.value = false;
@@ -2281,6 +2482,7 @@
                     bodegaSeleccionadaId, bodegaSeleccionada, bodegaSeleccionadaNombre,
                     stockBodega, cargandoStockBodega, busquedaStockBodega,
                     filtroCategoriaStock, filtroNivelStock, verTodoElCatalogo,
+                    filtroRangoPrecio, filtroPrecioMin, filtroPrecioMax, ordenStock, alternarOrden,
                     categoriasDisponiblesStock, productosStockFiltrados, resumenStock,
                     seleccionarBodegaParaStock, cargarStockBodegaSeleccionada,
                     showAjusteModal, formAjusteStock, guardandoAjuste,
