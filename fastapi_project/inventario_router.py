@@ -17,8 +17,6 @@ class MovimientoRequest(BaseModel):
     # Origen / Destino IDs (Contextual)
     proveedor_id: Optional[int] = None
     bodega_origen_id: Optional[int] = None
-    bodega_origen_id: Optional[int] = None
-    bodega_destino_id: Optional[int] = None
     bodega_destino_id: Optional[int] = None
     doctor_destino_id: Optional[int] = None
     
@@ -72,6 +70,32 @@ def create_bodega(bodega: Bodega, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(bodega)
     return bodega
+
+@router.put("/bodegas/{id}", response_model=Bodega)
+def update_bodega(id: int, data: Bodega, session: Session = Depends(get_session)):
+    bodega = session.get(Bodega, id)
+    if not bodega:
+        raise HTTPException(status_code=404, detail="Bodega no encontrada")
+    bodega_data = data.dict(exclude_unset=True)
+    for key, value in bodega_data.items():
+        if key != "id":
+            setattr(bodega, key, value)
+    session.add(bodega)
+    session.commit()
+    session.refresh(bodega)
+    return bodega
+
+@router.delete("/bodegas/{id}")
+def delete_bodega(id: int, session: Session = Depends(get_session)):
+    bodega = session.get(Bodega, id)
+    if not bodega:
+        raise HTTPException(status_code=404, detail="Bodega no encontrada")
+    compras = session.exec(select(Compra).where(Compra.bodega_id == id)).first()
+    if compras:
+        raise HTTPException(status_code=400, detail="No se puede eliminar la bodega porque tiene compras o movimientos registrados.")
+    session.delete(bodega)
+    session.commit()
+    return {"message": "Bodega eliminada correctamente"}
 
 @router.get("/bodegas/{bodega_id}/stock")
 def list_stock_bodega(bodega_id: int, session: Session = Depends(get_session)):
