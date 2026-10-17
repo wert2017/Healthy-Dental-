@@ -434,19 +434,27 @@ def list_sucursales(session: Session = Depends(get_session)):
 # --- COMPRAS E INVENTARIO DIRECTO ---
 
 @router.get("/compras")
-def list_compras(session: Session = Depends(get_session)):
-    compras = session.exec(select(Compra).order_by(Compra.fecha.desc())).all()
+def list_compras(sucursal_id: Optional[int] = None, session: Session = Depends(get_session)):
+    query = select(Compra)
+    if sucursal_id:
+        query = query.join(Bodega, Compra.bodega_id == Bodega.id).where(Bodega.sucursal_id == sucursal_id)
+    compras = session.exec(query.order_by(Compra.fecha.desc())).all()
     res = []
     for c in compras:
         prov = session.get(Proveedor, c.proveedor_id)
         bod = session.get(Bodega, c.bodega_id)
         detalles_count = len(session.exec(select(DetalleCompra).where(DetalleCompra.compra_id == c.id)).all())
+        suc_id = bod.sucursal_id if bod else None
+        suc_nom = session.get(Sucursal, suc_id).nombre if suc_id else ""
         res.append({
             "id": c.id,
             "fecha": c.fecha.strftime("%Y-%m-%d %H:%M") if c.fecha else "-",
             "proveedor": prov.nombre if prov else "Desconocido",
             "proveedor_ruc": prov.ruc if prov else "",
+            "bodega_id": c.bodega_id,
             "bodega": bod.nombre if bod else "Bodega Central",
+            "sucursal_id": suc_id,
+            "sucursal_nombre": suc_nom,
             "tipo_documento": c.tipo_documento,
             "numero_documento": c.numero_documento or "-",
             "numero_autorizacion": c.numero_autorizacion or "",

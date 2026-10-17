@@ -724,9 +724,9 @@
                         <div class="flex justify-between items-center mb-4">
                             <div>
                                 <h3 class="text-lg font-bold text-gray-800 flex items-center">
-                                    <i class="fa-solid fa-clock-rotate-left text-blue-600 mr-2"></i> Historial de Compras Registradas
+                                    <i class="fa-solid fa-clock-rotate-left text-blue-600 mr-2"></i> Historial de Compras en {{ sucursalNombre }}
                                 </h3>
-                                <p class="text-xs text-gray-500">Comprobantes y facturas que han ingresado a inventario y generado egreso contable.</p>
+                                <p class="text-xs text-gray-500">Comprobantes y facturas ingresados a bodegas de {{ sucursalNombre }} (egresos registrados para esta sede).</p>
                             </div>
                             <button type="button" @click="cargarComprasHistorial" class="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center bg-blue-50 px-3 py-1.5 rounded-lg">
                                 <i class="fa-solid fa-arrows-rotate mr-1.5"></i> Refrescar
@@ -748,7 +748,7 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
-                                    <tr v-for="c in comprasHistorial" :key="c.id" class="hover:bg-slate-50 transition-colors">
+                                    <tr v-for="c in comprasFiltradasPorSucursal" :key="c.id" class="hover:bg-slate-50 transition-colors">
                                         <td class="p-3 text-gray-600 font-medium whitespace-nowrap">{{ c.fecha }}</td>
                                         <td class="p-3 font-mono font-bold text-gray-800">
                                             {{ c.tipo_documento }} {{ c.numero_documento }}
@@ -760,15 +760,23 @@
                                             <div class="font-bold text-gray-900">{{ c.proveedor }}</div>
                                             <div class="text-[10px] text-gray-500">RUC: {{ c.proveedor_ruc || 'S/N' }}</div>
                                         </td>
-                                        <td class="p-3 text-gray-700 font-medium">{{ c.bodega }}</td>
+                                        <td class="p-3 text-gray-700 font-medium">
+                                            <span class="inline-flex items-center gap-1">
+                                                <i class="fa-solid fa-box-archive text-gray-400 text-[10px]"></i>
+                                                {{ c.bodega }}
+                                            </span>
+                                        </td>
                                         <td class="p-3 text-right font-medium text-gray-700">${{ Number(c.subtotal_15 || 0).toFixed(2) }}</td>
                                         <td class="p-3 text-right font-medium text-gray-700">${{ Number(c.subtotal_0 || 0).toFixed(2) }}</td>
                                         <td class="p-3 text-right font-bold text-emerald-700">${{ Number(c.monto_iva || 0).toFixed(2) }}</td>
                                         <td class="p-3 text-right font-black text-gray-900 text-sm">${{ Number(c.monto_total || 0).toFixed(2) }}</td>
                                     </tr>
-                                    <tr v-if="comprasHistorial.length === 0">
-                                        <td colspan="8" class="p-6 text-center text-gray-400">
-                                            No hay compras registradas en el historial.
+                                    <tr v-if="comprasFiltradasPorSucursal.length === 0">
+                                        <td colspan="8" class="p-8 text-center text-gray-400">
+                                            <div class="flex flex-col items-center justify-center">
+                                                <i class="fa-solid fa-receipt text-3xl mb-2 text-gray-300"></i>
+                                                <span class="font-medium">No hay compras registradas para {{ sucursalNombre }}.</span>
+                                            </div>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -1171,6 +1179,21 @@
                     return bodegas.value.filter(b => Number(b.sucursal_id) === Number(sucursalId.value));
                 });
 
+                // Compras registradas en la sucursal activa (el condado solo ve el condado, la magdalena solo ve la magdalena)
+                const comprasFiltradasPorSucursal = computed(() => {
+                    if (!sucursalId.value) return comprasHistorial.value;
+                    return comprasHistorial.value.filter(c => {
+                        if (c.sucursal_id !== undefined && c.sucursal_id !== null) {
+                            return Number(c.sucursal_id) === Number(sucursalId.value);
+                        }
+                        const b = bodegas.value.find(bod => Number(bod.id) === Number(c.bodega_id));
+                        if (b) {
+                            return Number(b.sucursal_id) === Number(sucursalId.value);
+                        }
+                        return false;
+                    });
+                });
+
                 const getProveedorNombre = (id) => {
                     if (!id) return '';
                     const prov = proveedores.value.find(p => p.id === id);
@@ -1322,7 +1345,8 @@
 
                 const cargarComprasHistorial = async () => {
                     try {
-                        const res = await axios.get('/api/inventario/compras');
+                        const url = sucursalId.value ? `/api/inventario/compras?sucursal_id=${sucursalId.value}` : '/api/inventario/compras';
+                        const res = await axios.get(url);
                         comprasHistorial.value = res.data;
                     } catch (e) {
                         console.error("Error al cargar historial de compras", e);
@@ -1343,9 +1367,9 @@
                         usuario.value = res.data;
                         formCompra.value.usuario_id = usuario.value.id;
                         
-                        // Cargar catálogos e historial
-                        cargarCatalogos();
-                        cargarComprasHistorial();
+                        // Cargar catálogos e historial sincronizados
+                        await cargarCatalogos();
+                        await cargarComprasHistorial();
                     } catch (error) {
                         window.location.href = '/static/login.html';
                     }
@@ -1359,6 +1383,7 @@
                         localStorage.setItem('sucursal_nombre', s.nombre);
                     }
                     verificarBodegaCompra();
+                    cargarComprasHistorial();
                 };
 
                 const verificarBodegaCompra = () => {
@@ -1859,7 +1884,7 @@
                     getItemSubtotal, getItemIva, getItemTotal,
                     subtotal15Compra, subtotal0Compra, descuentoTotalCompra,
                     subtotalSinImpuestosCompra, iva15Compra, totalCalculadoCompra, totalFinalCompra,
-                    comprasHistorial, cargarComprasHistorial, registrarCompra
+                    comprasHistorial, comprasFiltradasPorSucursal, cargarComprasHistorial, registrarCompra
                 };
             }
         }).mount('#app');
