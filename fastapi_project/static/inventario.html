@@ -242,7 +242,10 @@
                                                 <i class="fa-solid fa-ban mr-1 text-[9px]"></i> Inactiva
                                             </span>
                                         </td>
-                                        <td class="px-4 py-3 text-right">
+                                        <td class="px-4 py-3 text-right whitespace-nowrap">
+                                            <button @click="seleccionarBodegaParaStock(bod)" :class="bodegaSeleccionadaId === bod.id ? 'bg-blue-600 text-white shadow-sm' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1.5 border border-blue-200 mr-2" title="Listar insumos y stock de esta bodega">
+                                                <i class="fa-solid fa-boxes-stacked"></i> Ver Productos
+                                            </button>
                                             <button @click="editarBodega(bod)" class="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded-lg transition-colors mr-1" title="Editar bodega">
                                                 <i class="fa-solid fa-pen-to-square"></i>
                                             </button>
@@ -259,6 +262,171 @@
                                                 <button @click="abrirModalNuevaBodega" class="mt-2 text-xs text-blue-600 hover:underline font-semibold">
                                                     + Crear una bodega para esta sucursal
                                                 </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN: PRODUCTOS / STOCK EN BODEGA -->
+                    <div id="seccion-stock-bodega" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-5">
+                        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-gray-100 pb-4">
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                                        <i class="fa-solid fa-boxes-stacked text-blue-600 mr-2"></i>
+                                        Productos en: <span class="text-blue-600 ml-1.5">{{ bodegaSeleccionadaNombre }}</span>
+                                    </h3>
+                                    <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
+                                        {{ sucursalNombre }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Existencias físicas, conteo de insumos y control de inventario filtrado por categoría.</p>
+                            </div>
+
+                            <!-- Selector Rápido de Bodega -->
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Bodega:</span>
+                                <div class="inline-flex rounded-lg border border-gray-200 p-1 bg-gray-50 gap-1 flex-wrap">
+                                    <button v-for="b in bodegasFiltradasPorSucursal" :key="b.id"
+                                            @click="seleccionarBodegaParaStock(b)"
+                                            :class="bodegaSeleccionadaId === b.id ? 'bg-blue-600 text-white font-bold shadow-sm' : 'text-gray-700 hover:bg-white font-medium'"
+                                            class="px-3 py-1 rounded-md text-xs transition-all flex items-center gap-1.5">
+                                        <i class="fa-solid fa-warehouse text-[11px]"></i>
+                                        {{ b.nombre }}
+                                    </button>
+                                </div>
+                                <button @click="cargarStockBodegaSeleccionada" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Actualizar stock">
+                                    <i :class="cargandoStockBodega ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-arrows-rotate'"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- KPIs Resumen de la Bodega -->
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+                                <span class="text-[11px] font-bold text-gray-500 uppercase">Productos Listados</span>
+                                <div class="text-xl font-black text-gray-900 mt-0.5">{{ resumenStock.totalItems }}</div>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-200/80 rounded-xl p-3">
+                                <span class="text-[11px] font-bold text-blue-700 uppercase">Unidades Físicas</span>
+                                <div class="text-xl font-black text-blue-900 mt-0.5">{{ resumenStock.totalUnidades }}</div>
+                            </div>
+                            <div class="bg-amber-50 border border-amber-200/80 rounded-xl p-3">
+                                <span class="text-[11px] font-bold text-amber-700 uppercase">Stock Bajo / Crítico</span>
+                                <div class="text-xl font-black text-amber-800 mt-0.5 flex items-center gap-1.5">
+                                    {{ resumenStock.bajoStock }}
+                                    <i v-if="resumenStock.bajoStock > 0" class="fa-solid fa-triangle-exclamation text-amber-500 text-sm"></i>
+                                </div>
+                            </div>
+                            <div class="bg-emerald-50 border border-emerald-200/80 rounded-xl p-3">
+                                <span class="text-[11px] font-bold text-emerald-700 uppercase">Valor Estimado</span>
+                                <div class="text-xl font-black text-emerald-900 mt-0.5">${{ resumenStock.valorTotal.toFixed(2) }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Barra de Filtros: Categoría, Buscador, Nivel de Stock -->
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 bg-gray-50 p-3.5 rounded-xl border border-gray-200/70 items-center">
+                            <!-- Buscador -->
+                            <div class="sm:col-span-4 relative">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                                <input v-model="busquedaStockBodega" type="text" placeholder="Buscar por código o insumo..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border bg-white">
+                            </div>
+
+                            <!-- Filtro Categoría -->
+                            <div class="sm:col-span-3">
+                                <select v-model="filtroCategoriaStock" class="w-full py-1.5 px-2.5 text-xs rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border bg-white font-medium text-gray-700">
+                                    <option value="">Todas las Categorías ({{ categoriasDisponiblesStock.length }})</option>
+                                    <option v-for="cat in categoriasDisponiblesStock" :key="cat" :value="cat">{{ cat }}</option>
+                                </select>
+                            </div>
+
+                            <!-- Filtro Nivel de Stock -->
+                            <div class="sm:col-span-3">
+                                <select v-model="filtroNivelStock" class="w-full py-1.5 px-2.5 text-xs rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border bg-white font-medium text-gray-700">
+                                    <option value="todos">Todos los niveles</option>
+                                    <option value="con_stock">Solo con existencias (> 0)</option>
+                                    <option value="bajo_agotado">Alerta: Stock Bajo o Agotado</option>
+                                </select>
+                            </div>
+
+                            <!-- Toggle catálogo completo -->
+                            <div class="sm:col-span-2 flex items-center justify-end">
+                                <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-600 select-none">
+                                    <input type="checkbox" v-model="verTodoElCatalogo" @change="cargarStockBodegaSeleccionada" class="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5">
+                                    <span>Todo el catálogo</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Tabla de Productos en Bodega -->
+                        <div class="overflow-x-auto rounded-xl border border-gray-200">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50 text-slate-700 font-bold border-b border-gray-200 uppercase tracking-wider text-[11px]">
+                                    <tr>
+                                        <th class="px-3.5 py-3">Código</th>
+                                        <th class="px-3.5 py-3">Producto / Insumo</th>
+                                        <th class="px-3.5 py-3">Categoría</th>
+                                        <th class="px-3.5 py-3">Unidad</th>
+                                        <th class="px-3.5 py-3 text-center">Stock en Bodega</th>
+                                        <th class="px-3.5 py-3 text-center">Mínimo Alerta</th>
+                                        <th class="px-3.5 py-3 text-right">Costo Ref.</th>
+                                        <th class="px-3.5 py-3 text-right">Subtotal Valorizado</th>
+                                        <th class="px-3.5 py-3 text-center">Ajuste</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr v-for="item in productosStockFiltrados" :key="item.insumo_id" class="hover:bg-blue-50/40 transition-colors">
+                                        <td class="px-3.5 py-2.5 font-mono font-bold text-gray-700 whitespace-nowrap">
+                                            <span class="bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[11px]">
+                                                {{ item.codigo || 'S/C' }}
+                                            </span>
+                                        </td>
+                                        <td class="px-3.5 py-2.5">
+                                            <div class="font-bold text-gray-900 text-sm">{{ item.nombre_insumo }}</div>
+                                            <div v-if="item.descripcion" class="text-[11px] text-gray-400 truncate max-w-xs">{{ item.descripcion }}</div>
+                                        </td>
+                                        <td class="px-3.5 py-2.5 whitespace-nowrap">
+                                            <span class="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded text-[11px] font-semibold">
+                                                {{ item.categoria }}
+                                            </span>
+                                        </td>
+                                        <td class="px-3.5 py-2.5 text-gray-600 font-medium whitespace-nowrap">
+                                            {{ item.unidad_medida }}
+                                        </td>
+                                        <td class="px-3.5 py-2.5 text-center whitespace-nowrap">
+                                            <span v-if="item.stock_actual > item.stock_minimo" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                <i class="fa-solid fa-check text-[9px]"></i> {{ item.stock_actual }}
+                                            </span>
+                                            <span v-else-if="item.stock_actual > 0" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-200">
+                                                <i class="fa-solid fa-triangle-exclamation text-[9px]"></i> {{ item.stock_actual }}
+                                            </span>
+                                            <span v-else class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-red-100 text-red-800 border border-red-200">
+                                                <i class="fa-solid fa-ban text-[9px]"></i> 0
+                                            </span>
+                                        </td>
+                                        <td class="px-3.5 py-2.5 text-center text-gray-500 font-semibold whitespace-nowrap">
+                                            {{ item.stock_minimo }}
+                                        </td>
+                                        <td class="px-3.5 py-2.5 text-right font-medium text-gray-700 whitespace-nowrap">
+                                            ${{ Number(item.precio || 0).toFixed(2) }}
+                                        </td>
+                                        <td class="px-3.5 py-2.5 text-right font-black text-gray-900 whitespace-nowrap">
+                                            ${{ (Number(item.stock_actual || 0) * Number(item.precio || 0)).toFixed(2) }}
+                                        </td>
+                                        <td class="px-3.5 py-2.5 text-center whitespace-nowrap">
+                                            <button @click="abrirModalAjusteStock(item)" class="text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded font-bold transition-colors inline-flex items-center gap-1 border border-blue-200">
+                                                <i class="fa-solid fa-sliders text-[10px]"></i> Ajustar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="productosStockFiltrados.length === 0">
+                                        <td colspan="9" class="px-6 py-10 text-center text-gray-400">
+                                            <div class="flex flex-col items-center justify-center">
+                                                <i class="fa-solid fa-boxes-stacked text-3xl mb-2 text-gray-300"></i>
+                                                <span class="font-medium">No se encontraron productos para los filtros seleccionados en {{ bodegaSeleccionadaNombre }}.</span>
                                             </div>
                                         </td>
                                     </tr>
@@ -905,6 +1073,57 @@
             </div>
         </div>
 
+        <!-- MODAL AJUSTE DE STOCK -->
+        <div v-if="showAjusteModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <div>
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center">
+                            <i class="fa-solid fa-sliders text-blue-600 mr-2"></i>
+                            Ajustar Stock en Bodega
+                        </h3>
+                        <p class="text-xs text-gray-500">Bodega: <span class="font-bold text-blue-600">{{ formAjusteStock.bodega_nombre }}</span></p>
+                    </div>
+                    <button @click="showAjusteModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto">
+                    <form @submit.prevent="guardarAjusteStock" class="space-y-4">
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                            <div class="text-xs text-blue-800 font-semibold">Producto seleccionado:</div>
+                            <div class="font-bold text-blue-950 text-base mt-0.5">{{ formAjusteStock.nombre_insumo }}</div>
+                            <div class="text-xs text-blue-700 font-mono mt-0.5">Código: {{ formAjusteStock.codigo || 'S/N' }}</div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Stock Actual</label>
+                                <input :value="formAjusteStock.stock_anterior" disabled class="w-full rounded-lg border-gray-200 bg-gray-100 p-2.5 border font-bold text-gray-500 text-center">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-blue-700 uppercase mb-1">Nuevo Conteo Físico *</label>
+                                <input v-model.number="formAjusteStock.stock_actual" type="number" min="0" required class="w-full rounded-lg border-blue-300 focus:border-blue-500 focus:ring-blue-500 p-2.5 border font-black text-gray-900 text-center text-lg">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Motivo del Ajuste *</label>
+                            <input v-model="formAjusteStock.motivo" type="text" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2.5 border text-sm" placeholder="Ej: Conteo físico fin de mes, merma, corrección...">
+                        </div>
+                        
+                        <div class="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-6">
+                            <button type="button" @click="showAjusteModal = false" class="px-5 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+                            <button type="submit" :disabled="guardandoAjuste" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-lg shadow-sm transition-colors flex items-center">
+                                <i v-if="guardandoAjuste" class="fa-solid fa-spinner fa-spin mr-2"></i>
+                                <span>Guardar Ajuste</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAL PRODUCTO -->
         <div v-if="showProductoModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
             <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[92vh]">
@@ -1151,6 +1370,29 @@
                 const guardandoBodega = ref(false);
                 const formBodega = ref({ id: null, nombre: '', sucursal_id: '', tipo: 'PRINCIPAL', activo: true });
 
+                // Control e inventario de productos por bodega
+                const bodegaSeleccionadaId = ref(null);
+                const stockBodega = ref([]);
+                const cargandoStockBodega = ref(false);
+                const busquedaStockBodega = ref('');
+                const filtroCategoriaStock = ref('');
+                const filtroNivelStock = ref('todos');
+                const verTodoElCatalogo = ref(true);
+
+                // Modal ajuste de stock
+                const showAjusteModal = ref(false);
+                const guardandoAjuste = ref(false);
+                const formAjusteStock = ref({
+                    bodega_id: null,
+                    bodega_nombre: '',
+                    insumo_id: null,
+                    nombre_insumo: '',
+                    codigo: '',
+                    stock_anterior: 0,
+                    stock_actual: 0,
+                    motivo: 'Ajuste manual de inventario'
+                });
+
                 // Recetas / Kits
                 const selectedTratamientoId = ref("");
                 const formReceta = ref([]);
@@ -1177,6 +1419,59 @@
                 const bodegasFiltradasPorSucursal = computed(() => {
                     if (!sucursalId.value) return bodegas.value;
                     return bodegas.value.filter(b => Number(b.sucursal_id) === Number(sucursalId.value));
+                });
+
+                const bodegaSeleccionada = computed(() => {
+                    return bodegasFiltradasPorSucursal.value.find(b => Number(b.id) === Number(bodegaSeleccionadaId.value)) || bodegasFiltradasPorSucursal.value[0] || null;
+                });
+
+                const bodegaSeleccionadaNombre = computed(() => {
+                    return bodegaSeleccionada.value ? bodegaSeleccionada.value.nombre : 'Bodega';
+                });
+
+                const categoriasDisponiblesStock = computed(() => {
+                    const set = new Set();
+                    stockBodega.value.forEach(item => {
+                        if (item.categoria) set.add(item.categoria);
+                    });
+                    return Array.from(set).sort();
+                });
+
+                const productosStockFiltrados = computed(() => {
+                    return stockBodega.value.filter(item => {
+                        const q = busquedaStockBodega.value.trim().toLowerCase();
+                        const matchSearch = !q ||
+                            (item.codigo && item.codigo.toLowerCase().includes(q)) ||
+                            (item.nombre_insumo && item.nombre_insumo.toLowerCase().includes(q)) ||
+                            (item.descripcion && item.descripcion.toLowerCase().includes(q));
+
+                        const matchCat = !filtroCategoriaStock.value || item.categoria === filtroCategoriaStock.value;
+
+                        let matchNivel = true;
+                        const stock = Number(item.stock_actual || 0);
+                        const min = Number(item.stock_minimo || 5);
+                        if (filtroNivelStock.value === 'con_stock') {
+                            matchNivel = stock > 0;
+                        } else if (filtroNivelStock.value === 'bajo_agotado') {
+                            matchNivel = stock <= min;
+                        }
+
+                        return matchSearch && matchCat && matchNivel;
+                    });
+                });
+
+                const resumenStock = computed(() => {
+                    const list = productosStockFiltrados.value;
+                    const totalItems = list.length;
+                    const totalUnidades = list.reduce((acc, item) => acc + Number(item.stock_actual || 0), 0);
+                    const bajoStock = list.filter(item => Number(item.stock_actual || 0) <= Number(item.stock_minimo || 5)).length;
+                    const valorTotal = list.reduce((acc, item) => acc + (Number(item.stock_actual || 0) * Number(item.precio || 0)), 0);
+                    return {
+                        totalItems,
+                        totalUnidades,
+                        bajoStock,
+                        valorTotal: parseFloat(valorTotal.toFixed(2))
+                    };
                 });
 
                 // Compras registradas en la sucursal activa (el condado solo ve el condado, la magdalena solo ve la magdalena)
@@ -1369,6 +1664,7 @@
                         
                         // Cargar catálogos e historial sincronizados
                         await cargarCatalogos();
+                        sincronizarBodegaStockActiva();
                         await cargarComprasHistorial();
                     } catch (error) {
                         window.location.href = '/static/login.html';
@@ -1383,6 +1679,7 @@
                         localStorage.setItem('sucursal_nombre', s.nombre);
                     }
                     verificarBodegaCompra();
+                    sincronizarBodegaStockActiva();
                     cargarComprasHistorial();
                 };
 
@@ -1699,6 +1996,9 @@
                         await axios.delete(`/api/inventario/bodegas/${bod.id}`);
                         bodegas.value = bodegas.value.filter(b => b.id !== bod.id);
                         verificarBodegaCompra();
+                        if (Number(bodegaSeleccionadaId.value) === Number(bod.id)) {
+                            sincronizarBodegaStockActiva();
+                        }
                         Swal.fire({ icon: 'success', title: 'Bodega eliminada', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
                     } catch (err) {
                         const msg = err.response?.data?.detail || 'Error al eliminar la bodega.';
@@ -1737,12 +2037,115 @@
                         }
                         showBodegaModal.value = false;
                         verificarBodegaCompra();
+                        if (!bodegaSeleccionadaId.value) {
+                            sincronizarBodegaStockActiva();
+                        }
                     } catch (err) {
                         console.error(err);
                         const msg = err.response?.data?.detail || "Error al guardar bodega.";
                         Swal.fire({ icon: 'error', title: 'Error', text: msg });
                     } finally {
                         guardandoBodega.value = false;
+                    }
+                };
+
+                // Métodos de control y stock de productos por bodega
+                const seleccionarBodegaParaStock = (bodega) => {
+                    const id = typeof bodega === 'object' ? bodega.id : bodega;
+                    bodegaSeleccionadaId.value = id;
+                    cargarStockBodegaSeleccionada();
+                    const el = document.getElementById('seccion-stock-bodega');
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                };
+
+                const cargarStockBodegaSeleccionada = async () => {
+                    if (!bodegaSeleccionadaId.value) {
+                        const disponibles = bodegasFiltradasPorSucursal.value;
+                        if (disponibles.length > 0) {
+                            bodegaSeleccionadaId.value = disponibles[0].id;
+                        } else {
+                            stockBodega.value = [];
+                            return;
+                        }
+                    }
+                    cargandoStockBodega.value = true;
+                    try {
+                        const url = `/api/inventario/bodegas/${bodegaSeleccionadaId.value}/stock?include_all=${verTodoElCatalogo.value ? 'true' : 'false'}`;
+                        const res = await axios.get(url);
+                        stockBodega.value = res.data;
+                    } catch (err) {
+                        console.error("Error al cargar stock de bodega:", err);
+                        stockBodega.value = [];
+                    } finally {
+                        cargandoStockBodega.value = false;
+                    }
+                };
+
+                const sincronizarBodegaStockActiva = () => {
+                    const disponibles = bodegasFiltradasPorSucursal.value;
+                    if (disponibles.length > 0) {
+                        const existe = disponibles.some(b => Number(b.id) === Number(bodegaSeleccionadaId.value));
+                        if (!existe) {
+                            bodegaSeleccionadaId.value = disponibles[0].id;
+                        }
+                        cargarStockBodegaSeleccionada();
+                    } else {
+                        bodegaSeleccionadaId.value = null;
+                        stockBodega.value = [];
+                    }
+                };
+
+                const abrirModalAjusteStock = (item) => {
+                    formAjusteStock.value = {
+                        bodega_id: bodegaSeleccionadaId.value,
+                        bodega_nombre: bodegaSeleccionadaNombre.value,
+                        insumo_id: item.insumo_id,
+                        nombre_insumo: item.nombre_insumo,
+                        codigo: item.codigo || '',
+                        stock_anterior: Number(item.stock_actual || 0),
+                        stock_actual: Number(item.stock_actual || 0),
+                        motivo: 'Ajuste manual de inventario'
+                    };
+                    showAjusteModal.value = true;
+                };
+
+                const guardarAjusteStock = async () => {
+                    if (formAjusteStock.value.stock_actual === null || formAjusteStock.value.stock_actual < 0) {
+                        Swal.fire({ icon: 'warning', title: 'Valor inválido', text: 'El stock no puede ser negativo.' });
+                        return;
+                    }
+                    guardandoAjuste.value = true;
+                    try {
+                        const payload = {
+                            stock_actual: parseInt(formAjusteStock.value.stock_actual),
+                            motivo: formAjusteStock.value.motivo || 'Ajuste manual de inventario'
+                        };
+                        const res = await axios.put(`/api/inventario/bodegas/${formAjusteStock.value.bodega_id}/stock/${formAjusteStock.value.insumo_id}`, payload);
+                        
+                        // Actualizar en la lista local de stock
+                        const idx = stockBodega.value.findIndex(item => item.insumo_id === formAjusteStock.value.insumo_id);
+                        if (idx !== -1) {
+                            stockBodega.value[idx].stock_actual = res.data.stock_actual;
+                        }
+                        
+                        showAjusteModal.value = false;
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Stock Actualizado',
+                            text: `Nuevo stock en ${formAjusteStock.value.bodega_nombre}: ${res.data.stock_actual} unidades.`,
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    } catch (err) {
+                        console.error(err);
+                        const msg = err.response?.data?.detail || 'Error al actualizar el stock de la bodega.';
+                        Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                    } finally {
+                        guardandoAjuste.value = false;
                     }
                 };
 
@@ -1852,6 +2255,9 @@
                         const prodRes = await axios.get('/api/inventario/insumos');
                         productos.value = prodRes.data;
                         await cargarComprasHistorial();
+                        if (Number(bodegaSeleccionadaId.value) === Number(payload.bodega_id)) {
+                            await cargarStockBodegaSeleccionada();
+                        }
                         
                     } catch (err) {
                         console.error(err);
@@ -1872,6 +2278,13 @@
                     categoriasCatalogo, unidadesComunes,
                     proveedores, productos, sucursales, bodegas, tratamientos,
                     sucursalId, sucursalNombre, onSucursalChange, bodegasFiltradasPorSucursal,
+                    bodegaSeleccionadaId, bodegaSeleccionada, bodegaSeleccionadaNombre,
+                    stockBodega, cargandoStockBodega, busquedaStockBodega,
+                    filtroCategoriaStock, filtroNivelStock, verTodoElCatalogo,
+                    categoriasDisponiblesStock, productosStockFiltrados, resumenStock,
+                    seleccionarBodegaParaStock, cargarStockBodegaSeleccionada,
+                    showAjusteModal, formAjusteStock, guardandoAjuste,
+                    abrirModalAjusteStock, guardarAjusteStock,
                     busquedaProducto, filtroCategoria, modoEdicionProducto,
                     busquedaProveedor, modoEdicionProveedor, guardandoProveedor, proveedoresFiltrados,
                     categoriasDisponibles, productosFiltrados, getProveedorNombre,

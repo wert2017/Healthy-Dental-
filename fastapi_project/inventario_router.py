@@ -97,21 +97,87 @@ def delete_bodega(id: int, session: Session = Depends(get_session)):
     session.commit()
     return {"message": "Bodega eliminada correctamente"}
 
+class AjusteStockBodegaRequest(BaseModel):
+    stock_actual: int
+    motivo: Optional[str] = "Ajuste manual de inventario"
+
 @router.get("/bodegas/{bodega_id}/stock")
-def list_stock_bodega(bodega_id: int, session: Session = Depends(get_session)):
-    inventario = session.exec(select(InventarioBodega).where(InventarioBodega.bodega_id == bodega_id)).all()
+def list_stock_bodega(bodega_id: int, include_all: bool = False, session: Session = Depends(get_session)):
+    bodega = session.get(Bodega, bodega_id)
+    if not bodega:
+        raise HTTPException(status_code=404, detail="Bodega no encontrada")
+    
+    inventarios = session.exec(select(InventarioBodega).where(InventarioBodega.bodega_id == bodega_id)).all()
+    inv_map = {inv.insumo_id: inv for inv in inventarios}
+    
     res = []
-    for inv in inventario:
-        insumo = session.get(Insumo, inv.insumo_id)
-        res.append({
-            "id": inv.id,
-            "insumo_id": inv.insumo_id,
-            "nombre_insumo": insumo.nombre if insumo else "Desconocido",
-            "unidad_medida": insumo.unidad_medida if insumo else "-",
-            "stock_actual": inv.stock_actual,
-            "stock_minimo": inv.stock_minimo
-        })
+    if include_all:
+        insumos = session.exec(select(Insumo).order_by(Insumo.nombre)).all()
+        for insumo in insumos:
+            inv = inv_map.get(insumo.id)
+            res.append({
+                "id": inv.id if inv else None,
+                "bodega_id": bodega_id,
+                "bodega_nombre": bodega.nombre,
+                "insumo_id": insumo.id,
+                "codigo": insumo.codigo or "",
+                "nombre_insumo": insumo.nombre,
+                "descripcion": insumo.descripcion or "",
+                "categoria": insumo.categoria or "General",
+                "unidad_medida": insumo.unidad_medida or "Unidad",
+                "precio": float(insumo.precio or 0.0),
+                "stock_actual": inv.stock_actual if inv else 0,
+                "stock_minimo": inv.stock_minimo if inv else (insumo.stock_minimo or 5)
+            })
+    else:
+        for inv in inventarios:
+            insumo = session.get(Insumo, inv.insumo_id)
+            if not insumo:
+                continue
+            res.append({
+                "id": inv.id,
+                "bodega_id": bodega_id,
+                "bodega_nombre": bodega.nombre,
+                "insumo_id": insumo.id,
+                "codigo": insumo.codigo or "",
+                "nombre_insumo": insumo.nombre,
+                "descripcion": insumo.descripcion or "",
+                "categoria": insumo.categoria or "General",
+                "unidad_medida": insumo.unidad_medida or "Unidad",
+                "precio": float(insumo.precio or 0.0),
+                "stock_actual": inv.stock_actual,
+                "stock_minimo": inv.stock_minimo
+            })
     return res
+
+@router.put("/bodegas/{bodega_id}/stock/{insumo_id}")
+def update_stock_bodega(bodega_id: int, insumo_id: int, data: AjusteStockBodegaRequest, session: Session = Depends(get_session)):
+    bodega = session.get(Bodega, bodega_id)
+    if not bodega:
+        raise HTTPException(status_code=404, detail="Bodega no encontrada")
+    insumo = session.get(Insumo, insumo_id)
+    if not insumo:
+        raise HTTPException(status_code=404, detail="Insumo no encontrado")
+        
+    inv = session.exec(select(InventarioBodega).where(
+        InventarioBodega.bodega_id == bodega_id,
+        InventarioBodega.insumo_id == insumo_id
+    )).first()
+    
+    if not inv:
+        inv = InventarioBodega(bodega_id=bodega_id, insumo_id=insumo_id, stock_actual=max(0, data.stock_actual))
+    else:
+        inv.stock_actual = max(0, data.stock_actual)
+        
+    session.add(inv)
+    session.commit()
+    session.refresh(inv)
+    return {
+        "status": "ok",
+        "bodega_id": bodega_id,
+        "insumo_id": insumo_id,
+        "stock_actual": inv.stock_actual
+    }
 
 # --- RECETAS (KITS DE TRATAMIENTO) ---
 @router.get("/tratamientos/{tratamiento_id}/recetas")
