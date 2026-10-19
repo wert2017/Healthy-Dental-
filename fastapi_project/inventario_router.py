@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from database import get_session
 from models import Proveedor, Insumo, InventarioBodega, Sucursal, Bodega, InventarioDoctor, Compra, DetalleCompra, Gasto, Receta, Tratamiento
+from cierres_service import check_periodo_abierto
 
 router = APIRouter(prefix="/api/inventario", tags=["inventario"])
 
@@ -373,6 +374,7 @@ def delete_insumo(id: int, session: Session = Depends(get_session)):
 
 @router.post("/movimiento")
 def registro_movimiento(req: MovimientoRequest, session: Session = Depends(get_session)):
+    check_periodo_abierto(session, datetime.now())
     """
     Central Logic for Inventory Movements
     1. COMPRA: Proveedor -> Bodega Central (o Sucursal directo)
@@ -566,6 +568,7 @@ def list_compras(sucursal_id: Optional[int] = None, session: Session = Depends(g
 
 @router.post("/compras")
 def registrar_compra(req: CompraRequest, session: Session = Depends(get_session)):
+    check_periodo_abierto(session, datetime.now())
     proveedor = session.get(Proveedor, req.proveedor_id)
     if not proveedor:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
