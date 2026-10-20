@@ -35,13 +35,26 @@ def create_db_and_tables():
         # Nuevas columnas módulo Compras/Inventario (v2)
         "ALTER TABLE proveedor ADD COLUMN IF NOT EXISTS ruc VARCHAR(50) DEFAULT NULL",
         "ALTER TABLE proveedor ADD COLUMN IF NOT EXISTS direccion VARCHAR(255) DEFAULT NULL",
+        "ALTER TABLE compra ADD COLUMN IF NOT EXISTS bodega_id INTEGER DEFAULT 1",
+        "ALTER TABLE compra ADD COLUMN IF NOT EXISTS numero_autorizacion VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE compra ADD COLUMN IF NOT EXISTS subtotal_15 NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE compra ADD COLUMN IF NOT EXISTS subtotal_0 NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE compra ADD COLUMN IF NOT EXISTS subtotal_sin_impuestos NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE compra ADD COLUMN IF NOT EXISTS iva_porcentaje NUMERIC(5,2) DEFAULT 15",
+        "ALTER TABLE compra ADD COLUMN IF NOT EXISTS monto_iva NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE compra ADD COLUMN IF NOT EXISTS descuento NUMERIC(10,2) DEFAULT 0",
     ]
     with engine.connect() as conn:
         for sql in migrations:
             try:
                 conn.execute(__import__("sqlalchemy").text(sql))
             except Exception:
-                pass
+                # Handle SQLite where IF NOT EXISTS might not be supported
+                try:
+                    clean_sql = sql.replace("IF NOT EXISTS ", "")
+                    conn.execute(__import__("sqlalchemy").text(clean_sql))
+                except Exception:
+                    pass
         conn.commit()
 
 def get_session():

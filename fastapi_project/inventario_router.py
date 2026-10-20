@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel
 from database import get_session
-from models import Proveedor, Insumo, InventarioBodega, Sucursal, Bodega, InventarioDoctor, Compra, DetalleCompra, Gasto, Receta, Tratamiento
+from models import Proveedor, Insumo, InventarioBodega, Sucursal, Bodega, InventarioDoctor, Compra, DetalleCompra, Gasto, Receta, Tratamiento, User
 from cierres_service import check_periodo_abierto
 
 router = APIRouter(prefix="/api/inventario", tags=["inventario"])
@@ -565,6 +565,99 @@ def list_compras(sucursal_id: Optional[int] = None, session: Session = Depends(g
             "items_count": detalles_count
         })
     return res
+
+@router.get("/compras/{compra_id}")
+def get_compra_detalle(compra_id: int, session: Session = Depends(get_session)):
+    compra = session.get(Compra, compra_id)
+    if not compra:
+        raise HTTPException(status_code=404, detail="Factura o recepción de compra no encontrada")
+    
+    prov = session.get(Proveedor, compra.proveedor_id)
+    bod = session.get(Bodega, compra.bodega_id)
+    suc = session.get(Sucursal, bod.sucursal_id) if bod and bod.sucursal_id else None
+    user = session.get(User, compra.usuario_id) if compra.usuario_id else None
+    
+    user_nombre = "Administración / Sistema"
+    if user:
+        if getattr(user, "doctor", None) and getattr(user.doctor, "nombre", None):
+            user_nombre = f"Dr(a). {user.doctor.nombre} ({user.username})"
+        else:
+            user_nombre = user.username
+            
+    detalles_db = session.exec(select(DetalleCompra).where(DetalleCompra.compra_id == compra.id)).all()
+    items = []
+    for d in detalles_db:
+        insumo = session.get(Insumo, d.insumo_id)
+        cant = int(d.cantidad)
+        pu = float(d.precio_unitario or 0)
+        desc = float(d.descuento or 0)
+        subt = float(d.subtotal or ((cant * pu) - desc))
+        m_iva = float(d.monto_iva or 0)
+        tot = float(d.total_linea or (subt + m_iva))
+        
+        items.append({
+            "id": d.id,
+            "insumo_id": d.insumo_id,
+            "codigo": insumo.codigo if (insumo and insumo.codigo) else f"INS-{d.insumo_id}",
+            "nombre": insumo.nombre if insumo else "Insumo no disponible",
+            "categoria": insumo.categoria if insumo else "General",
+            "unidad_medida": insumo.unidad_medida if insumo else "Unidad",
+            "cantidad": cant,
+            "precio_unitario": pu,
+            "descuento": desc,
+            "subtotal": subt,
+            "tiene_iva": d.tiene_iva,
+            "iva_porcentaje": float(d.iva_porcentaje or 0),
+            "monto_iva": m_iva,
+            "total_linea": tot
+        })
+        
+    return {
+        "id": compra.id,
+        "fecha": compra.fecha.strftime("%Y-%m-%d %H:%M") if compra.fecha else "-",
+        "fecha_completa": compra.fecha.strftime("%d/%m/%Y a las %H:%M") if compra.fecha else "-",
+        "tipo_documento": compra.tipo_documento or "Factura",
+        "numero_documento": compra.numero_documento or "S/N",
+        "numero_autorizacion": compra.numero_autorizacion or "",
+        "observaciones": compra.observaciones or "",
+        "gasto_id": compra.gasto_id,
+        "proveedor": {
+            "id": prov.id if prov else None,
+            "nombre": prov.nombre if prov else "Proveedor Desconocido",
+            "ruc": prov.ruc if prov else "S/N",
+            "contacto": prov.contacto if prov else "-",
+            "telefono": prov.telefono if prov else "-",
+            "email": prov.email if prov else "-",
+            "direccion": prov.direccion if prov else "-"
+        },
+        "bodega": {
+            "id": bod.id if bod else None,
+            "nombre": bod.nombre if bod else "Bodega Central",
+            "tipo": bod.tipo if bod else "PRINCIPAL"
+        },
+        "sucursal": {
+            "id": suc.id if suc else None,
+            "nombre": suc.nombre if suc else "Sede Healthy Dental"
+        },
+        "usuario": {
+            "id": user.id if user else None,
+            "nombre": user_nombre,
+            "username": user.username if user else "",
+            "role": user.role if user else "admin"
+        },
+        "totales": {
+            "subtotal_15": float(compra.subtotal_15 or 0),
+            "subtotal_0": float(compra.subtotal_0 or 0),
+            "subtotal_sin_impuestos": float(compra.subtotal_sin_impuestos or 0),
+            "iva_porcentaje": float(compra.iva_porcentaje or 15),
+            "monto_iva": float(compra.monto_iva or 0),
+            "descuento": float(compra.descuento or 0),
+            "monto_total": float(compra.monto_total or 0)
+        },
+        "items": items,
+        "total_unidades": sum(it["cantidad"] for it in items),
+        "total_items": len(items)
+    }
 
 @router.post("/compras")
 def registrar_compra(req: CompraRequest, session: Session = Depends(get_session)):

@@ -25,6 +25,46 @@
         ::-webkit-scrollbar-track { background: #f8fafc; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            header, aside, nav, .no-print {
+                display: none !important;
+            }
+            #app > div:first-child > header,
+            #app > div:first-child > div:first-child,
+            main {
+                display: none !important;
+            }
+            #modal-informe-recepcion-container {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                display: block !important;
+            }
+            #modal-informe-recepcion {
+                max-width: 100% !important;
+                width: 100% !important;
+                max-height: none !important;
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            @page {
+                size: letter portrait;
+                margin: 8mm 12mm;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50 h-screen flex overflow-hidden">
@@ -1004,6 +1044,7 @@
                                         <th class="p-3 text-right">Subtotal 0%</th>
                                         <th class="p-3 text-right">IVA 15%</th>
                                         <th class="p-3 text-right">Total Factura</th>
+                                        <th class="p-3 text-center">Informe</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
@@ -1029,9 +1070,17 @@
                                         <td class="p-3 text-right font-medium text-gray-700">${{ Number(c.subtotal_0 || 0).toFixed(2) }}</td>
                                         <td class="p-3 text-right font-bold text-emerald-700">${{ Number(c.monto_iva || 0).toFixed(2) }}</td>
                                         <td class="p-3 text-right font-black text-gray-900 text-sm">${{ Number(c.monto_total || 0).toFixed(2) }}</td>
+                                        <td class="p-3 text-center whitespace-nowrap">
+                                            <button type="button" @click="abrirInformeRecepcion(c.id)" 
+                                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-600 hover:text-white border border-blue-200 rounded-lg shadow-sm transition-all hover:shadow group"
+                                                    title="Ver Informe y Acta de Recepción de Mercadería">
+                                                <i class="fa-solid fa-file-invoice text-blue-600 group-hover:text-white transition-colors"></i>
+                                                <span>Ver Recepción</span>
+                                            </button>
+                                        </td>
                                     </tr>
                                     <tr v-if="comprasFiltradasPorSucursal.length === 0">
-                                        <td colspan="8" class="p-8 text-center text-gray-400">
+                                        <td colspan="9" class="p-8 text-center text-gray-400">
                                             <div class="flex flex-col items-center justify-center">
                                                 <i class="fa-solid fa-receipt text-3xl mb-2 text-gray-300"></i>
                                                 <span class="font-medium">No hay compras registradas para {{ sucursalNombre }}.</span>
@@ -1382,6 +1431,260 @@
             </div>
         </div>
 
+        <!-- MODAL INFORME DE RECEPCIÓN DE COMPRA -->
+        <div v-if="showModalRecepcion" id="modal-informe-recepcion-container" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
+            <div id="modal-informe-recepcion" class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[95vh] border border-slate-100 my-auto">
+                
+                <!-- Barra superior de acciones (no-print) -->
+                <div class="p-4 bg-slate-900 text-white flex justify-between items-center no-print">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400 font-bold">
+                            <i class="fa-solid fa-clipboard-check"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-sm text-white">Informe de Recepción de Factura</h3>
+                            <p class="text-[11px] text-slate-400">Comprobante de recepción física y entrada a bodega</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" @click="imprimirInforme" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-print"></i>
+                            <span>Imprimir Informe</span>
+                        </button>
+                        <button type="button" @click="cerrarModalRecepcion" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenido imprimible y visible del Acta de Recepción -->
+                <div class="p-6 overflow-y-auto bg-white space-y-5">
+                    
+                    <div v-if="cargandoDetalleCompra" class="py-16 text-center text-gray-500">
+                        <i class="fa-solid fa-spinner fa-spin text-3xl text-blue-600 mb-3"></i>
+                        <p class="font-semibold text-sm">Cargando reporte de recepción e insumos...</p>
+                    </div>
+
+                    <div v-else-if="compraSeleccionada" class="space-y-5">
+                        
+                        <!-- Encabezado Institucional -->
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b-2 border-slate-200 gap-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-md">
+                                    <i class="fa-solid fa-tooth"></i>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-black text-slate-900 tracking-tight">HEALTHY DENTAL</h2>
+                                    <p class="text-xs font-bold text-blue-700 uppercase tracking-wider">Clínica Odontológica Especializada</p>
+                                    <p class="text-[11px] text-slate-500">Sede: <span class="font-semibold text-slate-700">{{ compraSeleccionada.sucursal?.nombre }}</span></p>
+                                </div>
+                            </div>
+
+                            <div class="text-left sm:text-right bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-xl w-full sm:w-auto border sm:border-none border-slate-100">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wide bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    Mercadería Recepcionada
+                                </span>
+                                <div class="mt-1 text-xs text-slate-500 font-mono">
+                                    N° Recepción: <span class="font-black text-slate-800">#REC-{{ String(compraSeleccionada.id).padStart(5, '0') }}</span>
+                                </div>
+                                <div class="text-[11px] text-slate-500">
+                                    Fecha ingreso: <span class="font-semibold text-slate-800">{{ compraSeleccionada.fecha_completa }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Título del Documento -->
+                        <div class="text-center py-1">
+                            <h3 class="text-base font-black text-slate-800 tracking-wide uppercase">
+                                INFORME DE RECEPCIÓN TÉCNICA Y ENTRADA A BODEGA
+                            </h3>
+                            <p class="text-xs text-slate-500">
+                                Constancia de verificación física e ingreso al inventario de insumos odontológicos
+                            </p>
+                        </div>
+
+                        <!-- Tarjetas de Información: Factura y Proveedor -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                            <!-- Datos Factura / Recepción -->
+                            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
+                                <h4 class="font-black text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5 pb-1 border-b border-slate-200">
+                                    <i class="fa-solid fa-receipt text-blue-600"></i> Datos del Comprobante
+                                </h4>
+                                <div class="grid grid-cols-3 gap-1">
+                                    <span class="text-slate-500 font-medium">Documento:</span>
+                                    <span class="col-span-2 font-bold text-slate-800">{{ compraSeleccionada.tipo_documento }} {{ compraSeleccionada.numero_documento }}</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-1" v-if="compraSeleccionada.numero_autorizacion">
+                                    <span class="text-slate-500 font-medium">Autorización SRI:</span>
+                                    <span class="col-span-2 font-mono text-[10px] text-slate-700 break-all">{{ compraSeleccionada.numero_autorizacion }}</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-1">
+                                    <span class="text-slate-500 font-medium">Bodega destino:</span>
+                                    <span class="col-span-2 font-bold text-blue-800 flex items-center gap-1">
+                                        <i class="fa-solid fa-box-archive text-blue-500 text-[10px]"></i>
+                                        {{ compraSeleccionada.bodega?.nombre }}
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-1">
+                                    <span class="text-slate-500 font-medium">Recepcionado por:</span>
+                                    <span class="col-span-2 font-semibold text-slate-800">{{ compraSeleccionada.usuario?.nombre }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Datos Proveedor -->
+                            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
+                                <h4 class="font-black text-slate-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5 pb-1 border-b border-slate-200">
+                                    <i class="fa-solid fa-truck text-emerald-600"></i> Datos del Proveedor
+                                </h4>
+                                <div class="grid grid-cols-3 gap-1">
+                                    <span class="text-slate-500 font-medium">Razón Social:</span>
+                                    <span class="col-span-2 font-black text-slate-900">{{ compraSeleccionada.proveedor?.nombre }}</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-1">
+                                    <span class="text-slate-500 font-medium">RUC / C.I.:</span>
+                                    <span class="col-span-2 font-mono font-bold text-slate-800">{{ compraSeleccionada.proveedor?.ruc || 'S/N' }}</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-1">
+                                    <span class="text-slate-500 font-medium">Contacto / Tel:</span>
+                                    <span class="col-span-2 text-slate-700">{{ compraSeleccionada.proveedor?.contacto || '-' }} <span v-if="compraSeleccionada.proveedor?.telefono">({{ compraSeleccionada.proveedor?.telefono }})</span></span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-1" v-if="compraSeleccionada.proveedor?.direccion">
+                                    <span class="text-slate-500 font-medium">Dirección:</span>
+                                    <span class="col-span-2 text-slate-700 truncate" :title="compraSeleccionada.proveedor?.direccion">{{ compraSeleccionada.proveedor?.direccion }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tabla de Insumos Recibidos -->
+                        <div class="border border-slate-200 rounded-xl overflow-hidden">
+                            <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                                <h4 class="font-black text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                                    <i class="fa-solid fa-cubes text-blue-600"></i> Productos e Insumos Recepcionados
+                                </h4>
+                                <span class="text-[11px] font-bold text-slate-600">
+                                    {{ compraSeleccionada.total_items }} producto(s) | {{ compraSeleccionada.total_unidades }} unidades totales
+                                </span>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs text-left">
+                                    <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase text-[10px]">
+                                        <tr>
+                                            <th class="p-2.5 text-center w-8">#</th>
+                                            <th class="p-2.5">Código</th>
+                                            <th class="p-2.5">Descripción del Insumo / Producto</th>
+                                            <th class="p-2.5 text-center">Unidad</th>
+                                            <th class="p-2.5 text-center">Cant. Recibida</th>
+                                            <th class="p-2.5 text-right">P. Unitario</th>
+                                            <th class="p-2.5 text-right">Subtotal</th>
+                                            <th class="p-2.5 text-right">IVA</th>
+                                            <th class="p-2.5 text-right">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <tr v-for="(item, idx) in compraSeleccionada.items" :key="item.id" class="hover:bg-slate-50">
+                                            <td class="p-2.5 text-center text-slate-400 font-mono font-medium">{{ idx + 1 }}</td>
+                                            <td class="p-2.5 font-mono text-slate-600 font-semibold">{{ item.codigo }}</td>
+                                            <td class="p-2.5">
+                                                <div class="font-bold text-slate-900">{{ item.nombre }}</div>
+                                                <div class="text-[10px] text-slate-400">{{ item.categoria }}</div>
+                                            </td>
+                                            <td class="p-2.5 text-center text-slate-600">{{ item.unidad_medida }}</td>
+                                            <td class="p-2.5 text-center">
+                                                <span class="inline-block px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-black text-xs border border-emerald-200">
+                                                    {{ item.cantidad }}
+                                                </span>
+                                            </td>
+                                            <td class="p-2.5 text-right font-medium text-slate-700">${{ Number(item.precio_unitario || 0).toFixed(2) }}</td>
+                                            <td class="p-2.5 text-right font-medium text-slate-700">${{ Number(item.subtotal || 0).toFixed(2) }}</td>
+                                            <td class="p-2.5 text-right text-slate-600">
+                                                <span v-if="item.tiene_iva" class="text-emerald-700 font-semibold">${{ Number(item.monto_iva || 0).toFixed(2) }}</span>
+                                                <span v-else class="text-slate-400 font-mono">$0.00</span>
+                                            </td>
+                                            <td class="p-2.5 text-right font-bold text-slate-900">${{ Number(item.total_linea || 0).toFixed(2) }}</td>
+                                        </tr>
+                                        <tr v-if="!compraSeleccionada.items || compraSeleccionada.items.length === 0">
+                                            <td colspan="9" class="p-6 text-center text-slate-400">
+                                                No se encontraron detalles de insumos en este comprobante.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Resumen Financiero y Observaciones -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start text-xs">
+                            <!-- Observaciones -->
+                            <div class="bg-amber-50/70 border border-amber-200 rounded-xl p-3 text-amber-900">
+                                <div class="font-bold flex items-center gap-1.5 mb-1 text-[11px] uppercase tracking-wider text-amber-800">
+                                    <i class="fa-solid fa-circle-info"></i> Observaciones de Recepción
+                                </div>
+                                <p class="text-xs italic text-amber-950">
+                                    {{ compraSeleccionada.observaciones || 'Sin observaciones registradas durante la recepción física.' }}
+                                </p>
+                            </div>
+
+                            <!-- Totales de la Factura -->
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 text-slate-700">
+                                <div class="flex justify-between items-center text-xs">
+                                    <span>Subtotal 15%:</span>
+                                    <span class="font-semibold text-slate-900">${{ Number(compraSeleccionada.totales?.subtotal_15 || 0).toFixed(2) }}</span>
+                                </div>
+                                <div class="flex justify-between items-center text-xs">
+                                    <span>Subtotal 0% (Tarifa Cero):</span>
+                                    <span class="font-semibold text-slate-900">${{ Number(compraSeleccionada.totales?.subtotal_0 || 0).toFixed(2) }}</span>
+                                </div>
+                                <div class="flex justify-between items-center text-xs" v-if="compraSeleccionada.totales?.descuento > 0">
+                                    <span>Descuento:</span>
+                                    <span class="font-semibold text-red-600">-${{ Number(compraSeleccionada.totales?.descuento || 0).toFixed(2) }}</span>
+                                </div>
+                                <div class="flex justify-between items-center text-xs">
+                                    <span>Subtotal sin Impuestos:</span>
+                                    <span class="font-bold text-slate-900">${{ Number(compraSeleccionada.totales?.subtotal_sin_impuestos || 0).toFixed(2) }}</span>
+                                </div>
+                                <div class="flex justify-between items-center text-xs">
+                                    <span>IVA ({{ compraSeleccionada.totales?.iva_porcentaje || 15 }}%):</span>
+                                    <span class="font-bold text-emerald-700">${{ Number(compraSeleccionada.totales?.monto_iva || 0).toFixed(2) }}</span>
+                                </div>
+                                <div class="border-t border-slate-300 pt-2 flex justify-between items-center text-sm font-black text-slate-900">
+                                    <span class="text-blue-900 font-extrabold uppercase">TOTAL FACTURA / RECEPCIÓN:</span>
+                                    <span class="text-base text-blue-900 font-black">${{ Number(compraSeleccionada.totales?.monto_total || 0).toFixed(2) }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección de Firmas de Conformidad (Impresión física) -->
+                        <div class="pt-8 pb-2 grid grid-cols-2 gap-8 text-center text-xs">
+                            <div class="border-t border-slate-400 pt-2">
+                                <p class="font-bold text-slate-800">ENTREGADO CONFORME</p>
+                                <p class="text-[11px] text-slate-500">Proveedor / Distribuidor / Transportista</p>
+                                <p class="text-[10px] text-slate-400 font-mono mt-1">C.I. / RUC: ______________________</p>
+                            </div>
+                            <div class="border-t border-slate-400 pt-2">
+                                <p class="font-bold text-slate-800">RECIBIDO Y VERIFICADO EN BODEGA</p>
+                                <p class="text-[11px] text-slate-500">{{ compraSeleccionada.usuario?.nombre }}</p>
+                                <p class="text-[10px] text-slate-400 font-mono mt-1">Sede {{ compraSeleccionada.sucursal?.nombre }} - HD</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Footer modal (no-print) -->
+                <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 no-print">
+                    <button type="button" @click="imprimirInforme" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i>
+                        <span>Imprimir Acta de Recepción</span>
+                    </button>
+                    <button type="button" @click="cerrarModalRecepcion" class="px-5 py-2 text-slate-600 hover:bg-slate-200 font-semibold text-xs rounded-xl transition-colors">
+                        Cerrar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -1507,6 +1810,11 @@
                     stock_actual: 0,
                     motivo: 'Ajuste manual de inventario'
                 });
+
+                // Modal Informe de Recepción de Facturas
+                const showModalRecepcion = ref(false);
+                const compraSeleccionada = ref(null);
+                const cargandoDetalleCompra = ref(false);
 
                 // Filtros de precio y ordenamiento para productos por bodega
                 const filtroRangoPrecio = ref('todos');
@@ -2469,6 +2777,35 @@
                     }
                 };
 
+                const abrirInformeRecepcion = async (compraId) => {
+                    try {
+                        cargandoDetalleCompra.value = true;
+                        compraSeleccionada.value = null;
+                        showModalRecepcion.value = true;
+                        const res = await axios.get(`/api/inventario/compras/${compraId}`);
+                        compraSeleccionada.value = res.data;
+                    } catch (err) {
+                        console.error("Error al cargar informe de recepción", err);
+                        showModalRecepcion.value = false;
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'No se pudo cargar el informe',
+                            text: err.response?.data?.detail || 'Error al obtener los detalles de la recepción de compra.'
+                        });
+                    } finally {
+                        cargandoDetalleCompra.value = false;
+                    }
+                };
+
+                const cerrarModalRecepcion = () => {
+                    showModalRecepcion.value = false;
+                    compraSeleccionada.value = null;
+                };
+
+                const imprimirInforme = () => {
+                    window.print();
+                };
+
                 onMounted(() => {
                     checkAuth();
                     agregarFilaProducto(); // Fila inicial
@@ -2499,7 +2836,9 @@
                     getItemSubtotal, getItemIva, getItemTotal,
                     subtotal15Compra, subtotal0Compra, descuentoTotalCompra,
                     subtotalSinImpuestosCompra, iva15Compra, totalCalculadoCompra, totalFinalCompra,
-                    comprasHistorial, comprasFiltradasPorSucursal, cargarComprasHistorial, registrarCompra
+                    comprasHistorial, comprasFiltradasPorSucursal, cargarComprasHistorial, registrarCompra,
+                    showModalRecepcion, compraSeleccionada, cargandoDetalleCompra,
+                    abrirInformeRecepcion, cerrarModalRecepcion, imprimirInforme
                 };
             }
         }).mount('#app');
