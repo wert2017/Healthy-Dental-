@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Módulo de Compras e Inventario - Healthy Dental</title>
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/static/favicon.png">
@@ -1025,7 +1028,7 @@
                                 <h3 class="text-lg font-bold text-gray-800 flex items-center">
                                     <i class="fa-solid fa-clock-rotate-left text-blue-600 mr-2"></i> Historial de Compras en {{ sucursalNombre }}
                                 </h3>
-                                <p class="text-xs text-gray-500">Comprobantes y facturas ingresados a bodegas de {{ sucursalNombre }} (egresos registrados para esta sede).</p>
+                                <p class="text-xs text-gray-500">Comprobantes ingresados. Haz clic en el número de documento o en <b class="text-blue-600 font-bold">Ver Recepción</b> para abrir el informe de cada compra.</p>
                             </div>
                             <button type="button" @click="cargarComprasHistorial" class="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center bg-blue-50 px-3 py-1.5 rounded-lg">
                                 <i class="fa-solid fa-arrows-rotate mr-1.5"></i> Refrescar
@@ -1050,8 +1053,11 @@
                                 <tbody class="divide-y divide-gray-100">
                                     <tr v-for="c in comprasFiltradasPorSucursal" :key="c.id" class="hover:bg-slate-50 transition-colors">
                                         <td class="p-3 text-gray-600 font-medium whitespace-nowrap">{{ c.fecha }}</td>
-                                        <td class="p-3 font-mono font-bold text-gray-800">
-                                            {{ c.tipo_documento }} {{ c.numero_documento }}
+                                        <td class="p-3 font-mono">
+                                            <button type="button" @click="abrirInformeRecepcion(c.id)" class="text-left font-bold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1.5 cursor-pointer" title="Ver Informe y Acta de Recepción">
+                                                <span>{{ c.tipo_documento }} {{ c.numero_documento }}</span>
+                                                <i class="fa-solid fa-file-invoice text-blue-500 text-[11px]"></i>
+                                            </button>
                                             <div v-if="c.numero_autorizacion" class="text-[10px] text-gray-400 font-mono truncate max-w-[150px]" :title="c.numero_autorizacion">
                                                 Auth: {{ c.numero_autorizacion }}
                                             </div>
@@ -1072,9 +1078,9 @@
                                         <td class="p-3 text-right font-black text-gray-900 text-sm">${{ Number(c.monto_total || 0).toFixed(2) }}</td>
                                         <td class="p-3 text-center whitespace-nowrap">
                                             <button type="button" @click="abrirInformeRecepcion(c.id)" 
-                                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-600 hover:text-white border border-blue-200 rounded-lg shadow-sm transition-all hover:shadow group"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all hover:shadow active:scale-95 cursor-pointer"
                                                     title="Ver Informe y Acta de Recepción de Mercadería">
-                                                <i class="fa-solid fa-file-invoice text-blue-600 group-hover:text-white transition-colors"></i>
+                                                <i class="fa-solid fa-file-invoice"></i>
                                                 <span>Ver Recepción</span>
                                             </button>
                                         </td>
