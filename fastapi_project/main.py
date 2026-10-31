@@ -2035,13 +2035,23 @@ def get_dashboard_atenciones(fecha: str = None, session: Session = Depends(get_s
         
         results = []
         for a in atenciones:
+            if user.role == "doctor" and user.doctor_id:
+                detalles_visibles = [
+                    d for d in a.detalles
+                    if d.doctor_id == user.doctor_id or (d.doctor_id is None and d.vendedor_id is None and a.doctor_id == user.doctor_id)
+                ]
+                if a.detalles and not detalles_visibles:
+                    continue
+            else:
+                detalles_visibles = list(a.detalles)
+
             # Aggregate treatments and doctors for the summary row
-            tratamientos_names = [d.tratamiento.nombre for d in a.detalles if d.tratamiento]
-            doctors_names = list(set([d.doctor.nombres + " " + d.doctor.apellidos for d in a.detalles if d.doctor]))
+            tratamientos_names = [d.tratamiento.nombre for d in detalles_visibles if d.tratamiento]
+            doctors_names = list(set([d.doctor.nombres + " " + d.doctor.apellidos for d in detalles_visibles if d.doctor]))
             
             # Calculate commission percentages
             comisiones = []
-            for d in a.detalles:
+            for d in detalles_visibles:
                 if d.porcentaje_comision > 0:
                     comisiones.append(f"{d.porcentaje_comision:.0f}%")
             
@@ -2067,6 +2077,8 @@ def get_dashboard_atenciones(fecha: str = None, session: Session = Depends(get_s
                 print(f"Error calculating balance for atencion {a.id}: {e_inner}")
                 patient_balance = 0
                 patient_status = "ERROR"
+
+            total_item = sum(Decimal(str(d.total_calculado)) for d in detalles_visibles) if (user.role == "doctor" and user.doctor_id and detalles_visibles) else a.total_atencion_valor
             
             results.append({
                 "id": a.id,
@@ -2081,7 +2093,7 @@ def get_dashboard_atenciones(fecha: str = None, session: Session = Depends(get_s
                 "resumen_tratamientos": ", ".join(tratamientos_names) if tratamientos_names else "-",
                 "resumen_doctores": ", ".join(doctors_names) if doctors_names else "-",
                 "resumen_comisiones": ", ".join(comisiones) if comisiones else "-",
-                "total": a.total_atencion_valor,
+                "total": total_item,
                 "pagos": pagos_map,
                 "pagado": sum(pagos_map.values()),
                 "saldo_pendiente": a.total_atencion_valor - sum(pagos_map.values()), # Re-calc locally
@@ -2100,7 +2112,7 @@ def get_dashboard_atenciones(fecha: str = None, session: Session = Depends(get_s
                         "cantidad": d.cantidad,
                         "total": float(d.total_calculado)
                     }
-                    for d in a.detalles
+                    for d in detalles_visibles
                 ]
             })
         return results
@@ -2115,7 +2127,7 @@ def get_historial_atenciones(
     end_date: Optional[str] = None,
     tratamiento_id: Optional[int] = None,
     page: int = 1,
-    size: int = 50,
+    size: int = 500,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user)
 ):
@@ -2132,9 +2144,9 @@ def get_historial_atenciones(
             )
         )
 
-        # 1. Filter by Doctor if applicable
+        # 1. Filter by Doctor if applicable (only conciliated/validated attentions count in history & payroll)
         if user.role == "doctor" and user.doctor_id:
-            query = query.join(Atencion.detalles, isouter=True).where(
+            query = query.where(Atencion.validado == True).join(Atencion.detalles, isouter=True).where(
                 (Atencion.doctor_id == user.doctor_id) |
                 (AtencionDetalle.doctor_id == user.doctor_id)
             ).distinct()
@@ -2159,16 +2171,40 @@ def get_historial_atenciones(
                 )
             )
             
-        # 3. Execution (With Pagination)
+        # 5. Execution (With Pagination)
         atenciones = session.exec(query.order_by(Atencion.fecha.desc()).offset(skip).limit(size)).all()
+
+        # Calculate FIFO cascade for all involved patients so commissions match /api/nomina/pendientes 100%
+        pacientes_ids = {a.paciente_id for a in atenciones if a.paciente_id}
+        cascada_items = calcular_cascada_paciente(
+            session=session,
+            pacientes_ids=pacientes_ids,
+            sucursal_id=user.sucursal_id,
+            include_paid=True
+        )
+        cascada_by_detalle = {r["detalle"].id: r for r in cascada_items}
         
         results = []
         for a in atenciones:
-            tratamientos_names = [d.tratamiento.nombre for d in a.detalles if d.tratamiento]
-            doctors_names = list(set([d.doctor.nombres + " " + d.doctor.apellidos for d in a.detalles if d.doctor]))
+            if user.role == "doctor" and user.doctor_id:
+                detalles_visibles = [
+                    d for d in a.detalles
+                    if d.doctor_id == user.doctor_id or (d.doctor_id is None and d.vendedor_id is None and a.doctor_id == user.doctor_id)
+                ]
+            else:
+                detalles_visibles = list(a.detalles)
+
+            if tratamiento_id:
+                detalles_visibles = [d for d in detalles_visibles if d.tratamiento_id == tratamiento_id]
+
+            if a.detalles and not detalles_visibles:
+                continue
+
+            tratamientos_names = [d.tratamiento.nombre for d in detalles_visibles if d.tratamiento]
+            doctors_names = list(set([d.doctor.nombres + " " + d.doctor.apellidos for d in detalles_visibles if d.doctor]))
             
             comisiones = []
-            for d in a.detalles:
+            for d in detalles_visibles:
                 if d.porcentaje_comision > 0:
                     comisiones.append(f"{d.porcentaje_comision:.0f}%")
             
@@ -2187,6 +2223,38 @@ def get_historial_atenciones(
                     patient_status = "DEUDA"
                 elif patient_balance > 0.01:
                     patient_status = "FAVOR"
+
+            if (user.role == "doctor" and user.doctor_id) or tratamiento_id:
+                total_item = float(sum(float(d.total_calculado) for d in detalles_visibles)) if detalles_visibles else float(a.total_atencion_valor)
+            else:
+                total_item = float(a.total_atencion_valor)
+
+            detalles_serializados = []
+            for d in detalles_visibles:
+                cas = cascada_by_detalle.get(d.id)
+                if cas is not None:
+                    com_val = round(float(cas["comision_real_total"]), 2)
+                    com_pag = round(float(cas["comision_ya_pagada"]), 2)
+                    com_pen = round(float(cas["comision_pendiente"]), 2)
+                else:
+                    com_teo = float(d.total_calculado) * (float(d.porcentaje_comision) / 100.0)
+                    raw_pag = float(d.comision_pagada_monto or 0.0)
+                    com_pag = round(com_teo if (raw_pag <= 0.0 and d.comision_pagada) else raw_pag, 2)
+                    com_val = round(com_teo, 2)
+                    com_pen = round(max(com_val - com_pag, 0.0), 2)
+
+                detalles_serializados.append({
+                    "id": d.id,
+                    "tratamiento_nombre": d.tratamiento.nombre if d.tratamiento else "-",
+                    "doctor_nombre": (d.doctor.nombres + " " + d.doctor.apellidos) if d.doctor else "-",
+                    "porcentaje_comision": float(d.porcentaje_comision),
+                    "precio_unitario": float(d.precio_unitario),
+                    "cantidad": d.cantidad,
+                    "total": float(d.total_calculado),
+                    "comision_valor": com_val,
+                    "comision_pagada": com_pag,
+                    "comision_pendiente": com_pen
+                })
             
             results.append({
                 "id": a.id,
@@ -2201,7 +2269,7 @@ def get_historial_atenciones(
                 "resumen_tratamientos": ", ".join(tratamientos_names) if tratamientos_names else "-",
                 "resumen_doctores": ", ".join(doctors_names) if doctors_names else "-",
                 "resumen_comisiones": ", ".join(comisiones) if comisiones else "-",
-                "total": float(a.total_atencion_valor),
+                "total": total_item,
                 "pagos": pagos_map,
                 "pagado": sum(pagos_map.values()),
                 "saldo_pendiente": float(a.total_atencion_valor - sum(pagos_map.values())),
@@ -2209,21 +2277,7 @@ def get_historial_atenciones(
                 "estado": a.estado,
                 "patient_balance": patient_balance,
                 "patient_financial_status": patient_status,
-                "detalles": [
-                    {
-                        "id": d.id,
-                        "tratamiento_nombre": d.tratamiento.nombre if d.tratamiento else "-",
-                        "doctor_nombre": (d.doctor.nombres + " " + d.doctor.apellidos) if d.doctor else "-",
-                        "porcentaje_comision": float(d.porcentaje_comision),
-                        "precio_unitario": float(d.precio_unitario),
-                        "cantidad": d.cantidad,
-                        "total": float(d.total_calculado),
-                        "comision_valor": float(float(d.total_calculado) * (float(d.porcentaje_comision) / 100.0)),
-                        "comision_pagada": float(d.comision_pagada_monto if d.comision_pagada else 0.0),
-                        "comision_pendiente": float(float(d.total_calculado) * (float(d.porcentaje_comision) / 100.0)) - float(d.comision_pagada_monto if d.comision_pagada else 0.0)
-                    }
-                    for d in a.detalles
-                ]
+                "detalles": detalles_serializados
             })
         return results
 
@@ -2775,6 +2829,7 @@ def add_atencion_pago(atencion_id: int, data: dict, session: Session = Depends(g
                 historial = HistorialAbono(
                     paciente_id=atencion.paciente.id,
                     usuario_id=user.id if user else None,
+                    atencion_id=atencion_id,
                     monto=Decimal(credit_to_wallet),
                     metodo_pago=metodo_excedente,
                     concepto=f"Excedente de pago en Atención #{atencion_id}",
@@ -5247,25 +5302,32 @@ def get_gastos_balances(
 
 # --- SISTEMA DE NÓMINA Y COMISIONES (Módulo 35) ---
 
-def calcular_cascada_paciente(session: Session, pacientes_ids: set, sucursal_id: int = None, start_date: str = None, end_date: str = None, empleado_id: int = None, tipo_empleado: str = None):
+def calcular_cascada_paciente(session: Session, pacientes_ids: set, sucursal_id: int = None, start_date: str = None, end_date: str = None, empleado_id: int = None, tipo_empleado: str = None, include_paid: bool = False):
     """
     Lógica Núcleo de la Cascada FIFO.
     Agrupa los pagos globales de cada paciente y los distribuye cronológicamente sobre sus tratamientos.
     """
     resultados = []
+    if not pacientes_ids:
+        return resultados
+
     start_dt = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
     end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1) if end_date else None
 
-    for pac_id in pacientes_ids:
-        atenciones = session.exec(
-            select(Atencion)
-            .where(Atencion.paciente_id == pac_id)
-            .options(
-                selectinload(Atencion.pagos), 
-                selectinload(Atencion.detalles).selectinload(AtencionDetalle.tratamiento)
-            )
-        ).all()
-        
+    all_atenciones = session.exec(
+        select(Atencion)
+        .where(Atencion.paciente_id.in_(list(pacientes_ids)))
+        .options(
+            selectinload(Atencion.pagos), 
+            selectinload(Atencion.detalles).selectinload(AtencionDetalle.tratamiento)
+        )
+    ).all()
+
+    atenciones_por_paciente = {}
+    for a in all_atenciones:
+        atenciones_por_paciente.setdefault(a.paciente_id, []).append(a)
+
+    for pac_id, atenciones in atenciones_por_paciente.items():
         atenciones.sort(key=lambda a: a.fecha)
         pool_pagos = sum(float(p.monto) for a in atenciones for p in a.pagos)
         
@@ -5289,10 +5351,14 @@ def calcular_cascada_paciente(session: Session, pacientes_ids: set, sucursal_id:
                 
                 comision_teorica = float(detalle.comision_valor)
                 comision_real_total = comision_teorica * porcentaje_detalle
-                comision_ya_pagada = float(detalle.comision_pagada_monto) if getattr(detalle, 'comision_pagada_monto', None) else 0.0
-                comision_pendiente = comision_real_total - comision_ya_pagada
+                raw_pagada = float(detalle.comision_pagada_monto) if getattr(detalle, 'comision_pagada_monto', None) else 0.0
+                if raw_pagada <= 0.0 and getattr(detalle, 'comision_pagada', False):
+                    comision_ya_pagada = comision_real_total
+                else:
+                    comision_ya_pagada = raw_pagada
+                comision_pendiente = max(comision_real_total - comision_ya_pagada, 0.0)
                 
-                if comision_pendiente > 0.01:
+                if include_paid or comision_pendiente > 0.01:
                     if sucursal_id and atencion.sucursal_id != sucursal_id:
                         continue
                     if start_dt and atencion.fecha < start_dt:
@@ -5310,6 +5376,7 @@ def calcular_cascada_paciente(session: Session, pacientes_ids: set, sucursal_id:
                         "detalle": detalle,
                         "comision_pendiente": comision_pendiente,
                         "comision_real_total": comision_real_total,
+                        "comision_ya_pagada": comision_ya_pagada,
                         "porcentaje_pago_paciente": porcentaje_detalle,
                         "atencion": atencion
                     })

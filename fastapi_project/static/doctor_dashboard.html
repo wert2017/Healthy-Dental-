@@ -477,7 +477,7 @@
                                 class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm">
                                 Anterior
                             </button>
-                            <button @click="changePageHistorial(1)" :disabled="historialAtenciones.length < 50"
+                            <button @click="changePageHistorial(1)" :disabled="historialAtenciones.length < 500"
                                 class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm">
                                 Siguiente
                             </button>
@@ -654,7 +654,7 @@
                         const params = {
                             q: searchQueryHistorial.value || undefined,
                             page: currentPageHistorial.value,
-                            size: 50,
+                            size: 500,
                             start_date: historialStartDate.value || undefined,
                             end_date: historialEndDate.value || undefined,
                             tratamiento_id: historialTratamientoId.value || undefined,
@@ -765,6 +765,9 @@
                 const getItemComision = (item) => {
                     if (!item.detalles || item.detalles.length === 0) return 0
                     return item.detalles.reduce((sum, d) => {
+                        if (d.comision_valor !== undefined && d.comision_valor !== null) {
+                            return sum + (parseFloat(d.comision_valor) || 0)
+                        }
                         const subtotal = parseFloat(d.total) || 0
                         const pct = parseFloat(d.porcentaje_comision) || 0
                         return sum + (subtotal * (pct / 100.0))
@@ -784,10 +787,15 @@
                 }
 
                 const getItemComisionPendiente = (item) => {
-                    const generada = getItemComision(item)
-                    const pagada = getItemComisionPagada(item)
-                    const pend = generada - pagada
-                    return pend > 0 ? pend : 0
+                    if (!item.detalles || item.detalles.length === 0) return 0
+                    return item.detalles.reduce((sum, d) => {
+                        if (d.comision_pendiente !== undefined && d.comision_pendiente !== null) {
+                            return sum + Math.max(parseFloat(d.comision_pendiente) || 0, 0)
+                        }
+                        const gen = d.comision_valor !== undefined ? (parseFloat(d.comision_valor) || 0) : ((parseFloat(d.total) || 0) * ((parseFloat(d.porcentaje_comision) || 0) / 100.0))
+                        const pag = parseFloat(d.comision_pagada) || 0
+                        return sum + Math.max(gen - pag, 0)
+                    }, 0)
                 }
 
 
@@ -892,7 +900,7 @@
                     }
                     if (newTab === 'historial') {
                         if (tratamientosList.value.length === 0) loadTratamientos()
-                        if (historialAtenciones.value.length === 0) loadHistorial()
+                        loadHistorial()
                     }
                 })
 
