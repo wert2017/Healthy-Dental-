@@ -1077,27 +1077,32 @@ class AplicarFechaCierreSchema(BaseModel):
     fecha_corte: str
     cerrar_todos_anteriores: bool = True
     activar_bloqueo_permanente: bool = True
+    sucursal_id: Optional[int] = None
 
 class CerrarMesSchema(BaseModel):
     anio: int
     mes: int
     notas: Optional[str] = None
+    sucursal_id: Optional[int] = None
 
 class AbrirMesSchema(BaseModel):
     anio: int
     mes: int
     password: str
     motivo: Optional[str] = None
+    sucursal_id: Optional[int] = None
 
 @app.get("/api/cierres-mes")
 def get_cierres_mes(
     anio: Optional[int] = None,
+    sucursal_id: Optional[int] = None,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user)
 ):
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Acceso denegado. Solo administradores pueden gestionar cierres de mes.")
-    return obtener_resumen_periodos(session, anio)
+    target_suc = sucursal_id or user.sucursal_id or 1
+    return obtener_resumen_periodos(session, anio, sucursal_id=target_suc)
 
 @app.post("/api/cierres-mes/aplicar-fecha")
 def post_aplicar_fecha_cierre(
@@ -1113,17 +1118,22 @@ def post_aplicar_fecha_cierre(
     if not fecha_dt:
         raise HTTPException(status_code=400, detail="Formato de fecha de corte inválido. Use YYYY-MM-DD")
 
+    target_suc = data.sucursal_id or user.sucursal_id or 1
+    suc = session.get(Sucursal, target_suc)
+    suc_nombre = suc.nombre.strip() if suc else "Sucursal"
+
     afectados, config = aplicar_cierre_por_fecha(
         session=session,
         fecha_corte=fecha_dt,
         user_id=user.id,
         cerrar_todos_anteriores=data.cerrar_todos_anteriores,
-        activar_bloqueo_permanente=data.activar_bloqueo_permanente
+        activar_bloqueo_permanente=data.activar_bloqueo_permanente,
+        sucursal_id=target_suc
     )
 
     return {
         "status": "ok",
-        "message": f"Cierre aplicado exitosamente hasta el {fecha_dt.strftime('%d/%m/%Y')}. {afectados} periodos actualizados.",
+        "message": f"Cierre aplicado en {suc_nombre} hasta el {fecha_dt.strftime('%d/%m/%Y')}. {afectados} periodos actualizados.",
         "meses_afectados": afectados,
         "fecha_corte": fecha_dt.isoformat()
     }
@@ -1137,19 +1147,24 @@ def post_cerrar_mes(
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Acceso denegado. Solo administradores pueden cerrar meses.")
 
+    target_suc = data.sucursal_id or user.sucursal_id or 1
+    suc = session.get(Sucursal, target_suc)
+    suc_nombre = suc.nombre.strip() if suc else "Sucursal"
+
     cierre = cerrar_periodo_manual(
         session=session,
         anio=data.anio,
         mes=data.mes,
         user_id=user.id,
-        notas=data.notas
+        notas=data.notas,
+        sucursal_id=target_suc
     )
 
     from cierres_service import MESES_NOMBRES
     nombre_mes = MESES_NOMBRES[data.mes] if 1 <= data.mes <= 12 else str(data.mes)
     return {
         "status": "ok",
-        "message": f"El mes de {nombre_mes} {data.anio} ha sido CERRADO exitosamente. No se permitirán nuevas operaciones en este periodo.",
+        "message": f"El mes de {nombre_mes} {data.anio} en {suc_nombre} ha sido CERRADO exitosamente.",
         "cierre_id": cierre.id
     }
 
@@ -1162,37 +1177,42 @@ def post_abrir_mes(
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Acceso denegado. Solo administradores pueden reabrir meses cerrados.")
 
-    # SEGURIDAD CRÍTICA: Verificar contraseña del administrador
     if not verify_password(data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Contraseña de administrador incorrecta. Ingrese su contraseña de acceso actual para autorizar la reapertura del periodo."
         )
 
+    target_suc = data.sucursal_id or user.sucursal_id or 1
+    suc = session.get(Sucursal, target_suc)
+    suc_nombre = suc.nombre.strip() if suc else "Sucursal"
+
     cierre = abrir_periodo_manual(
         session=session,
         anio=data.anio,
         mes=data.mes,
         user_id=user.id,
-        motivo=data.motivo
+        motivo=data.motivo,
+        sucursal_id=target_suc
     )
 
     from cierres_service import MESES_NOMBRES
     nombre_mes = MESES_NOMBRES[data.mes] if 1 <= data.mes <= 12 else str(data.mes)
     return {
         "status": "ok",
-        "message": f"El mes de {nombre_mes} {data.anio} ha sido ABIERTO exitosamente para operaciones.",
+        "message": f"El mes de {nombre_mes} {data.anio} en {suc_nombre} ha sido ABIERTO exitosamente para operaciones.",
         "cierre_id": cierre.id
     }
 
 @app.get("/api/cierres-mes/verificar")
 def verificar_periodo_cerrado_endpoint(
     fecha: Optional[str] = None,
+    sucursal_id: Optional[int] = None,
     session: Session = Depends(get_session)
 ):
     from cierres_service import parse_fecha
     dt = parse_fecha(fecha)
-    cerrado, msg = is_periodo_cerrado(session, dt)
+    cerrado, msg = is_periodo_cerrado(session, dt, sucursal_id=sucursal_id)
     return {
         "cerrado": cerrado,
         "mensaje": msg,
@@ -1804,7 +1824,7 @@ def create_atencion(paciente_id: int, fecha: Optional[str] = None, session: Sess
         except ValueError:
             raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD o YYYY-MM-DDTHH:MM")
 
-    check_periodo_abierto(session, fecha_atencion)
+    check_periodo_abierto(session, fecha_atencion, sucursal_id=user.sucursal_id)
 
     atencion = Atencion(
         paciente_id=paciente_id,
@@ -1828,7 +1848,7 @@ def terminar_atencion_clinica(atencion_id: int, session: Session = Depends(get_s
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
 
-    check_periodo_abierto(session, atencion.fecha)
+    check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
     
     if atencion.validado:
         raise HTTPException(status_code=400, detail="Atención ya validada")
@@ -1855,7 +1875,7 @@ def validar_atencion(atencion_id: int, session: Session = Depends(get_session), 
     ).first()
     
     if atencion:
-        check_periodo_abierto(session, atencion.fecha)
+        check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
         if atencion.validado:
              return {"message": "Ya estaba validado"}
              
@@ -2386,7 +2406,7 @@ def add_detalle(
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
-    check_periodo_abierto(session, atencion.fecha)
+    check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
     if atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
     check_recepcion_time_limit(atencion, user)
@@ -2424,7 +2444,7 @@ def delete_detalle(
 
     atencion = session.get(Atencion, detalle.atencion_id)
     if atencion:
-        check_periodo_abierto(session, atencion.fecha)
+        check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
     if atencion and atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
     if atencion:
@@ -2485,7 +2505,7 @@ def update_detalle(detalle_id: int, data: UpdateDetail, session: Session = Depen
 
     atencion = session.get(Atencion, detalle.atencion_id)
     if atencion:
-        check_periodo_abierto(session, atencion.fecha)
+        check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
     if atencion and atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
     if atencion:
@@ -2523,12 +2543,12 @@ def update_atencion_fecha(atencion_id: int, fecha: str, session: Session = Depen
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
-    check_periodo_abierto(session, atencion.fecha)
+    check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
     try:
         nueva_fecha_dt = datetime.fromisoformat(fecha)
     except ValueError:
         raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
-    check_periodo_abierto(session, nueva_fecha_dt)
+    check_periodo_abierto(session, nueva_fecha_dt, sucursal_id=atencion.sucursal_id)
     atencion.fecha = nueva_fecha_dt
     registrar_log(atencion_id, "Fecha Modificada", f"Fecha cambiada a {fecha}", session, user)
     session.add(atencion)
@@ -2540,7 +2560,7 @@ def update_atencion(atencion_id: int, data: UpdateAtencion, session: Session = D
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
-    check_periodo_abierto(session, atencion.fecha)
+    check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
         
     if atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
@@ -2568,7 +2588,7 @@ def sync_pagos(atencion_id: int, data: PaymentSync, session: Session = Depends(g
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
-    check_periodo_abierto(session, atencion.fecha)
+    check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
     if atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede modificar una atención validada")
 
@@ -2777,7 +2797,7 @@ def add_atencion_pago(atencion_id: int, data: dict, session: Session = Depends(g
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
-    check_periodo_abierto(session, atencion.fecha)
+    check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
     
     if user.role not in ["admin", "recepcion"]:
         raise HTTPException(status_code=403, detail="No tiene permisos para agregar pagos")
@@ -2870,7 +2890,7 @@ def delete_atencion(atencion_id: int, session: Session = Depends(get_session), u
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
-    check_periodo_abierto(session, atencion.fecha)
+    check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
     if atencion.validado and user.role != "admin":
         raise HTTPException(status_code=400, detail="No se puede eliminar una atención validada")
     check_recepcion_time_limit(atencion, user)
@@ -2973,7 +2993,7 @@ def validar_atencion(atencion_id: int, session: Session = Depends(get_session), 
     ).first()
     
     if atencion:
-        check_periodo_abierto(session, atencion.fecha)
+        check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
         if atencion.validado:
              return {"message": "Ya estaba validado"}
              
@@ -4388,7 +4408,7 @@ class RecargaSchema(BaseModel):
 
 @app.post("/api/pacientes/{paciente_id}/recargar")
 def recargar_billetera(paciente_id: int, data: RecargaSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    check_periodo_abierto(session, datetime.now())
+    check_periodo_abierto(session, datetime.now(), sucursal_id=user.sucursal_id)
     paciente = session.get(Paciente, paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
@@ -4415,7 +4435,7 @@ def recargar_billetera(paciente_id: int, data: RecargaSchema, session: Session =
 
 @app.post("/api/pacientes/{paciente_id}/devolver_abono")
 def devolver_billetera(paciente_id: int, data: RecargaSchema, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    check_periodo_abierto(session, datetime.now())
+    check_periodo_abierto(session, datetime.now(), sucursal_id=user.sucursal_id)
     paciente = session.get(Paciente, paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
@@ -5026,7 +5046,7 @@ def create_gasto(
         raise HTTPException(status_code=400, detail="El usuario no tiene una sucursal asignada")
     
     fecha_gasto = fecha if fecha is not None else datetime.now()
-    check_periodo_abierto(session, fecha_gasto)
+    check_periodo_abierto(session, fecha_gasto, sucursal_id=user.sucursal_id)
 
     gasto = Gasto(
         descripcion=descripcion,
@@ -5131,9 +5151,9 @@ def update_gasto(
     if not gasto:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
-    check_periodo_abierto(session, gasto.fecha)
+    check_periodo_abierto(session, gasto.fecha, sucursal_id=gasto.sucursal_id)
     if data.fecha is not None:
-        check_periodo_abierto(session, data.fecha)
+        check_periodo_abierto(session, data.fecha, sucursal_id=gasto.sucursal_id)
 
     # Verificar que el gasto pertenece a la misma sucursal
     if gasto.sucursal_id != user.sucursal_id:
@@ -5182,7 +5202,7 @@ def delete_gasto(
     gasto = session.get(Gasto, gasto_id)
     if not gasto:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
-    check_periodo_abierto(session, gasto.fecha)
+    check_periodo_abierto(session, gasto.fecha, sucursal_id=gasto.sucursal_id)
     if gasto.sucursal_id != user.sucursal_id and user.role != "superadmin":
         raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este gasto")
 
@@ -5578,7 +5598,7 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
         raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Tarjeta. Disponible: ${balances['tarjeta']}")
         
     now = data.fecha if data.fecha is not None else datetime.now()
-    check_periodo_abierto(session, now)
+    check_periodo_abierto(session, now, sucursal_id=user.sucursal_id)
     empleado_nombre = "Empleado"
     
     if data.tipo_empleado == 'Doctor':
@@ -5705,7 +5725,7 @@ def pagar_nomina_seleccion(data: PagoNominaSeleccionSchema, session: Session = D
         raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Tarjeta. Disponible: ${balances['tarjeta']}")
 
     now = data.fecha if data.fecha is not None else datetime.now()
-    check_periodo_abierto(session, now)
+    check_periodo_abierto(session, now, sucursal_id=user.sucursal_id)
     empleado_nombre = "Empleado"
     if data.tipo_empleado == 'Doctor':
         doctor = session.get(Doctor, data.empleado_id)
@@ -5807,7 +5827,7 @@ def retiro_socios(data: RetiroSociosSchema, session: Session = Depends(get_sessi
         raise HTTPException(status_code=400, detail=f"Fondos insuficientes en Tarjeta. Disponible: ${balances['tarjeta']}")
          
     fecha_retiro = data.fecha if data.fecha is not None else datetime.now()
-    check_periodo_abierto(session, fecha_retiro)
+    check_periodo_abierto(session, fecha_retiro, sucursal_id=user.sucursal_id)
     gasto = Gasto(
         fecha=fecha_retiro,
         descripcion=data.descripcion.strip() or "Retiro de Socio",
@@ -5880,7 +5900,7 @@ def delete_retiro_socio(
     if not gasto or gasto.categoria != "RETIRO SOCIOS" or gasto.sucursal_id != user.sucursal_id:
         raise HTTPException(status_code=404, detail="Retiro no encontrado")
         
-    check_periodo_abierto(session, gasto.fecha)
+    check_periodo_abierto(session, gasto.fecha, sucursal_id=gasto.sucursal_id)
     session.delete(gasto)
     session.commit()
     return {"message": "Retiro eliminado exitosamente"}
@@ -5915,7 +5935,7 @@ def internal_transfer(data: TransferenciaInternaSchema, session: Session = Depen
             except Exception:
                 pass
 
-    check_periodo_abierto(session, fecha_dt)
+    check_periodo_abierto(session, fecha_dt, sucursal_id=user.sucursal_id)
 
     # 1. Negative entry (Income for the destination)
     # Since balances = Income - Expenses, a negative expense is an Income.

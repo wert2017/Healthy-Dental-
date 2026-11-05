@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Optional, List, Dict, Any, Tuple
 from fastapi import HTTPException, status
 from sqlmodel import Session, select, func
-from models import CierreMes, ConfiguracionCierre, Atencion, Pago, Gasto, User
+from models import CierreMes, ConfiguracionCierre, Atencion, Pago, Gasto, User, Sucursal
 
 MESES_NOMBRES = [
     "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -19,12 +19,10 @@ def parse_fecha(fecha: Any) -> Optional[datetime]:
         return datetime.combine(fecha, datetime.min.time())
     if isinstance(fecha, str):
         fecha_clean = fecha.strip()
-        # Try ISO format
         try:
             return datetime.fromisoformat(fecha_clean)
         except Exception:
             pass
-        # Try standard formats
         for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y"):
             try:
                 return datetime.strptime(fecha_clean, fmt)
@@ -32,9 +30,10 @@ def parse_fecha(fecha: Any) -> Optional[datetime]:
                 continue
     return None
 
-def is_periodo_cerrado(session: Session, fecha: Optional[Any]) -> Tuple[bool, str]:
+def is_periodo_cerrado(session: Session, fecha: Optional[Any], sucursal_id: Optional[int] = None) -> Tuple[bool, str]:
     """
-    Verifica si la fecha dada corresponde a un periodo (mes/año) que se encuentra CERRADO.
+    Verifica si la fecha dada corresponde a un periodo (mes/año) que se encuentra CERRADO
+    para la sucursal indicada (sucursal_id).
     Retorna una tupla: (esta_cerrado: bool, mensaje_error: str)
     """
     dt = parse_fecha(fecha)
@@ -45,40 +44,60 @@ def is_periodo_cerrado(session: Session, fecha: Optional[Any]) -> Tuple[bool, st
     mes = dt.month
     nombre_mes = MESES_NOMBRES[mes] if 1 <= mes <= 12 else str(mes)
 
-    # 1. Prioridad: Registro explícito en CierreMes
+    target_sucursal_id = sucursal_id or 1
+    suc = session.get(Sucursal, target_sucursal_id)
+    suc_label = f" en {suc.nombre.strip()}" if suc else ""
+
+    # 1. Prioridad: Registro explícito en CierreMes para esta sucursal
     cierre = session.exec(
-        select(CierreMes).where(CierreMes.anio == anio, CierreMes.mes == mes)
+        select(CierreMes).where(
+            CierreMes.anio == anio,
+            CierreMes.mes == mes,
+            CierreMes.sucursal_id == target_sucursal_id
+        )
     ).first()
+    if not cierre:
+        cierre = session.exec(
+            select(CierreMes).where(
+                CierreMes.anio == anio,
+                CierreMes.mes == mes,
+                CierreMes.sucursal_id == None
+            )
+        ).first()
 
     if cierre:
         if cierre.estado == "CERRADO":
             detalles_cierre = ""
             if cierre.fecha_cierre:
                 detalles_cierre = f" (cerrado el {cierre.fecha_cierre.strftime('%d/%m/%Y')})"
-            return True, f"El periodo de {nombre_mes} {anio} se encuentra CERRADO{detalles_cierre}. No se pueden registrar, modificar ni eliminar operaciones en este mes cerrado."
+            return True, f"El periodo de {nombre_mes} {anio}{suc_label} se encuentra CERRADO{detalles_cierre}. No se pueden registrar, modificar ni eliminar operaciones en este mes cerrado."
         elif cierre.estado == "ABIERTO":
-            # Si el administrador abrió explícitamente el mes, se permite operar
             return False, ""
 
-    # 2. Regla global de cierre automático por fecha de corte
-    config = session.exec(select(ConfiguracionCierre)).first()
+    # 2. Regla de cierre automático por fecha de corte de esta sucursal
+    config = session.exec(
+        select(ConfiguracionCierre).where(ConfiguracionCierre.sucursal_id == target_sucursal_id)
+    ).first()
+    if not config:
+        config = session.exec(
+            select(ConfiguracionCierre).where(ConfiguracionCierre.sucursal_id == None)
+        ).first()
+
     if config and config.cierre_automatico_activo and config.fecha_corte_automatica:
         corte = config.fecha_corte_automatica
-        # Si el mes es anterior o igual al mes de la fecha de corte
         if (anio < corte.year) or (anio == corte.year and mes <= corte.month):
             return True, (
-                f"El periodo de {nombre_mes} {anio} está CERRADO automáticamente por fecha de corte "
+                f"El periodo de {nombre_mes} {anio}{suc_label} está CERRADO automáticamente por fecha de corte "
                 f"({corte.strftime('%d/%m/%Y')}). Debe reabrir el mes desde 'Cierres de Mes' con contraseña de administrador para realizar transacciones."
             )
 
     return False, ""
 
-def check_periodo_abierto(session: Session, fecha: Optional[Any]):
+def check_periodo_abierto(session: Session, fecha: Optional[Any], sucursal_id: Optional[int] = None):
     """
-    Lanza HTTPException 400 si el periodo está cerrado.
-    Usar en todos los endpoints transaccionales (creación, edición, eliminación).
+    Lanza HTTPException 400 si el periodo está cerrado para la sucursal indicada.
     """
-    cerrado, msg = is_periodo_cerrado(session, fecha)
+    cerrado, msg = is_periodo_cerrado(session, fecha, sucursal_id=sucursal_id)
     if cerrado:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -90,18 +109,25 @@ def cerrar_periodo_manual(
     anio: int,
     mes: int,
     user_id: int,
-    notas: Optional[str] = None
+    notas: Optional[str] = None,
+    sucursal_id: Optional[int] = 1
 ) -> CierreMes:
     if not (1 <= mes <= 12):
         raise HTTPException(status_code=400, detail="Mes inválido (debe ser de 1 a 12)")
 
+    target_sucursal_id = sucursal_id or 1
     cierre = session.exec(
-        select(CierreMes).where(CierreMes.anio == anio, CierreMes.mes == mes)
+        select(CierreMes).where(
+            CierreMes.anio == anio,
+            CierreMes.mes == mes,
+            CierreMes.sucursal_id == target_sucursal_id
+        )
     ).first()
 
     now = datetime.now()
     if not cierre:
         cierre = CierreMes(
+            sucursal_id=target_sucursal_id,
             anio=anio,
             mes=mes,
             estado="CERRADO",
@@ -127,18 +153,25 @@ def abrir_periodo_manual(
     anio: int,
     mes: int,
     user_id: int,
-    motivo: Optional[str] = None
+    motivo: Optional[str] = None,
+    sucursal_id: Optional[int] = 1
 ) -> CierreMes:
     if not (1 <= mes <= 12):
         raise HTTPException(status_code=400, detail="Mes inválido (debe ser de 1 a 12)")
 
+    target_sucursal_id = sucursal_id or 1
     cierre = session.exec(
-        select(CierreMes).where(CierreMes.anio == anio, CierreMes.mes == mes)
+        select(CierreMes).where(
+            CierreMes.anio == anio,
+            CierreMes.mes == mes,
+            CierreMes.sucursal_id == target_sucursal_id
+        )
     ).first()
 
     now = datetime.now()
     if not cierre:
         cierre = CierreMes(
+            sucursal_id=target_sucursal_id,
             anio=anio,
             mes=mes,
             estado="ABIERTO",
@@ -163,18 +196,21 @@ def aplicar_cierre_por_fecha(
     fecha_corte: datetime,
     user_id: int,
     cerrar_todos_anteriores: bool = True,
-    activar_bloqueo_permanente: bool = True
+    activar_bloqueo_permanente: bool = True,
+    sucursal_id: Optional[int] = 1
 ) -> Tuple[int, ConfiguracionCierre]:
     """
-    Aplica cierre automático hasta una fecha determinada.
-    Actualiza la configuración global y los registros de CierreMes de todos los meses anteriores.
+    Aplica cierre automático hasta una fecha determinada para la sucursal indicada.
     """
     now = datetime.now()
+    target_sucursal_id = sucursal_id or 1
 
-    # 1. Guardar/actualizar configuración global
-    config = session.exec(select(ConfiguracionCierre)).first()
+    config = session.exec(
+        select(ConfiguracionCierre).where(ConfiguracionCierre.sucursal_id == target_sucursal_id)
+    ).first()
     if not config:
         config = ConfiguracionCierre(
+            sucursal_id=target_sucursal_id,
             fecha_corte_automatica=fecha_corte,
             cierre_automatico_activo=activar_bloqueo_permanente,
             usuario_id=user_id,
@@ -193,9 +229,12 @@ def aplicar_cierre_por_fecha(
         corte_year = fecha_corte.year
         corte_month = fecha_corte.month
 
-        # Identificar el año más antiguo con transacciones
-        earliest_atencion = session.exec(select(func.min(Atencion.fecha))).one_or_none()
-        earliest_gasto = session.exec(select(func.min(Gasto.fecha))).one_or_none()
+        earliest_atencion = session.exec(
+            select(func.min(Atencion.fecha)).where(Atencion.sucursal_id == target_sucursal_id)
+        ).one_or_none()
+        earliest_gasto = session.exec(
+            select(func.min(Gasto.fecha)).where(Gasto.sucursal_id == target_sucursal_id)
+        ).one_or_none()
         dates = [d for d in [earliest_atencion, earliest_gasto] if d is not None]
         start_year = min([d.year for d in dates]) if dates else (corte_year - 1)
 
@@ -203,11 +242,16 @@ def aplicar_cierre_por_fecha(
             max_m = corte_month if y == corte_year else 12
             for m in range(1, max_m + 1):
                 rec = session.exec(
-                    select(CierreMes).where(CierreMes.anio == y, CierreMes.mes == m)
+                    select(CierreMes).where(
+                        CierreMes.anio == y,
+                        CierreMes.mes == m,
+                        CierreMes.sucursal_id == target_sucursal_id
+                    )
                 ).first()
                 nota_corte = f"Cierre automático aplicado al corte {fecha_corte.strftime('%d/%m/%Y')}"
                 if not rec:
                     rec = CierreMes(
+                        sucursal_id=target_sucursal_id,
                         anio=y,
                         mes=m,
                         estado="CERRADO",
@@ -231,23 +275,29 @@ def aplicar_cierre_por_fecha(
 
 def obtener_resumen_periodos(
     session: Session,
-    anio: Optional[int] = None
+    anio: Optional[int] = None,
+    sucursal_id: Optional[int] = 1
 ) -> Dict[str, Any]:
     """
-    Retorna la configuración actual, los periodos del año con estado contable y estadísticas.
+    Retorna la configuración actual, las sucursales disponibles, y los periodos del año con estado contable y estadísticas de la sucursal seleccionada.
     """
     now = datetime.now()
     anio_target = anio if anio is not None else now.year
+    target_sucursal_id = sucursal_id or 1
 
-    # Obtener configuración
-    config = session.exec(select(ConfiguracionCierre)).first()
+    sucursales_db = session.exec(select(Sucursal).order_by(Sucursal.id)).all()
+    sucursales_list = [{"id": s.id, "nombre": s.nombre.strip()} for s in sucursales_db]
+    suc_actual = next((s for s in sucursales_list if s["id"] == target_sucursal_id), None)
+
+    config = session.exec(
+        select(ConfiguracionCierre).where(ConfiguracionCierre.sucursal_id == target_sucursal_id)
+    ).first()
     config_dict = {
         "fecha_corte_automatica": config.fecha_corte_automatica.isoformat() if config and config.fecha_corte_automatica else None,
         "cierre_automatico_activo": bool(config.cierre_automatico_activo) if config else False,
         "ultima_actualizacion": config.ultima_actualizacion.isoformat() if config and config.ultima_actualizacion else None,
     }
 
-    # Años disponibles
     earliest_atencion = session.exec(select(func.min(Atencion.fecha))).one_or_none()
     earliest_gasto = session.exec(select(func.min(Gasto.fecha))).one_or_none()
     earliest_cierre = session.exec(select(func.min(CierreMes.anio))).one_or_none()
@@ -258,13 +308,14 @@ def obtener_resumen_periodos(
     min_year = min(valid_years)
     anios_disponibles = sorted(list(range(min_year, max(valid_years) + 2)), reverse=True)
 
-    # Cierres existentes para este año
     cierres_db = session.exec(
-        select(CierreMes).where(CierreMes.anio == anio_target)
+        select(CierreMes).where(
+            CierreMes.anio == anio_target,
+            CierreMes.sucursal_id == target_sucursal_id
+        )
     ).all()
     cierres_map = {c.mes: c for c in cierres_db}
 
-    # Usuarios para mapear nombres
     users_db = session.exec(select(User)).all()
     users_map = {u.id: u.username for u in users_db}
 
@@ -300,7 +351,6 @@ def obtener_resumen_periodos(
             motivo_reapertura = cierre.motivo_reapertura
             notas = cierre.notas
         else:
-            # Evaluar cierre automático
             if config and config.cierre_automatico_activo and config.fecha_corte_automatica:
                 corte = config.fecha_corte_automatica
                 if (anio_target < corte.year) or (anio_target == corte.year and m <= corte.month):
@@ -308,17 +358,28 @@ def obtener_resumen_periodos(
                     tipo_cierre = "AUTOMATICO"
                     notas = f"Corte automático al {corte.strftime('%d/%m/%Y')}"
 
-        # Estadísticas del mes
+        # Estadísticas del mes filtradas por sucursal
         atenciones_cnt = session.exec(
-            select(func.count(Atencion.id)).where(Atencion.fecha >= start_dt, Atencion.fecha < end_dt)
+            select(func.count(Atencion.id)).where(
+                Atencion.sucursal_id == target_sucursal_id,
+                Atencion.fecha >= start_dt,
+                Atencion.fecha < end_dt
+            )
         ).one() or 0
 
         total_ingresos = session.exec(
-            select(func.coalesce(func.sum(Pago.monto), 0)).where(Pago.fecha >= start_dt, Pago.fecha < end_dt)
+            select(func.coalesce(func.sum(Pago.monto), 0))
+            .join(Atencion, Pago.atencion_id == Atencion.id)
+            .where(
+                Atencion.sucursal_id == target_sucursal_id,
+                Pago.fecha >= start_dt,
+                Pago.fecha < end_dt
+            )
         ).one() or Decimal("0.00")
 
         total_egresos = session.exec(
             select(func.coalesce(func.sum(Gasto.monto), 0)).where(
+                Gasto.sucursal_id == target_sucursal_id,
                 Gasto.fecha >= start_dt,
                 Gasto.fecha < end_dt,
                 Gasto.tipo != "INGRESO",
@@ -329,6 +390,7 @@ def obtener_resumen_periodos(
         periodos.append({
             "anio": anio_target,
             "mes": m,
+            "sucursal_id": target_sucursal_id,
             "nombre_mes": MESES_NOMBRES[m],
             "periodo_label": f"{MESES_NOMBRES[m]} {anio_target}",
             "estado": estado,
@@ -350,6 +412,9 @@ def obtener_resumen_periodos(
         })
 
     return {
+        "sucursal_seleccionada": target_sucursal_id,
+        "sucursal_nombre": suc_actual["nombre"] if suc_actual else "Sucursal",
+        "sucursales": sucursales_list,
         "anio_seleccionado": anio_target,
         "anios_disponibles": anios_disponibles,
         "configuracion": config_dict,

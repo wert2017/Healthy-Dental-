@@ -155,6 +155,34 @@
                 </div>
             </div>
 
+            <!-- PESTAÑAS DE SUCURSALES (LA MAGDALENA / EL CONDADO) -->
+            <div class="bg-white rounded-xl p-2 border border-slate-200 card-shadow flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <button
+                        v-for="s in sucursales"
+                        :key="s.id"
+                        @click="seleccionarSucursal(s.id)"
+                        :class="[
+                            'flex-1 sm:flex-none inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-lg text-sm font-extrabold transition-all-custom border',
+                            sucursalSeleccionada === s.id
+                                ? (s.nombre.toLowerCase().includes('condado')
+                                    ? 'bg-purple-700 text-white border-purple-800 shadow-md ring-2 ring-purple-200'
+                                    : 'bg-indigo-600 text-white border-indigo-700 shadow-md ring-2 ring-indigo-200')
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                        ]">
+                        <i class="fa-solid fa-hospital"></i>
+                        <span>{{ s.nombre }}</span>
+                        <span v-if="sucursalSeleccionada === s.id" class="bg-white/20 text-white text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            Activa
+                        </span>
+                    </button>
+                </div>
+                <div class="px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 font-semibold flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-indigo-500"></i>
+                    <span>Gestionando cierres independientes de: <strong class="text-slate-900">{{ sucursalActualNombre }}</strong></span>
+                </div>
+            </div>
+
             <!-- DOS TARJETAS DE ACCIÓN: CIERRE POR FECHA / CIERRE MANUAL -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -286,7 +314,7 @@
                     <div>
                         <h2 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
                             <i class="fa-solid fa-table-list text-indigo-600"></i>
-                            <span>Periodos y Estado Mensual</span>
+                            <span>Periodos y Estado Mensual — {{ sucursalActualNombre }}</span>
                         </h2>
                         <p class="text-xs text-slate-500">Resumen y control de los 12 meses del ejercicio contable</p>
                     </div>
@@ -574,6 +602,15 @@
                 }
 
                 // Estados reactivos
+                const sucursales = ref([
+                    { id: 1, nombre: 'LA MAGDALENA HEALTHY DENTAL' },
+                    { id: 9, nombre: 'EL CONDADO HEALTHY DENTAL' }
+                ]);
+                const sucursalSeleccionada = ref(Number(localStorage.getItem('sucursal_id')) || 1);
+                const sucursalActualNombre = computed(() => {
+                    const found = sucursales.value.find(s => s.id === sucursalSeleccionada.value);
+                    return found ? found.nombre : 'Clínica HD';
+                });
                 const periodos = ref([]);
                 const aniosDisponibles = ref([]);
                 const anioSeleccionado = ref(new Date().getFullYear());
@@ -611,17 +648,24 @@
                 ];
 
                 // Cargar datos desde el backend
-                const cargarDatos = async (anio = null) => {
+                const cargarDatos = async (anio = null, sucId = null) => {
                     try {
                         const targetYear = anio || anioSeleccionado.value;
-                        const res = await axios.get(`/api/cierres-mes?anio=${targetYear}`);
+                        const targetSuc = sucId || sucursalSeleccionada.value;
+                        const res = await axios.get(`/api/cierres-mes?anio=${targetYear}&sucursal_id=${targetSuc}`);
                         if (res.data) {
+                            if (res.data.sucursales && res.data.sucursales.length > 0) {
+                                sucursales.value = res.data.sucursales;
+                            }
+                            if (res.data.sucursal_seleccionada) {
+                                sucursalSeleccionada.value = res.data.sucursal_seleccionada;
+                            }
                             periodos.value = res.data.periodos || [];
                             aniosDisponibles.value = res.data.anios_disponibles || [targetYear];
                             anioSeleccionado.value = res.data.anio_seleccionado || targetYear;
                             configuracion.value = res.data.configuracion || {};
 
-                            if (configuracion.value.fecha_corte_automatica && !fechaCorteInput.value) {
+                            if (configuracion.value.fecha_corte_automatica) {
                                 fechaCorteInput.value = configuracion.value.fecha_corte_automatica.split('T')[0];
                             }
                         }
@@ -642,7 +686,12 @@
                 const seleccionarAnio = (y) => {
                     anioSeleccionado.value = y;
                     manualAnio.value = y;
-                    cargarDatos(y);
+                    cargarDatos(y, sucursalSeleccionada.value);
+                };
+
+                const seleccionarSucursal = (sucId) => {
+                    sucursalSeleccionada.value = sucId;
+                    cargarDatos(anioSeleccionado.value, sucId);
                 };
 
                 // Funciones rápidas de fecha
@@ -689,7 +738,8 @@
                         const res = await axios.post('/api/cierres-mes/aplicar-fecha', {
                             fecha_corte: fechaCorteInput.value,
                             cerrar_todos_anteriores: cerrarHistoricoCheck.value,
-                            activar_bloqueo_permanente: activarReglaPermanenteCheck.value
+                            activar_bloqueo_permanente: activarReglaPermanenteCheck.value,
+                            sucursal_id: sucursalSeleccionada.value
                         });
 
                         Swal.fire({
@@ -729,7 +779,8 @@
                         const res = await axios.post('/api/cierres-mes/cerrar', {
                             anio: manualAnio.value,
                             mes: manualMes.value,
-                            notas: manualNotas.value || 'Cierre manual por administrador'
+                            notas: manualNotas.value || 'Cierre manual por administrador',
+                            sucursal_id: sucursalSeleccionada.value
                         });
 
                         Swal.fire({
@@ -768,7 +819,8 @@
                         await axios.post('/api/cierres-mes/cerrar', {
                             anio: periodo.anio,
                             mes: periodo.mes,
-                            notas: 'Cierre directo desde tabla'
+                            notas: 'Cierre directo desde tabla',
+                            sucursal_id: sucursalSeleccionada.value
                         });
 
                         Swal.fire({
@@ -823,7 +875,8 @@
                             anio: periodoTarget.value.anio,
                             mes: periodoTarget.value.mes,
                             password: adminPasswordInput.value,
-                            motivo: reaperturaMotivoInput.value || 'Reapertura autorizada por administrador'
+                            motivo: reaperturaMotivoInput.value || 'Reapertura autorizada por administrador',
+                            sucursal_id: sucursalSeleccionada.value
                         });
 
                         cerrarModalReapertura();
@@ -904,6 +957,10 @@
 
                 return {
                     currentUsername,
+                    sucursales,
+                    sucursalSeleccionada,
+                    sucursalActualNombre,
+                    seleccionarSucursal,
                     periodos,
                     aniosDisponibles,
                     anioSeleccionado,

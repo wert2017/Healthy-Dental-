@@ -513,6 +513,7 @@ class CertificadoMedico(SQLModel, table=True):
 
 class CierreMes(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    sucursal_id: Optional[int] = Field(default=None, foreign_key="sucursal.id", index=True)
     anio: int = Field(index=True)
     mes: int = Field(index=True)  # 1 a 12
     estado: str = Field(default="CERRADO")  # "CERRADO" o "ABIERTO"
@@ -523,6 +524,7 @@ class CierreMes(SQLModel, table=True):
     motivo_reapertura: Optional[str] = None
     notas: Optional[str] = None
 
+    sucursal: Optional[Sucursal] = Relationship()
     usuario_cierre: Optional[User] = Relationship(sa_relationship_kwargs={"foreign_keys": "[CierreMes.usuario_cierre_id]"})
     usuario_reapertura: Optional[User] = Relationship(sa_relationship_kwargs={"foreign_keys": "[CierreMes.usuario_reapertura_id]"})
 
@@ -532,12 +534,14 @@ class CierreMes(SQLModel, table=True):
 
 class ConfiguracionCierre(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    sucursal_id: Optional[int] = Field(default=None, foreign_key="sucursal.id", index=True)
     fecha_corte_automatica: Optional[datetime] = None
     cierre_automatico_activo: bool = Field(default=False)
     dia_cierre_mensual: Optional[int] = None
     ultima_actualizacion: Optional[datetime] = Field(default_factory=datetime.now)
     usuario_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
+    sucursal: Optional[Sucursal] = Relationship()
     usuario: Optional[User] = Relationship()
 
     def __str__(self):
