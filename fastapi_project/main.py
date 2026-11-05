@@ -4732,6 +4732,7 @@ def get_cuadre_diario(
         .where(Gasto.sucursal_id == user.sucursal_id)
         .where(Gasto.fecha >= date_from)
         .where(Gasto.fecha <= date_to)
+        .options(selectinload(Gasto.usuario))
         .order_by(Gasto.fecha.asc())
     ).all()
     
@@ -4743,7 +4744,7 @@ def get_cuadre_diario(
             "fecha": g.fecha.strftime("%Y-%m-%d %H:%M"),
             "descripcion": g.descripcion,
             "categoria": g.categoria or "",
-            "responsable": g.responsable or "N/A",
+            "responsable": g.usuario.username if g.usuario else (g.responsable or "N/A"),
             "metodo": (g.metodo_pago or "EFECTIVO").upper(),
             "monto": float(g.monto)
         }
@@ -5032,7 +5033,7 @@ def create_gasto(
         monto=monto,
         metodo_pago=metodo_pago,
         categoria=categoria,
-        responsable=responsable,
+        responsable=user.username,
         tipo=tipo,
         fecha=fecha_gasto,
         sucursal_id=user.sucursal_id,
@@ -5091,7 +5092,24 @@ def list_gastos(
     if tipo:
         query = query.where(Gasto.tipo == tipo)
         
-    return session.exec(query.offset(skip).limit(size)).all()
+    rows = session.exec(query.offset(skip).limit(size)).all()
+    return [
+        {
+            "id": g.id,
+            "fecha": g.fecha.isoformat() if g.fecha else None,
+            "descripcion": g.descripcion,
+            "monto": float(g.monto),
+            "metodo_pago": g.metodo_pago,
+            "categoria": g.categoria,
+            "responsable": g.usuario.username if g.usuario else g.responsable,
+            "sucursal_id": g.sucursal_id,
+            "usuario_id": g.usuario_id,
+            "socio_id": g.socio_id,
+            "tipo": g.tipo,
+            "usuario": {"id": g.usuario.id, "username": g.usuario.username} if g.usuario else None,
+        }
+        for g in rows
+    ]
 
 class GastoUpdateSchema(BaseModel):
     descripcion: Optional[str] = None
@@ -5141,8 +5159,8 @@ def update_gasto(
         gasto.metodo_pago = data.metodo_pago
     if data.categoria is not None:
         gasto.categoria = data.categoria
-    if data.responsable is not None:
-        gasto.responsable = data.responsable
+    if not gasto.responsable:
+        gasto.responsable = user.username
     if data.fecha is not None:
         gasto.fecha = data.fecha
     if data.tipo is not None:
@@ -5579,7 +5597,7 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
                     fecha=now, descripcion=desc_sueldo,
                     monto=Decimal(str(monto_s)), metodo_pago=metodo,
                     categoria="SUELDO FIJO",
-                    responsable=data.responsable or user.username,
+                    responsable=user.username,
                     sucursal_id=user.sucursal_id, usuario_id=user.id
                 ))
         if data.comisiones > 0:
@@ -5589,7 +5607,7 @@ def pagar_nomina(data: PagoNominaSchema, session: Session = Depends(get_session)
                     fecha=now, descripcion=desc_comision,
                     monto=Decimal(str(monto_c)), metodo_pago=metodo,
                     categoria="COMISIONES",
-                    responsable=data.responsable or user.username,
+                    responsable=user.username,
                     sucursal_id=user.sucursal_id, usuario_id=user.id
                 ))
 
@@ -5684,7 +5702,7 @@ def pagar_nomina_seleccion(data: PagoNominaSeleccionSchema, session: Session = D
                 fecha=now, descripcion=desc_comision,
                 monto=monto, metodo_pago=metodo,
                 categoria="COMISIONES",
-                responsable=data.responsable or user.username,
+                responsable=user.username,
                 sucursal_id=user.sucursal_id, usuario_id=user.id
             ))
     _reg("EFECTIVO", efectivo_val)
@@ -5753,7 +5771,7 @@ def retiro_socios(data: RetiroSociosSchema, session: Session = Depends(get_sessi
         monto=Decimal(data.monto),
         metodo_pago=data.metodo_pago,
         categoria="RETIRO SOCIOS",
-        responsable=data.responsable or user.username,
+        responsable=user.username,
         sucursal_id=user.sucursal_id,
         usuario_id=user.id,
         socio_id=data.socio_id
@@ -5798,7 +5816,7 @@ def list_retiros_socios(
         "descripcion": r.descripcion,
         "monto": float(r.monto),
         "metodo_pago": r.metodo_pago,
-        "responsable": r.responsable,
+        "responsable": r.usuario.username if r.usuario else r.responsable,
         "socio": {
             "id": r.socio.id,
             "nombre": r.socio.nombre
@@ -5829,7 +5847,7 @@ class TransferenciaInternaSchema(BaseModel):
     hacia: str
     monto: float
     descripcion: str
-    responsable: str
+    responsable: Optional[str] = None
     fecha: Optional[str] = None
 
 @app.post("/api/gastos/transferencia")
@@ -5864,7 +5882,7 @@ def internal_transfer(data: TransferenciaInternaSchema, session: Session = Depen
         monto=Decimal(-data.monto),
         metodo_pago=data.hacia,
         categoria="TRANSFERENCIA INTERNA",
-        responsable=data.responsable,
+        responsable=user.username,
         sucursal_id=user.sucursal_id,
         usuario_id=user.id
     )
@@ -5876,7 +5894,7 @@ def internal_transfer(data: TransferenciaInternaSchema, session: Session = Depen
         monto=Decimal(data.monto),
         metodo_pago=data.desde,
         categoria="TRANSFERENCIA INTERNA",
-        responsable=data.responsable,
+        responsable=user.username,
         sucursal_id=user.sucursal_id,
         usuario_id=user.id
     )
