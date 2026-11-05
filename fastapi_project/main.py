@@ -3383,15 +3383,36 @@ def get_flujo_caja_mensual(
     prev_tr = p_prev.get("TR", Decimal("0")) + ab_prev.get("TRANSFERENCIA", Decimal("0")) + oi_prev.get("TRANSFERENCIA", Decimal("0")) - eg_prev.get("TRANSFERENCIA", Decimal("0"))
     prev_tc = p_prev.get("TC", Decimal("0")) + ab_prev.get("TARJETA", Decimal("0")) + oi_prev.get("TARJETA", Decimal("0")) - eg_prev.get("TARJETA", Decimal("0"))
 
-    # Saldo histórico real en billeteras de abonos de los pacientes
+    # Saldo histórico real en billeteras de abonos directos de los pacientes (atencion_id == None)
     q_all_ab_prev = (
         select(func.coalesce(func.sum(HistorialAbono.monto), 0))
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
         .where(Paciente.sucursal_id == target_sucursal)
+        .where(HistorialAbono.atencion_id == None)
         .where(HistorialAbono.fecha < start_dt)
     )
     all_ab_prev = Decimal(str(session.exec(q_all_ab_prev).first() or 0))
-    prev_ab = max(Decimal("0"), all_ab_prev - p_prev.get("AB", Decimal("0")))
+    q_direct_ab_pacs = (
+        select(HistorialAbono.paciente_id)
+        .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
+        .where(Paciente.sucursal_id == target_sucursal)
+        .where(HistorialAbono.atencion_id == None)
+        .distinct()
+    )
+    direct_ab_pac_ids = list(session.exec(q_direct_ab_pacs).all())
+    if direct_ab_pac_ids:
+        q_ab_used_prev = (
+            select(func.coalesce(func.sum(Pago.monto), 0))
+            .join(Atencion)
+            .where(Atencion.sucursal_id == target_sucursal)
+            .where(Atencion.paciente_id.in_(direct_ab_pac_ids))
+            .where(func.upper(Pago.forma_pago) == "AB")
+            .where(Pago.fecha < start_dt)
+        )
+        ab_used_prev = Decimal(str(session.exec(q_ab_used_prev).first() or 0))
+    else:
+        ab_used_prev = Decimal("0")
+    prev_ab = max(Decimal("0"), all_ab_prev - ab_used_prev)
 
     saldo_mes_anterior = {
         "ef": float(prev_ef),
@@ -3450,11 +3471,12 @@ def get_flujo_caja_mensual(
         k = (met or "").strip().upper()
         ab_mes[k] = ab_mes.get(k, Decimal("0")) + Decimal(str(val))
 
-    # Total de todas las recargas a billetera en el mes (para seguimiento de abonos)
+    # Total de recargas directas a billetera en el mes (coherente con Cuadre Diario y Otros Ingresos)
     q_all_ab_mes = (
         select(func.coalesce(func.sum(HistorialAbono.monto), 0))
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
         .where(Paciente.sucursal_id == target_sucursal)
+        .where(HistorialAbono.atencion_id == None)
         .where(HistorialAbono.fecha >= start_dt)
         .where(HistorialAbono.fecha < end_dt)
     )
@@ -3593,7 +3615,20 @@ def get_flujo_caja_mensual(
     tot_ef = prev_ef + Decimal(str(total_ingresos["ef"])) - tot_egr_ef - div_ef
     tot_tr = prev_tr + Decimal(str(total_ingresos["transferencia"])) - tot_egr_tr - div_tr
     tot_tc = prev_tc + Decimal(str(total_ingresos["tc"])) - tot_egr_tc - div_tc
-    tot_ab = max(Decimal("0"), prev_ab + total_nuevos_abonos - Decimal(str(ingresos_tratamiento["abonos"])))
+    if direct_ab_pac_ids:
+        q_ab_used_mes = (
+            select(func.coalesce(func.sum(Pago.monto), 0))
+            .join(Atencion)
+            .where(Atencion.sucursal_id == target_sucursal)
+            .where(Atencion.paciente_id.in_(direct_ab_pac_ids))
+            .where(func.upper(Pago.forma_pago) == "AB")
+            .where(Pago.fecha >= start_dt)
+            .where(Pago.fecha < end_dt)
+        )
+        ab_used_mes = Decimal(str(session.exec(q_ab_used_mes).first() or 0))
+    else:
+        ab_used_mes = Decimal("0")
+    tot_ab = max(Decimal("0"), prev_ab + total_nuevos_abonos - ab_used_mes)
 
     totales = {
         "ef": float(tot_ef),
