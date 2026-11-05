@@ -5186,15 +5186,31 @@ def delete_gasto(
     if gasto.sucursal_id != user.sucursal_id and user.role != "superadmin":
         raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este gasto")
 
-    # Si es un pago de comisiones de nómina, reactivar las comisiones asociadas a ese pago
+    # Si es un pago de comisiones de nómina, reactivar las comisiones asociadas a ese pago y empleado
     if gasto.categoria == "COMISIONES" and gasto.fecha:
-        detalles_pagados = session.exec(
+        q_det = (
             select(AtencionDetalle)
             .join(Atencion, AtencionDetalle.atencion_id == Atencion.id)
             .where(Atencion.sucursal_id == gasto.sucursal_id)
             .where(AtencionDetalle.fecha_pago_comision == gasto.fecha)
-            .order_by(AtencionDetalle.id.desc())
-        ).all()
+        )
+        desc_str = (gasto.descripcion or "").strip()
+        if "Dr(a)." in desc_str:
+            nombre_doc = desc_str.split("Dr(a).", 1)[1].strip().lower()
+            doctores_all = session.exec(select(Doctor)).all()
+            doc_match = next(
+                (doc for doc in doctores_all if f"{doc.nombres} {doc.apellidos}".strip().lower() == nombre_doc),
+                None
+            )
+            if doc_match:
+                q_det = q_det.where(AtencionDetalle.doctor_id == doc_match.id)
+        elif "Sec." in desc_str:
+            nombre_sec = desc_str.split("Sec.", 1)[1].strip().lower()
+            sec_match = session.exec(select(User).where(func.lower(User.username) == nombre_sec)).first()
+            if sec_match:
+                q_det = q_det.where(AtencionDetalle.vendedor_id == sec_match.id)
+
+        detalles_pagados = session.exec(q_det.order_by(AtencionDetalle.id.desc())).all()
         por_revertir = float(gasto.monto)
         for d in detalles_pagados:
             if por_revertir <= 0.001:
