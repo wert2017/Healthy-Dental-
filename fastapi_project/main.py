@@ -5185,6 +5185,33 @@ def delete_gasto(
     check_periodo_abierto(session, gasto.fecha)
     if gasto.sucursal_id != user.sucursal_id and user.role != "superadmin":
         raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este gasto")
+
+    # Si es un pago de comisiones de nómina, reactivar las comisiones asociadas a ese pago
+    if gasto.categoria == "COMISIONES" and gasto.fecha:
+        detalles_pagados = session.exec(
+            select(AtencionDetalle)
+            .join(Atencion, AtencionDetalle.atencion_id == Atencion.id)
+            .where(Atencion.sucursal_id == gasto.sucursal_id)
+            .where(AtencionDetalle.fecha_pago_comision == gasto.fecha)
+            .order_by(AtencionDetalle.id.desc())
+        ).all()
+        por_revertir = float(gasto.monto)
+        for d in detalles_pagados:
+            if por_revertir <= 0.001:
+                break
+            pagado_actual = float(getattr(d, "comision_pagada_monto", 0.0) or 0.0)
+            if pagado_actual <= 0:
+                pagado_actual = float(d.comision_valor)
+            rev = min(por_revertir, pagado_actual)
+            nuevo_monto = round(max(0.0, pagado_actual - rev), 2)
+            d.comision_pagada_monto = nuevo_monto
+            d.comision_pagada = False
+            if nuevo_monto <= 0.001:
+                d.comision_pagada_monto = 0.0
+                d.fecha_pago_comision = None
+            session.add(d)
+            por_revertir -= rev
+
     session.delete(gasto)
     session.commit()
     return {"message": "Gasto eliminado correctamente", "id": gasto_id}
