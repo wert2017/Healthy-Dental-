@@ -289,46 +289,82 @@
             <!-- BONOS VIEW -->
             <div v-show="currentView === 'bonos'" class="animate-fade-in">
 
-                <!-- Summary Card & Search -->
-                <div class="mb-6 flex flex-col md:flex-row gap-4">
-                    <div
-                        class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between flex-1">
+                <!-- Summary Cards & Search -->
+                <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                         <div>
-                            <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Abonos (Histórico)
-                            </p>
-                            <p class="text-3xl font-bold text-blue-600">${{ totalBonos.toFixed(2) }}</p>
+                            <p class="text-[11px] text-gray-400 uppercase font-bold tracking-wider">Abonos Ingresados</p>
+                            <p class="text-2xl font-bold text-emerald-600">+${{ resumenBonos.total_ingresos.toFixed(2) }}</p>
+                            <p class="text-[10px] text-gray-400">Recargas a billetera</p>
                         </div>
-                        <div class="bg-blue-50 p-3 rounded-xl">
-                            <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <div class="bg-emerald-50 p-2.5 rounded-xl">
+                            <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                             </svg>
                         </div>
                     </div>
 
-                    <div
-                        class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex-1 flex flex-col justify-center gap-4">
-                        <div class="flex justify-between items-center">
-                            <label class="block text-xs font-bold text-gray-400 uppercase">Filtrar Abonos</label>
-                            <div class="flex items-center gap-2">
-                                <input type="date" v-model="startDateBonos" @change="fetchBonos"
-                                    class="px-3 py-1 bg-slate-50 border border-gray-100 rounded-lg text-xs text-gray-600 outline-none focus:ring-2 focus:ring-blue-100">
-                                <span class="text-gray-400 text-xs">al</span>
-                                <input type="date" v-model="endDateBonos" @change="fetchBonos"
-                                    class="px-3 py-1 bg-slate-50 border border-gray-100 rounded-lg text-xs text-gray-600 outline-none focus:ring-2 focus:ring-blue-100">
-                            </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-[11px] text-gray-400 uppercase font-bold tracking-wider">Abonos Consumidos</p>
+                            <p class="text-2xl font-bold text-red-500">-${{ resumenBonos.total_egresos.toFixed(2) }}</p>
+                            <p class="text-[10px] text-gray-400">Usado en tratamientos</p>
                         </div>
-                        <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                </svg>
-                            </span>
-                            <input type="text" v-model="searchQueryBonos" @input="debouncedFilterBonos"
-                                placeholder="Nombre del paciente o identificación..."
-                                class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                        <div class="bg-red-50 p-2.5 rounded-xl">
+                            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                            </svg>
                         </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-[11px] text-gray-400 uppercase font-bold tracking-wider">Diferencia Periodo</p>
+                            <p class="text-2xl font-bold" :class="resumenBonos.diferencia_periodo >= 0 ? 'text-blue-600' : 'text-amber-600'">
+                                ${{ resumenBonos.diferencia_periodo.toFixed(2) }}
+                            </p>
+                            <p class="text-[10px] text-gray-400">Ingresos menos consumos</p>
+                        </div>
+                        <div class="bg-blue-50 p-2.5 rounded-xl">
+                            <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-amber-200 bg-amber-50/20 flex items-center justify-between">
+                        <div>
+                            <p class="text-[11px] text-amber-700 uppercase font-bold tracking-wider">Saldo Vigente Total</p>
+                            <p class="text-2xl font-bold text-amber-600">${{ resumenBonos.saldo_vigente_actual.toFixed(2) }}</p>
+                            <p class="text-[10px] text-amber-600/70">Pendiente de atender hoy</p>
+                        </div>
+                        <div class="bg-amber-100 p-2.5 rounded-xl">
+                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtros de búsqueda -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div class="relative flex-1 w-full">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </span>
+                        <input type="text" v-model="searchQueryBonos" @input="debouncedFilterBonos"
+                            placeholder="Buscar paciente por nombre o cédula..."
+                            class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                    </div>
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <span class="text-xs font-bold text-gray-400 uppercase whitespace-nowrap">Rango:</span>
+                        <input type="date" v-model="startDateBonos" @change="fetchBonos"
+                            class="px-3 py-1.5 bg-slate-50 border border-gray-200 rounded-lg text-xs text-gray-600 outline-none focus:ring-2 focus:ring-blue-100">
+                        <span class="text-gray-400 text-xs">al</span>
+                        <input type="date" v-model="endDateBonos" @change="fetchBonos"
+                            class="px-3 py-1.5 bg-slate-50 border border-gray-200 rounded-lg text-xs text-gray-600 outline-none focus:ring-2 focus:ring-blue-100">
                     </div>
                 </div>
 
@@ -341,34 +377,52 @@
                     <table v-else class="w-full text-left">
                         <thead class="bg-slate-50 border-b border-gray-100">
                             <tr>
-                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Fecha / ID</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Fecha / Ref</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Tipo Movimiento</th>
                                 <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Paciente</th>
-                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Concepto</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Concepto / Detalle</th>
                                 <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Método</th>
-                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Monto Abono</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Monto</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
-                            <tr v-for="b in bonos" :key="b.id" class="hover:bg-slate-50 transition-colors">
+                            <tr v-for="b in bonos" :key="b.tipo + '_' + b.id" class="hover:bg-slate-50 transition-colors">
                                 <td class="px-6 py-4 text-sm">
                                     <div class="font-semibold text-gray-800">{{ formatDate(b.fecha) }}</div>
-                                    <div class="text-[10px] text-gray-400">Recarga #{{ b.id }}</div>
+                                    <div class="text-[10px] text-gray-400">{{ b.referencia_id }}</div>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-center">
+                                    <span v-if="b.tipo === 'INGRESO'"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                        Recarga
+                                    </span>
+                                    <span v-else
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+                                        Consumo Cita
+                                    </span>
                                 </td>
                                 <td class="px-6 py-4 text-sm font-medium text-gray-800">
                                     {{ b.paciente }}
                                     <div class="text-[10px] text-gray-500 font-normal italic">Por: {{ b.usuario }}</div>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-600">
-                                    {{ b.concepto || 'Abono General' }}
+                                    {{ b.concepto }}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-center">
-                                    <span
+                                    <span v-if="b.tipo === 'INGRESO'"
                                         class="inline-flex px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg text-xs font-bold">
                                         {{ getPaymentLabel(b.metodo_pago) }}
                                     </span>
+                                    <span v-else
+                                        class="inline-flex px-2 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-xs font-bold">
+                                        Billetera (AB)
+                                    </span>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-right font-bold text-emerald-600">
-                                    ${{ b.monto.toFixed(2) }}
+                                <td class="px-6 py-4 text-sm text-right font-bold"
+                                    :class="b.tipo === 'INGRESO' ? 'text-emerald-600' : 'text-rose-600'">
+                                    {{ b.tipo === 'INGRESO' ? '+' : '-' }}${{ b.monto.toFixed(2) }}
                                 </td>
                             </tr>
                         </tbody>
@@ -746,6 +800,13 @@
                 });
                 const atenciones = ref([])
                 const bonos = ref([])
+                const totalCountBonos = ref(0)
+                const resumenBonos = ref({
+                    total_ingresos: 0,
+                    total_egresos: 0,
+                    diferencia_periodo: 0,
+                    saldo_vigente_actual: 0
+                })
                 const currentView = ref('consultas')
                 const loading = ref(true)
                 const loadingBonos = ref(false)
@@ -843,7 +904,15 @@
                                 size: 50
                             }
                         })
-                        bonos.value = res.data
+                        if (res.data && res.data.items) {
+                            bonos.value = res.data.items
+                            totalCountBonos.value = res.data.total || 0
+                            if (res.data.resumen) {
+                                resumenBonos.value = res.data.resumen
+                            }
+                        } else {
+                            bonos.value = Array.isArray(res.data) ? res.data : []
+                        }
                     } catch (error) {
                         console.error(error)
                         Swal.fire('Error', 'No se pudieron cargar los bonos', 'error')

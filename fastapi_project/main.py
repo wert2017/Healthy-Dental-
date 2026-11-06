@@ -2934,47 +2934,136 @@ def get_bonos_report(
     if user.role not in ["admin", "recepcion"]:
         raise HTTPException(status_code=403, detail="No tiene permisos para ver reportes de pagos")
 
-    skip = (page - 1) * size
-    query = (
+    target_sucursal = user.sucursal_id
+
+    # 1. Recargas (Ingresos a Billetera)
+    q_recargas = (
         select(HistorialAbono)
-        .join(Paciente) # Ensure connection to Paciente
+        .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
+        .where(HistorialAbono.atencion_id == None)
     )
-    if user.sucursal_id:
-        query = query.where(Paciente.sucursal_id == user.sucursal_id)
+    if target_sucursal:
+        q_recargas = q_recargas.where(Paciente.sucursal_id == target_sucursal)
 
     if search:
         search_val = f"%{search}%"
-        query = query.where(
+        q_recargas = q_recargas.where(
             (Paciente.nombres.ilike(search_val)) | 
             (Paciente.apellidos.ilike(search_val)) | 
             (Paciente.numero_identificacion.ilike(search_val))
         )
 
-    query = query.order_by(HistorialAbono.fecha.desc()).offset(skip).limit(size)
-
-    # Date filters (optional)
     if start_date:
-        query = query.where(HistorialAbono.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
+        q_recargas = q_recargas.where(HistorialAbono.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
     if end_date:
-        # End date inclusive
         end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
-        query = query.where(HistorialAbono.fecha < end_dt)
+        q_recargas = q_recargas.where(HistorialAbono.fecha < end_dt)
 
-    bonos = session.exec(query).all()
-    
-    results = []
-    for b in bonos:
-        results.append({
-            "id": b.id,
-            "fecha": b.fecha,
-            "paciente": f"{b.paciente.nombres} {b.paciente.apellidos}",
-            "monto": b.monto,
-            "metodo_pago": b.metodo_pago,
-            "concepto": getattr(b, "concepto", "Abono General") or "Abono General",
-            "usuario": b.usuario.username if b.usuario else "Desconocido"
+    recargas = session.exec(q_recargas).all()
+
+    # 2. Consumos en Citas (Egresos de Billetera: forma_pago == 'AB')
+    q_consumos = (
+        select(Pago)
+        .join(Atencion, Pago.atencion_id == Atencion.id)
+        .join(Paciente, Atencion.paciente_id == Paciente.id)
+        .where(func.upper(Pago.forma_pago) == "AB")
+    )
+    if target_sucursal:
+        q_consumos = q_consumos.where(Atencion.sucursal_id == target_sucursal)
+
+    if search:
+        search_val = f"%{search}%"
+        q_consumos = q_consumos.where(
+            (Paciente.nombres.ilike(search_val)) | 
+            (Paciente.apellidos.ilike(search_val)) | 
+            (Paciente.numero_identificacion.ilike(search_val))
+        )
+
+    if start_date:
+        q_consumos = q_consumos.where(Pago.fecha >= datetime.strptime(start_date, "%Y-%m-%d"))
+    if end_date:
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        q_consumos = q_consumos.where(Pago.fecha < end_dt)
+
+    consumos = session.exec(q_consumos).all()
+
+    # Consolidar movimientos
+    movimientos = []
+    tot_ingresos = Decimal("0")
+    tot_egresos = Decimal("0")
+
+    for r in recargas:
+        monto_d = Decimal(str(r.monto or 0))
+        tot_ingresos += monto_d
+        movimientos.append({
+            "id": r.id,
+            "tipo": "INGRESO",
+            "tipo_label": "Recarga",
+            "fecha": r.fecha.isoformat() if hasattr(r.fecha, "isoformat") else str(r.fecha),
+            "paciente": f"{r.paciente.nombres} {r.paciente.apellidos}" if r.paciente else "N/A",
+            "paciente_id": r.paciente_id,
+            "monto": float(monto_d),
+            "metodo_pago": r.metodo_pago or "EFECTIVO",
+            "concepto": r.concepto or "Abono a Billetera",
+            "usuario": r.usuario.username if r.usuario else "Recepción",
+            "referencia_id": f"Recarga #{r.id}"
         })
-        
-    return results
+
+    for c in consumos:
+        monto_d = Decimal(str(c.monto or 0))
+        tot_egresos += monto_d
+        atencion = session.get(Atencion, c.atencion_id) if c.atencion_id else None
+        pac = atencion.paciente if atencion else None
+        tratamientos_nombres = []
+        if atencion:
+            for det in session.exec(select(AtencionDetalle).where(AtencionDetalle.atencion_id == atencion.id)).all():
+                trat = session.get(Tratamiento, det.tratamiento_id) if det.tratamiento_id else None
+                if trat:
+                    tratamientos_nombres.append(trat.nombre)
+        concepto_desc = f"Pago Atención #{c.atencion_id}"
+        if tratamientos_nombres:
+            concepto_desc += f" ({', '.join(tratamientos_nombres[:2])})"
+
+        movimientos.append({
+            "id": c.id,
+            "tipo": "EGRESO",
+            "tipo_label": "Consumo en Cita",
+            "fecha": c.fecha.isoformat() if hasattr(c.fecha, "isoformat") else str(c.fecha),
+            "paciente": f"{pac.nombres} {pac.apellidos}" if pac else "N/A",
+            "paciente_id": pac.id if pac else None,
+            "monto": float(monto_d),
+            "metodo_pago": "ABONO_USADO",
+            "concepto": concepto_desc,
+            "usuario": "Recepción",
+            "referencia_id": f"Cita #{c.atencion_id}"
+        })
+
+    # Ordenar por fecha descendente
+    movimientos.sort(key=lambda x: str(x["fecha"]), reverse=True)
+
+    # Saldo acumulado activo actual de pacientes de la sucursal
+    q_saldo_vigente = select(func.coalesce(func.sum(Paciente.saldo_favor), 0))
+    if target_sucursal:
+        q_saldo_vigente = q_saldo_vigente.where(Paciente.sucursal_id == target_sucursal)
+    saldo_vigente = float(session.exec(q_saldo_vigente).first() or 0)
+
+    # Paginación
+    total_count = len(movimientos)
+    skip = (page - 1) * size
+    paginated_items = movimientos[skip:skip + size]
+
+    return {
+        "items": paginated_items,
+        "total": total_count,
+        "page": page,
+        "size": size,
+        "resumen": {
+            "total_ingresos": float(tot_ingresos),
+            "total_egresos": float(tot_egresos),
+            "diferencia_periodo": float(tot_ingresos - tot_egresos),
+            "saldo_vigente_actual": saldo_vigente
+        }
+    }
 
 
 @app.get("/api/users/me")
