@@ -2936,11 +2936,10 @@ def get_bonos_report(
 
     target_sucursal = user.sucursal_id
 
-    # 1. Recargas (Ingresos a Billetera)
+    # 1. Recargas (Ingresos a Billetera: tanto directas como registradas en atención)
     q_recargas = (
         select(HistorialAbono)
         .join(Paciente, HistorialAbono.paciente_id == Paciente.id)
-        .where(HistorialAbono.atencion_id == None)
     )
     if target_sucursal:
         q_recargas = q_recargas.where(Paciente.sucursal_id == target_sucursal)
