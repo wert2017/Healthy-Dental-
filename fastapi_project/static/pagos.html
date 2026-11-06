@@ -974,35 +974,22 @@
                     const totalPaid = currentModalPaidTotal.value
                     const totalDue = selectedAtencion.value.total_atencion
 
-                    let surplusMethod = 'Efectivo';
-                    // Simple overpayment warning (Frontend Only)
-                    if (newPayment.value.forma_pago !== 'AB' && (totalPaid + monto > totalDue)) {
-                        const surplus = (totalPaid + monto) - totalDue
-                        const result = await Swal.fire({
-                            title: '¡Pago Excedente!',
+                    // Bloqueo estricto de sobrepago en atención: los abonos deben entrar por CxC / Abonos
+                    if (newPayment.value.forma_pago !== 'AB' && (totalPaid + monto > totalDue + 0.001)) {
+                        const excedente = (totalPaid + monto) - totalDue
+                        Swal.fire({
+                            title: 'Monto Excede el Total',
                             html: `
-                                <p class="mb-4">El monto generará un excedente de <strong>$${surplus.toFixed(2)}</strong>.</p>
-                                <div class="text-left w-full max-w-sm mx-auto p-4 bg-slate-50 rounded-lg border border-gray-200">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Selecciona el método de donde proviene el abono:</label>
-                                    <select id="swal-metodo-simple" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm py-2 px-3 bg-white border">
-                                        <option value="Efectivo" ${newPayment.value.forma_pago === 'EF' ? 'selected' : ''}>Efectivo</option>
-                                        <option value="Transferencia" ${newPayment.value.forma_pago === 'TR' ? 'selected' : ''}>Transferencia</option>
-                                        <option value="Tarjeta" ${newPayment.value.forma_pago === 'TC' ? 'selected' : ''}>Tarjeta</option>
-                                    </select>
-                                </div>
+                                <p class="text-sm text-gray-600 mb-3">El monto ingresado ($${monto.toFixed(2)}) excede el saldo pendiente de la atención por <strong>$${excedente.toFixed(2)}</strong>.</p>
+                                <p class="text-xs text-blue-600 font-semibold bg-blue-50 p-3 rounded-lg border border-blue-200 text-left">
+                                    💡 <strong>Regla del Sistema:</strong> Para evitar descuadres en el Cuadre Diario, registre únicamente el valor exacto de la cita ($${(totalDue - totalPaid).toFixed(2)}). Si el paciente desea dejar un anticipo o saldo a favor, regístrelo en la pestaña <strong>CxC / Abonos</strong>.
+                                </p>
                             `,
                             icon: 'warning',
-                            showCancelButton: true,
                             confirmButtonColor: '#3b82f6',
-                            cancelButtonColor: '#ef4444',
-                            confirmButtonText: 'Sí, guardar abono',
-                            cancelButtonText: 'Cancelar',
-                            preConfirm: () => {
-                                return document.getElementById('swal-metodo-simple').value;
-                            }
+                            confirmButtonText: 'Entendido, corregir monto'
                         })
-                        if (!result.isConfirmed) return
-                        surplusMethod = result.value;
+                        return
                     }
 
                     // Validate Abono (Frontend)
