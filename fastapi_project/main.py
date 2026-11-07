@@ -2791,13 +2791,16 @@ def update_atencion_pagos(atencion_id: int, data: dict, session: Session = Depen
 @app.post("/api/atenciones/{atencion_id}/pagos/add")
 def add_atencion_pago(atencion_id: int, data: dict, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     """
-    Transactional Add Payment.
+    Transactional Add Payment (Abono de CxC).
     Expects data: {"forma_pago": "EF"|"TR"|"TC"|"AB", "monto": 10.00}
     """
     atencion = session.get(Atencion, atencion_id)
     if not atencion:
         raise HTTPException(status_code=404, detail="Atención no encontrada")
-    check_periodo_abierto(session, atencion.fecha, sucursal_id=atencion.sucursal_id)
+    
+    # Validar que el período actual (hoy) esté abierto para registrar el nuevo cobro
+    now = datetime.now()
+    check_periodo_abierto(session, now, sucursal_id=atencion.sucursal_id)
     
     if user.role not in ["admin", "recepcion"]:
         raise HTTPException(status_code=403, detail="No tiene permisos para agregar pagos")
@@ -2874,9 +2877,9 @@ def add_atencion_pago(atencion_id: int, data: dict, session: Session = Depends(g
                  session.commit()
                  return {"message": "Monto acreditado totalmente a billetera"}
 
-    # Record the payment
+    # Record the payment con fecha actual (momento del cobro del abono)
     if monto > 0:
-        pago = Pago(atencion_id=atencion_id, forma_pago=forma_pago, monto=monto)
+        pago = Pago(atencion_id=atencion_id, forma_pago=forma_pago, monto=monto, fecha=now)
         session.add(pago)
         registrar_log(atencion_id, "Pago Agregado", f"Pago de ${monto} vía {forma_pago}", session, user)
     

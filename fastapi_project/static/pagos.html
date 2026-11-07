@@ -1005,8 +1005,7 @@
                     try {
                         const res = await axios.post(`/api/atenciones/${selectedAtencion.value.id}/pagos/add`, {
                             forma_pago: newPayment.value.forma_pago,
-                            monto: monto,
-                            metodo_excedente: surplusMethod
+                            monto: monto
                         })
 
                         // Update local list with response
