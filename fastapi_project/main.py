@@ -155,6 +155,7 @@ def on_startup():
         "ALTER TABLE gasto ADD COLUMN socio_id INTEGER REFERENCES socio(id);",
         "ALTER TABLE doctor ADD COLUMN max_citas_simultaneas INTEGER DEFAULT 2;",
         "ALTER TABLE gasto ADD COLUMN tipo VARCHAR DEFAULT 'EGRESO';",
+        "ALTER TABLE paciente ADD COLUMN ortodoncia_observacion TEXT;",
         """
         CREATE TABLE IF NOT EXISTS fotopaciente (
             id SERIAL PRIMARY KEY,
@@ -176,6 +177,25 @@ def on_startup():
                 session.commit()
         except Exception:
             pass
+
+    # Migracion unica de ortodoncia_activa: si la columna es nueva, activar automaticamente pacientes con historial de ortodoncia
+    try:
+        with Session(engine) as session:
+            session.execute(text("ALTER TABLE paciente ADD COLUMN ortodoncia_activa BOOLEAN DEFAULT FALSE;"))
+            session.execute(text("""
+                UPDATE paciente
+                SET ortodoncia_activa = TRUE
+                WHERE id IN (
+                    SELECT DISTINCT a.paciente_id
+                    FROM atencion a
+                    JOIN atenciondetalle ad ON a.id = ad.atencion_id
+                    JOIN tratamiento t ON ad.tratamiento_id = t.id
+                    WHERE UPPER(t.codigo) IN ('INSTAL', 'CNTRL', 'INSAUTLIG', 'INSAUTLIGA', 'CATLIG')
+                );
+            """))
+            session.commit()
+    except Exception:
+        pass
             
     # Create Default Admin User (If it doesn't exist)
     with Session(engine) as session:
@@ -536,8 +556,12 @@ class PacienteAdmin(ModelView, model=Paciente):
     icon = "fa-solid fa-user"
     
     # List View configuration
-    column_list = [Paciente.historia_clinica, Paciente.numero_identificacion, Paciente.nombres, Paciente.apellidos, Paciente.telefono, Paciente.saldo_favor]
+    column_list = [Paciente.historia_clinica, Paciente.numero_identificacion, Paciente.nombres, Paciente.apellidos, Paciente.telefono, Paciente.saldo_favor, Paciente.ortodoncia_activa]
     column_searchable_list = [Paciente.nombres, Paciente.apellidos, Paciente.numero_identificacion]
+    column_labels = {
+        Paciente.ortodoncia_activa: "Ortodoncia Activa",
+        Paciente.ortodoncia_observacion: "Observación Ortodoncia"
+    }
     
     # Form Configuration (Create/Edit)
     form_columns = [
@@ -551,7 +575,9 @@ class PacienteAdmin(ModelView, model=Paciente):
         Paciente.razon_social,
         Paciente.telefono,
         Paciente.email,
-        Paciente.saldo_favor
+        Paciente.saldo_favor,
+        Paciente.ortodoncia_activa,
+        Paciente.ortodoncia_observacion
     ]
 
     # Restrict choices for Dropdowns
@@ -590,6 +616,14 @@ class PacienteAdmin(ModelView, model=Paciente):
         },
         "saldo_favor": {
             "default": Decimal("0.0"),
+            "validators": [wtforms.validators.Optional()]
+        },
+        "ortodoncia_activa": {
+            "label": "Paciente de Ortodoncia Activo",
+            "validators": [wtforms.validators.Optional()]
+        },
+        "ortodoncia_observacion": {
+            "label": "Observación Ortodoncia (Motivo de inactividad / retiro)",
             "validators": [wtforms.validators.Optional()]
         }
     }
@@ -1424,7 +1458,9 @@ def search_pacientes(
             "total_pagado": total_pagado,
             "balance": balance,
             "estado_financiero": status,
-            "saldo_favor": p.saldo_favor
+            "saldo_favor": p.saldo_favor,
+            "ortodoncia_activa": bool(p.ortodoncia_activa),
+            "ortodoncia_observacion": p.ortodoncia_observacion or ""
         })
         
     return results_data
@@ -1441,6 +1477,8 @@ class PacienteUpdateSchema(BaseModel):
     sexo: Optional[str] = None
     edad: Optional[int] = None
     ciudad: Optional[str] = None
+    ortodoncia_activa: Optional[bool] = None
+    ortodoncia_observacion: Optional[str] = None
 
 @app.get("/api/pacientes/{paciente_id}")
 def get_paciente_detail(paciente_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
@@ -1459,7 +1497,9 @@ def get_paciente_detail(paciente_id: int, session: Session = Depends(get_session
         "sexo": paciente.sexo or "",
         "edad": paciente.edad,
         "ciudad": paciente.ciudad or "",
-        "saldo_favor": paciente.saldo_favor
+        "saldo_favor": paciente.saldo_favor,
+        "ortodoncia_activa": bool(paciente.ortodoncia_activa),
+        "ortodoncia_observacion": paciente.ortodoncia_observacion or ""
     }
 
 class PacientePreviewRequest(BaseModel):
@@ -1553,6 +1593,10 @@ def update_paciente_detail(paciente_id: int, data: PacienteUpdateSchema, session
     paciente.sexo = data.sexo or None
     paciente.edad = data.edad
     paciente.ciudad = (data.ciudad or "").strip() or None
+    if data.ortodoncia_activa is not None:
+        paciente.ortodoncia_activa = bool(data.ortodoncia_activa)
+    if data.ortodoncia_observacion is not None:
+        paciente.ortodoncia_observacion = data.ortodoncia_observacion.strip() or None
 
     session.add(paciente)
     session.commit()
@@ -1570,7 +1614,43 @@ def update_paciente_detail(paciente_id: int, data: PacienteUpdateSchema, session
         "sexo": paciente.sexo or "",
         "edad": paciente.edad,
         "ciudad": paciente.ciudad or "",
-        "saldo_favor": paciente.saldo_favor
+        "saldo_favor": paciente.saldo_favor,
+        "ortodoncia_activa": bool(paciente.ortodoncia_activa),
+        "ortodoncia_observacion": paciente.ortodoncia_observacion or ""
+    }
+
+
+class PacienteOrtodonciaSchema(BaseModel):
+    ortodoncia_activa: bool
+    ortodoncia_observacion: Optional[str] = None
+
+
+@app.put("/api/pacientes/{paciente_id}/ortodoncia")
+def update_paciente_ortodoncia(
+    paciente_id: int,
+    data: PacienteOrtodonciaSchema,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user)
+):
+    if user.role not in ["admin", "recepcion"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos")
+
+    paciente = session.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+
+    paciente.ortodoncia_activa = bool(data.ortodoncia_activa)
+    if data.ortodoncia_observacion is not None:
+        paciente.ortodoncia_observacion = data.ortodoncia_observacion.strip() or None
+
+    session.add(paciente)
+    session.commit()
+    session.refresh(paciente)
+
+    return {
+        "id": paciente.id,
+        "ortodoncia_activa": bool(paciente.ortodoncia_activa),
+        "ortodoncia_observacion": paciente.ortodoncia_observacion or ""
     }
 
 
@@ -2422,8 +2502,16 @@ def add_detalle(
     )
     session.add(detalle)
     
+    # Marcar automáticamente paciente como ortodoncia activa si corresponde
+    trat = session.get(Tratamiento, tratamiento_id)
+    if trat and (trat.codigo or "").strip().upper() in ("INSTAL", "CNTRL", "INSAUTLIG", "INSAUTLIGA", "CATLIG"):
+        pac = session.get(Paciente, atencion.paciente_id)
+        if pac and not pac.ortodoncia_activa:
+            pac.ortodoncia_activa = True
+            session.add(pac)
+
     # LOG
-    t_nombre = session.get(Tratamiento, tratamiento_id).nombre
+    t_nombre = trat.nombre if trat else "Tratamiento"
     registrar_log(atencion_id, "Tratamiento Añadido", f"Se agregó '{t_nombre}' por ${precio}", session, user)
     
     session.commit()
@@ -4280,13 +4368,14 @@ def get_distribucion_utilidades(
 
 @app.get("/api/reportes/ortodoncia")
 def get_ortodoncia_seguimiento(
+    estado_tratamiento: Optional[str] = None,
     session: Session = Depends(get_session),
     user: User = Depends(get_current_user)
 ):
     if user.role not in ["admin", "recepcion"]:
         raise HTTPException(status_code=403, detail="No tiene permisos")
 
-    ORTHO_CODES = ['INSTAL', 'CNTRL', 'INSAUTLIGA', 'CATLIG']
+    ORTHO_CODES = ['INSTAL', 'CNTRL', 'INSAUTLIG', 'INSAUTLIGA', 'CATLIG']
 
     stmt = (
         select(
@@ -4295,6 +4384,8 @@ def get_ortodoncia_seguimiento(
             Paciente.apellidos,
             Paciente.historia_clinica,
             Paciente.telefono,
+            Paciente.ortodoncia_activa,
+            Paciente.ortodoncia_observacion,
             func.min(Atencion.fecha).label("primera_cita"),
             func.max(Atencion.fecha).label("ultima_cita"),
             func.count(Atencion.id.distinct()).label("total_atenciones")
@@ -4302,24 +4393,48 @@ def get_ortodoncia_seguimiento(
         .join(Atencion, Paciente.id == Atencion.paciente_id)
         .join(AtencionDetalle, Atencion.id == AtencionDetalle.atencion_id)
         .join(Tratamiento, AtencionDetalle.tratamiento_id == Tratamiento.id)
-        .where(Tratamiento.codigo.in_(ORTHO_CODES))
+        .where(func.upper(Tratamiento.codigo).in_(ORTHO_CODES))
         .where(Atencion.sucursal_id == user.sucursal_id)
         .group_by(
             Paciente.id, Paciente.nombres, Paciente.apellidos,
-            Paciente.historia_clinica, Paciente.telefono
+            Paciente.historia_clinica, Paciente.telefono,
+            Paciente.ortodoncia_activa, Paciente.ortodoncia_observacion
         )
         .order_by(func.max(Atencion.fecha).asc())
     )
 
     rows = session.exec(stmt).all()
+    seen_ids = {r.id for r in rows}
+
+    # Identificar tipo de brackets (Autoligado vs Convencional) por paciente
+    codes_rows = session.exec(
+        select(Atencion.paciente_id, func.upper(Tratamiento.codigo))
+        .join(AtencionDetalle, Atencion.id == AtencionDetalle.atencion_id)
+        .join(Tratamiento, AtencionDetalle.tratamiento_id == Tratamiento.id)
+        .where(func.upper(Tratamiento.codigo).in_(ORTHO_CODES))
+        .where(Atencion.sucursal_id == user.sucursal_id)
+        .distinct()
+    ).all()
+    patient_codes = {}
+    for pid, cod in codes_rows:
+        patient_codes.setdefault(pid, set()).add(cod)
+
+    # Incluir también pacientes marcados manualmente en ficha como ortodoncia activa o con observación de ortodoncia
+    manual_pacs = session.exec(
+        select(Paciente)
+        .where(Paciente.sucursal_id == user.sucursal_id)
+        .where(
+            (Paciente.ortodoncia_activa == True) |
+            ((Paciente.ortodoncia_observacion != None) & (Paciente.ortodoncia_observacion != ""))
+        )
+    ).all()
 
     now = datetime.now()
     result = []
-    for row in rows:
-        ultima = row.ultima_cita
-        dias_ausente = (now - ultima).days
-        meses_ausente = dias_ausente // 30
 
+    def build_entry(pid, nombres, apellidos, hc, tel, act, obs, primera, ultima, total_atns, tipo_brackets):
+        dias_ausente = max(0, (now - ultima).days)
+        meses_ausente = dias_ausente // 30
         if meses_ausente == 0:
             estado = "al_dia"
         elif meses_ausente == 1:
@@ -4329,18 +4444,63 @@ def get_ortodoncia_seguimiento(
         else:
             estado = "critico"
 
-        result.append({
-            "paciente_id": row.id,
-            "nombre": f"{row.nombres} {row.apellidos or ''}".strip(),
-            "historia_clinica": row.historia_clinica,
-            "telefono": row.telefono or "",
-            "primera_cita": row.primera_cita.isoformat(),
+        return {
+            "paciente_id": pid,
+            "nombre": f"{nombres} {apellidos or ''}".strip(),
+            "historia_clinica": hc,
+            "telefono": tel or "",
+            "primera_cita": primera.isoformat(),
             "ultima_cita": ultima.isoformat(),
-            "total_atenciones": row.total_atenciones,
+            "total_atenciones": total_atns,
             "dias_ausente": dias_ausente,
             "meses_ausente": meses_ausente,
-            "estado": estado
-        })
+            "estado": estado,
+            "ortodoncia_activa": bool(act),
+            "ortodoncia_observacion": obs or "",
+            "tipo_brackets": tipo_brackets
+        }
+
+    for row in rows:
+        cods = patient_codes.get(row.id, set())
+        if cods & {"INSAUTLIG", "INSAUTLIGA", "CATLIG"}:
+            tipo_b = "Autoligado"
+        else:
+            tipo_b = "Convencional"
+        result.append(build_entry(
+            row.id, row.nombres, row.apellidos, row.historia_clinica,
+            row.telefono, row.ortodoncia_activa, row.ortodoncia_observacion,
+            row.primera_cita, row.ultima_cita, row.total_atenciones, tipo_b
+        ))
+
+    for mp in manual_pacs:
+        if mp.id in seen_ids:
+            continue
+        agg = session.exec(
+            select(
+                func.min(Atencion.fecha),
+                func.max(Atencion.fecha),
+                func.count(Atencion.id)
+            )
+            .where(Atencion.paciente_id == mp.id)
+            .where(Atencion.sucursal_id == user.sucursal_id)
+        ).first()
+        if agg and agg[0]:
+            p_cita, u_cita, t_atn = agg[0], agg[1], agg[2]
+        else:
+            p_cita, u_cita, t_atn = mp.fecha_creacion, mp.fecha_creacion, 0
+        result.append(build_entry(
+            mp.id, mp.nombres, mp.apellidos, mp.historia_clinica,
+            mp.telefono, mp.ortodoncia_activa, mp.ortodoncia_observacion,
+            p_cita, u_cita, t_atn, "Manual"
+        ))
+
+    # Reordenar por ultima_cita ascendente (más ausentes primero)
+    result.sort(key=lambda x: x["ultima_cita"])
+
+    if estado_tratamiento == "activos":
+        return [r for r in result if r["ortodoncia_activa"]]
+    if estado_tratamiento == "inactivos":
+        return [r for r in result if not r["ortodoncia_activa"]]
 
     return result
 

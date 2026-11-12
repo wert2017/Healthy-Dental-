@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -95,6 +96,32 @@
         .month-box-absent { background: #fca5a5; }
         .month-box-present { background: #6ee7b7; }
         .month-box-future { background: #e5e7eb; }
+
+        /* ORTHO STATUS TOGGLE BUTTON & OBSERVATION */
+        .row-inactive td { background: #f8fafc !important; color: #64748b; }
+        .row-inactive:hover td { background: #f1f5f9 !important; }
+        .btn-status { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid transparent; transition: all .15s; font-family: inherit; }
+        .btn-status-active { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .btn-status-active:hover { background: #bbf7d0; border-color: #4ade80; }
+        .btn-status-inactive { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+        .btn-status-inactive:hover { background: #e2e8f0; color: #1e293b; border-color: #94a3b8; }
+        .obs-text { font-size: 11px; color: #475569; margin-top: 4px; max-width: 220px; line-height: 1.35; display: flex; align-items: flex-start; gap: 5px; }
+        .obs-edit-btn { background: none; border: none; color: #6366f1; cursor: pointer; padding: 0 2px; font-size: 11px; flex-shrink: 0; }
+        .obs-edit-btn:hover { color: #4338ca; }
+        .bracket-tag { display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; margin-top: 2px; }
+        .bracket-conv { background: #eff6ff; color: #1d4ed8; }
+        .bracket-auto { background: #f5f3ff; color: #6d28d9; }
+        .bracket-man  { background: #f3f4f6; color: #4b5563; }
+
+        .card-clickable { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+        .card-clickable:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
+        .card-active-ring { outline: 2px solid #4f46e5; outline-offset: -2px; }
+        .card-inactive .card-value { color: #475569; }
+
+        /* SWAL QUICK CHIPS */
+        .ortho-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 10px 0 12px; }
+        .ortho-chip { padding: 5px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; cursor: pointer; transition: all .12s; }
+        .ortho-chip:hover { background: #e0e7ff; border-color: #6366f1; color: #3730a3; }
         [v-cloak] { display: none !important; }
     </style>
 </head>
@@ -141,30 +168,42 @@
     <div class="page">
         <div class="page-title">Seguimiento de Pacientes de Ortodoncia</div>
         <div class="page-desc">
-            Pacientes con tratamientos INSTAL / CNTRL / INSAUTLIGA / CATLIG — ordenados por fecha de última cita (más ausentes primero).
+            Pacientes con tratamientos INSTAL / CNTRL / INSAUTLIG / CATLIG — ordenados por fecha de última cita (más ausentes primero).
         </div>
 
         <!-- Cards resumen -->
         <div class="cards">
-            <div class="card card-total">
-                <div class="card-label">Total Pacientes</div>
-                <div class="card-value">{{ pacientes.length }}</div>
-                <div class="card-sub">con historial de ortodoncia</div>
+            <div class="card card-total card-clickable"
+                 :class="{ 'card-active-ring': filterTratamiento === 'activos' }"
+                 @click="filterTratamiento = 'activos'; filterEstado = '';">
+                <div class="card-label">Activos en Tratamiento</div>
+                <div class="card-value">{{ statusCounts.activos }}</div>
+                <div class="card-sub">en seguimiento actual</div>
             </div>
-            <div class="card card-ok">
+            <div class="card card-ok card-clickable"
+                 @click="filterEstado = (filterEstado === 'al_dia' ? '' : 'al_dia')">
                 <div class="card-label">Al día (0–1 mes)</div>
                 <div class="card-value">{{ counts.al_dia + counts.reciente }}</div>
-                <div class="card-sub">última cita reciente</div>
+                <div class="card-sub">en vista {{ tratamientoLabel }}</div>
             </div>
-            <div class="card card-warn">
+            <div class="card card-warn card-clickable"
+                 @click="filterEstado = (filterEstado === 'riesgo' ? '' : 'riesgo')">
                 <div class="card-label">En riesgo (2 meses)</div>
                 <div class="card-value">{{ counts.riesgo }}</div>
                 <div class="card-sub">necesitan recordatorio</div>
             </div>
-            <div class="card card-danger">
+            <div class="card card-danger card-clickable"
+                 @click="filterEstado = (filterEstado === 'critico' ? '' : 'critico')">
                 <div class="card-label">Crítico (3+ meses)</div>
                 <div class="card-value">{{ counts.critico }}</div>
                 <div class="card-sub">ausentes por largo tiempo</div>
+            </div>
+            <div class="card card-inactive card-clickable"
+                 :class="{ 'card-active-ring': filterTratamiento === 'inactivos' }"
+                 @click="filterTratamiento = (filterTratamiento === 'inactivos' ? 'activos' : 'inactivos'); filterEstado = '';">
+                <div class="card-label">Inactivos / Terminados</div>
+                <div class="card-value">{{ statusCounts.inactivos }}</div>
+                <div class="card-sub">clic para ver archivados</div>
             </div>
         </div>
 
@@ -172,10 +211,26 @@
         <div class="filter-bar">
             <div class="filter-group">
                 <label>Buscar paciente</label>
-                <input type="text" v-model="search" placeholder="Nombre o historia clínica...">
+                <input type="text" v-model="search" placeholder="Nombre, HC u observación...">
             </div>
             <div class="filter-group">
-                <label>Filtrar por estado</label>
+                <label>Estado Tratamiento</label>
+                <select v-model="filterTratamiento">
+                    <option value="activos">Solo Activos</option>
+                    <option value="inactivos">Inactivos / Terminados</option>
+                    <option value="todos">Todos</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Tipo Brackets</label>
+                <select v-model="filterTipo">
+                    <option value="">Todos</option>
+                    <option value="Convencional">Convencional (INSTAL)</option>
+                    <option value="Autoligado">Autoligado (INSAUTLIG)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Asistencia</label>
                 <select v-model="filterEstado">
                     <option value="">Todos</option>
                     <option value="al_dia">Al día (este mes)</option>
@@ -197,7 +252,7 @@
             </div>
             <button class="btn btn-primary" @click="loadData" :disabled="loading">
                 <span v-if="loading">Cargando...</span>
-                <span v-else">↻ Actualizar</span>
+                <span v-else>↻ Actualizar</span>
             </button>
         </div>
 
@@ -214,26 +269,38 @@
                         <th>Última Cita</th>
                         <th>Citas Totales</th>
                         <th>Meses Ausente</th>
-                        <th>Estado</th>
+                        <th>Asistencia</th>
+                        <th>Tratamiento / Observación</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-if="loading">
-                        <td colspan="10" class="empty">Cargando datos...</td>
+                        <td colspan="11" class="empty">Cargando datos...</td>
                     </tr>
                     <tr v-else-if="filtered.length === 0">
-                        <td colspan="10" class="empty">No se encontraron pacientes con los filtros seleccionados.</td>
+                        <td colspan="11" class="empty">No se encontraron pacientes con los filtros seleccionados.</td>
                     </tr>
                     <tr v-for="(p, i) in filtered" :key="p.paciente_id"
                         :class="{
-                            'row-ok':   p.estado === 'al_dia',
-                            'row-warn': p.estado === 'reciente',
-                            'row-risk': p.estado === 'riesgo',
-                            'row-crit': p.estado === 'critico'
+                            'row-inactive': !p.ortodoncia_activa,
+                            'row-ok':   p.ortodoncia_activa && p.estado === 'al_dia',
+                            'row-warn': p.ortodoncia_activa && p.estado === 'reciente',
+                            'row-risk': p.ortodoncia_activa && p.estado === 'riesgo',
+                            'row-crit': p.ortodoncia_activa && p.estado === 'critico'
                         }">
                         <td style="color:#9ca3af; font-size:11px;">{{ i + 1 }}</td>
-                        <td style="font-weight:600;">{{ p.nombre }}</td>
+                        <td>
+                            <div style="font-weight:600;">{{ p.nombre }}</div>
+                            <span v-if="p.tipo_brackets" class="bracket-tag"
+                                :class="{
+                                    'bracket-conv': p.tipo_brackets === 'Convencional',
+                                    'bracket-auto': p.tipo_brackets === 'Autoligado',
+                                    'bracket-man':  p.tipo_brackets === 'Manual'
+                                }">
+                                {{ p.tipo_brackets }}
+                            </span>
+                        </td>
                         <td style="font-family:monospace; font-size:12px; color:#6b7280;">{{ p.historia_clinica }}</td>
                         <td style="color:#374151;">{{ p.telefono || '—' }}</td>
                         <td style="font-size:12px; color:#6b7280;">{{ formatDate(p.primera_cita) }}</td>
@@ -270,6 +337,24 @@
                             </span>
                         </td>
                         <td>
+                            <div>
+                                <button type="button"
+                                    class="btn-status"
+                                    :class="p.ortodoncia_activa ? 'btn-status-active' : 'btn-status-inactive'"
+                                    @click="toggleOrtodoncia(p)"
+                                    :title="p.ortodoncia_activa ? 'Clic para desactivar / finalizar tratamiento' : 'Clic para reactivar tratamiento'">
+                                    <i :class="p.ortodoncia_activa ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'"></i>
+                                    {{ p.ortodoncia_activa ? 'Activo' : 'Inactivo' }}
+                                </button>
+                            </div>
+                            <div v-if="p.ortodoncia_observacion || !p.ortodoncia_activa" class="obs-text">
+                                <span style="flex:1;">{{ p.ortodoncia_observacion || 'Sin observación' }}</span>
+                                <button type="button" class="obs-edit-btn" @click="editarObservacion(p)" title="Editar observación">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
                             <a :href="'/admin/paciente/details/'+p.paciente_id" target="_blank" class="link-atn">
                                 Ver paciente →
                             </a>
@@ -279,7 +364,7 @@
             </table>
         </div>
         <div style="margin-top:8px; font-size:11px; color:#9ca3af;" v-if="!loading && filtered.length > 0">
-            Mostrando {{ filtered.length }} de {{ pacientes.length }} pacientes
+            Mostrando {{ filtered.length }} de {{ scopedByTratamiento.length }} pacientes ({{ tratamientoLabel }})
         </div>
     </div>
 </div>
@@ -292,6 +377,8 @@ createApp({
         const pacientes = ref([]);
         const loading = ref(true);
         const search = ref('');
+        const filterTratamiento = ref('activos');
+        const filterTipo = ref('');
         const filterEstado = ref('');
         const filterMesesMin = ref('0');
         const role = ref(localStorage.getItem('role') || '');
@@ -341,26 +428,167 @@ createApp({
             }
         };
 
+        const statusCounts = computed(() => {
+            let activos = 0;
+            let inactivos = 0;
+            pacientes.value.forEach(p => {
+                if (p.ortodoncia_activa) activos++;
+                else inactivos++;
+            });
+            return { activos, inactivos };
+        });
+
+        const scopedByTratamiento = computed(() => {
+            if (filterTratamiento.value === 'activos') return pacientes.value.filter(p => p.ortodoncia_activa);
+            if (filterTratamiento.value === 'inactivos') return pacientes.value.filter(p => !p.ortodoncia_activa);
+            return pacientes.value;
+        });
+
+        const tratamientoLabel = computed(() => {
+            return { activos: 'activos', inactivos: 'inactivos', todos: 'total' }[filterTratamiento.value] || '';
+        });
+
         const counts = computed(() => {
             const c = { al_dia: 0, reciente: 0, riesgo: 0, critico: 0 };
-            pacientes.value.forEach(p => { if (c[p.estado] !== undefined) c[p.estado]++; });
+            scopedByTratamiento.value.forEach(p => { if (c[p.estado] !== undefined) c[p.estado]++; });
             return c;
         });
 
         const filtered = computed(() => {
-            let list = pacientes.value;
+            let list = scopedByTratamiento.value;
+            if (filterTipo.value) list = list.filter(p => p.tipo_brackets === filterTipo.value);
             if (filterEstado.value) list = list.filter(p => p.estado === filterEstado.value);
             const min = parseInt(filterMesesMin.value) || 0;
             if (min > 0) list = list.filter(p => p.meses_ausente >= min);
             if (search.value.trim()) {
                 const q = search.value.toLowerCase();
                 list = list.filter(p =>
-                    p.nombre.toLowerCase().includes(q) ||
-                    p.historia_clinica.toLowerCase().includes(q)
+                    (p.nombre || '').toLowerCase().includes(q) ||
+                    (p.historia_clinica || '').toLowerCase().includes(q) ||
+                    (p.ortodoncia_observacion || '').toLowerCase().includes(q)
                 );
             }
             return list;
         });
+
+        const escapeHtml = (str) => {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
+        const saveOrtodoncia = async (p, nuevoEstado, nuevaObservacion) => {
+            const token = localStorage.getItem('token');
+            const res = await axios.put(
+                `/api/pacientes/${p.paciente_id}/ortodoncia`,
+                { ortodoncia_activa: nuevoEstado, ortodoncia_observacion: nuevaObservacion },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            p.ortodoncia_activa = res.data.ortodoncia_activa;
+            p.ortodoncia_observacion = res.data.ortodoncia_observacion;
+        };
+
+        const toggleOrtodoncia = async (p) => {
+            const desactivando = p.ortodoncia_activa;
+            const chips = desactivando
+                ? ['Terminó tratamiento', 'Dejó de asistir', 'Se fue a otra clínica', 'Pausado por el paciente']
+                : ['Retoma tratamiento', 'Reactivado por control'];
+
+            const chipsHtml = chips.map(c =>
+                `<button type="button" class="ortho-chip" data-reason="${escapeHtml(c)}">${escapeHtml(c)}</button>`
+            ).join('');
+
+            const { value: formValues, isConfirmed } = await Swal.fire({
+                title: desactivando ? 'Desactivar Tratamiento' : 'Reactivar Tratamiento',
+                html: `
+                    <div style="text-align:left; font-size:13px; color:#334155;">
+                        <div style="margin-bottom:8px;">
+                            <strong>Paciente:</strong> ${escapeHtml(p.nombre)}
+                            <span style="color:#64748b;">(${escapeHtml(p.historia_clinica)})</span>
+                        </div>
+                        <div style="font-size:12px; color:#475569; margin-bottom:4px;">
+                            ${desactivando ? 'Selecciona o escribe el motivo por el cual deja el tratamiento:' : 'Observación (opcional al reactivar):'}
+                        </div>
+                        <div class="ortho-chips" id="ortho-chips-container">${chipsHtml}</div>
+                        <textarea id="swal-ortho-obs" rows="3"
+                            style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-family:inherit; font-size:13px; box-sizing:border-box;"
+                            placeholder="${desactivando ? 'Ej: Terminó tratamiento / Dejó de asistir / Se fue a otra clínica...' : 'Opcional (deja vacío para limpiar observación anterior)'}">${desactivando ? escapeHtml(p.ortodoncia_observacion || '') : ''}</textarea>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: desactivando ? 'Sí, desactivar' : 'Sí, reactivar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: desactivando ? '#dc2626' : '#16a34a',
+                didOpen: () => {
+                    const container = document.getElementById('ortho-chips-container');
+                    const textarea = document.getElementById('swal-ortho-obs');
+                    if (container && textarea) {
+                        container.querySelectorAll('.ortho-chip').forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                textarea.value = btn.getAttribute('data-reason') || '';
+                                textarea.focus();
+                            });
+                        });
+                    }
+                },
+                preConfirm: () => {
+                    const val = (document.getElementById('swal-ortho-obs')?.value || '').trim();
+                    if (desactivando && !val) {
+                        Swal.showValidationMessage('Por favor indica el motivo o selecciona una opción.');
+                        return false;
+                    }
+                    return val;
+                }
+            });
+
+            if (!isConfirmed) return;
+
+            try {
+                await saveOrtodoncia(p, !desactivando, formValues);
+                Swal.fire({
+                    icon: 'success',
+                    title: desactivando ? 'Tratamiento desactivado' : 'Tratamiento reactivado',
+                    text: desactivando
+                        ? 'El paciente fue movido a Inactivos y ya no aparecerá en el reporte de activos.'
+                        : 'El paciente volvió a la lista de Ortodoncia Activa.',
+                    timer: 1800,
+                    showConfirmButton: false
+                });
+            } catch (e) {
+                Swal.fire('Error', e.response?.data?.detail || 'No se pudo actualizar el estado', 'error');
+            }
+        };
+
+        const editarObservacion = async (p) => {
+            const { value: obs, isConfirmed } = await Swal.fire({
+                title: 'Observación de Ortodoncia',
+                html: `
+                    <div style="text-align:left; font-size:13px; color:#334155;">
+                        <div style="margin-bottom:8px;"><strong>Paciente:</strong> ${escapeHtml(p.nombre)}</div>
+                        <textarea id="swal-edit-obs" rows="3"
+                            style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-family:inherit; font-size:13px; box-sizing:border-box;"
+                            placeholder="Escribe la observación o causa...">${escapeHtml(p.ortodoncia_observacion || '')}</textarea>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Guardar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#4f46e5',
+                preConfirm: () => (document.getElementById('swal-edit-obs')?.value || '').trim()
+            });
+
+            if (!isConfirmed) return;
+
+            try {
+                await saveOrtodoncia(p, p.ortodoncia_activa, obs);
+                Swal.fire({ icon: 'success', title: 'Observación guardada', timer: 1200, showConfirmButton: false });
+            } catch (e) {
+                Swal.fire('Error', e.response?.data?.detail || 'No se pudo guardar la observación', 'error');
+            }
+        };
 
         const formatDate = (iso) => {
             if (!iso) return '—';
@@ -376,7 +604,12 @@ createApp({
 
         onMounted(loadData);
 
-        return { pacientes, loading, search, filterEstado, filterMesesMin, role, currentUser, sucursalNombre, branchColorStyle, branchTextColor, counts, filtered, formatDate, estadoLabel, loadData, logout };
+        return {
+            pacientes, loading, search, filterTratamiento, filterTipo, filterEstado, filterMesesMin,
+            role, currentUser, sucursalNombre, branchColorStyle, branchTextColor,
+            statusCounts, scopedByTratamiento, tratamientoLabel, counts, filtered,
+            toggleOrtodoncia, editarObservacion, formatDate, estadoLabel, loadData, logout
+        };
     }
 }).mount('#app');
 </script>

@@ -69,6 +69,10 @@ class Paciente(SQLModel, table=True):
     # Billetera Virtual
     saldo_favor: Decimal = Field(default=0, max_digits=10, decimal_places=2)
 
+    # Seguimiento de Ortodoncia
+    ortodoncia_activa: bool = Field(default=False)
+    ortodoncia_observacion: Optional[str] = Field(default=None)
+
     atenciones: List["Atencion"] = Relationship(back_populates="paciente", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     tratamientos_en_curso: List["TratamientoEnCurso"] = Relationship(back_populates="paciente", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     historial_abonos: List["HistorialAbono"] = Relationship(back_populates="paciente", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
